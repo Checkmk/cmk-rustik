@@ -1,0 +1,25 @@
+---
+name: Reusable CI workflow
+
+on:
+  workflow_call:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+          rustflags: ""
+          target: x86_64-unknown-linux-gnu
+      - run: cargo test --all-features
+        if: always()
+      - run: cargo fmt --check
+        if: always()
+      - run: cargo clippy --all-targets
+        if: always()
+      - run: cargo build --release --all-features
+        if: always()

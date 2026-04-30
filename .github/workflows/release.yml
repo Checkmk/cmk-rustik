@@ -1,0 +1,76 @@
+---
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  preflight:
+    name: Preflight checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check that tag matches version in Cargo.toml
+        run: |
+          version=$(cargo pkgid | cut -d'#' -f2)
+          if [ "$version" != "${{ github.ref_name }}" ]; then
+            echo "Tag version does not match Cargo.toml version"
+            echo "Tag: ${{ github.ref_name }}, Cargo.toml: $version"
+            exit 1
+          fi
+
+  ci:
+    name: Run CI
+    needs: preflight
+    uses: ./.github/workflows/ci-reusable.yml
+
+  release:
+    needs: ci
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+
+          - runs-on: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+          rustflags: ""
+          target: ${{ matrix.target }}
+
+      - name: Install cross
+        if: ${{ matrix.runs-on == 'ubuntu-latest' }}
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      # This step seems absolutely necessary for 'cross' to work.
+      - name: Clean build cache
+        run: cargo clean
+
+      - name: Build (Linux, cross compile)
+        if: ${{ matrix.runs-on == 'ubuntu-latest' }}
+        run: cross build --release --all-features --target=${{ matrix.target }}
+
+      - name: Create a tar.gz (Linux, macOS)
+        id: create-tar
+        run: |
+          mkdir release
+          cp LICENSE release/
+          cp target/${{ matrix.target }}/release/cmk-rustik release/
+          tar -czvf cmk-rustik-${{ github.ref_name }}-${{ matrix.target }}.tar.gz release/
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
+        with:
+          files: |
+            cmk-rustik*.tar.gz
