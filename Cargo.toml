@@ -8,7 +8,7 @@ license = "GPLv2"
 edition = "2024"
 readme = "README.md"
 homepage = "https://www.checkmk.com/"
-repository = "https://github.com/checkmk/cmk-oxidized-kube-agent"
+repository = "https://github.com/checkmk/cmk-rustik"
 
 [workspace.dependencies]
 cmk-kube-types = { path = "lib", version = "2.0.0" }

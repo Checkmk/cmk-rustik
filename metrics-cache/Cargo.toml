@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "cmk-kube-metrics-cache-server"
+name = "cmk-rustik-cache-server"
 path = "src/main.rs"
 
 [dependencies]
