@@ -1,7 +1,7 @@
 use anyhow::Result;
 use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewSpec};
-use kube::{Api, Client};
 use kube::api::PostParams;
+use kube::{Api, Client};
 use std::time::Duration;
 
 /// Generate a Kubernetes client config with overrides from CLI arguments for
