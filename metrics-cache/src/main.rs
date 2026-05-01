@@ -9,8 +9,9 @@ use clap::Parser;
 async fn main() {
     let app = Router::new().route("/", get(|| async { "foo" }));
 
-    let _ = cli_args::Args::parse();
-
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let args = cli_args::Args::parse();
+    let listener = tokio::net::TcpListener::bind((args.address, args.port))
+        .await
+        .unwrap();
     axum::serve(listener, app).await.unwrap();
 }
