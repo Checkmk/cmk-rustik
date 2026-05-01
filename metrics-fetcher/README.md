@@ -1,7 +1,8 @@
 # Checkmk Kubernetes `metrics-fetcher`
 
 The `metrics-fetcher` is what collects metrics stores that data in the
-`metrics-cache`.
+`metrics-cache`. In the Python version, this was referred to as the
+"node collector".
 
 It can run in two modes:
 

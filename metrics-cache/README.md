@@ -1,6 +1,7 @@
 # Checkmk Kubernetes `metrics-cache`
 
-The `metrics-cache` is where the `metrics-fetcher` sends its data.
+The `metrics-cache` is where the `metrics-fetcher` sends its data. In the Python
+code, this was referred to as the "cluster collector".
 
 The data can be accessed by Checkmk pulling it (pull mode) from the
 `metrics-cache` or by the `metrics-cache` pushing the data into Checkmk (push
