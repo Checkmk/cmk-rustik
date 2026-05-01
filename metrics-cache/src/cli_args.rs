@@ -25,9 +25,10 @@ pub struct Args {
     #[arg(
         long = "reader-allowlist",
         alias = "reader-whitelist",
+        value_delimiter = ',',
         default_value = "checkmk-monitoring:checkmk"
     )]
-    pub reader_allowlist: String,
+    pub reader_allowlist: Vec<String>,
 
     /// Service accounts that have access to query data from the metrics cache
     /// API POST endpoints. Comma-separated, in the form
@@ -35,9 +36,10 @@ pub struct Args {
     #[arg(
         long = "writer-allowlist",
         alias = "writer-whitelist",
+        value_delimiter = ',',
         default_value = "checkmk-monitoring:node-collector" // Backwards compat
     )]
-    pub writer_allowlist: String,
+    pub writer_allowlist: Vec<String>,
 
     /// Maximum number of metric entries the metrics cache can hold before
     /// entries start being discarded
