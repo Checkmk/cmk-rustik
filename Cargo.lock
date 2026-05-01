@@ -716,6 +716,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "tokio",
+ "tower",
 ]
 
 [[package]]

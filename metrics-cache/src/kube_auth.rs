@@ -2,7 +2,28 @@ use anyhow::Result;
 use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewSpec};
 use kube::api::PostParams;
 use kube::{Api, Client};
+use std::future::Future;
 use std::time::Duration;
+
+/// Trait for validating authentication tokens.
+pub trait TokenValidator: Clone + Send + Sync + 'static {
+    fn validate(&self, token: &str) -> impl Future<Output = Result<TokenReview>> + Send;
+}
+
+impl TokenValidator for Client {
+    async fn validate(&self, token: &str) -> Result<TokenReview> {
+        let api: Api<TokenReview> = Api::all(self.clone());
+        let tr = TokenReview {
+            spec: TokenReviewSpec {
+                token: Some(token.to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let response = api.create(&PostParams::default(), &tr).await?;
+        Ok(response)
+    }
+}
 
 /// Generate a Kubernetes client config with overrides from CLI arguments for
 /// connection and read timeouts. Will attempt to read from `$KUBECONFIG` or
@@ -16,21 +37,4 @@ pub async fn kube_client(connect_timeout: Duration, read_timeout: Duration) -> R
     config.read_timeout = Some(read_timeout);
 
     Ok(kube::Client::try_from(config)?)
-}
-
-/// Request Kubernetes to review/validate the given token.
-///
-/// Importantly: This does NOT validate against any local whitelist, callers are
-/// expected to do that independently.
-pub async fn validate_token_against_kube(client: Client, token: &str) -> Result<TokenReview> {
-    let api: Api<TokenReview> = Api::all(client);
-    let tr = TokenReview {
-        spec: TokenReviewSpec {
-            token: Some(token.to_string()),
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let response = api.create(&PostParams::default(), &tr).await?;
-    Ok(response)
 }

@@ -12,28 +12,22 @@ use axum::{
 };
 use clap::Parser;
 
-use crate::kube_auth::validate_token_against_kube;
-
-// use cmk_kube_types;
+use crate::kube_auth::TokenValidator;
 
 #[derive(Clone)]
-struct AppState {
-    /// A configured Kubernetes client, ready to validate authentication tokens.
-    kube_client: kube::Client,
+struct AppState<V: TokenValidator> {
+    validator: V,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = cli_args::Args::parse();
-    let kube_client = kube_auth::kube_client(args.connect_timeout, args.read_timeout).await?;
-    let state = AppState { kube_client };
+    let validator = kube_auth::kube_client(args.connect_timeout, args.read_timeout).await?;
+    let state = AppState { validator };
     let app = Router::new()
         .route("/", get(|| async { "foo" }))
         // vvv Routes below this will REQUIRE AUTHENTICATION vvv
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            authenticate_against_kube,
-        ))
+        .route_layer(middleware::from_fn_with_state(state.clone(), authenticate))
         // ^^^ Routes below this will be PUBLIC ^^^
         .route("/health", get(|| async { "Stayin' alive" }))
         .with_state(state);
@@ -49,8 +43,8 @@ async fn main() -> Result<()> {
 /// Every endpoint affected by this middleware will trigger an authentication
 /// request to Kubernetes and must be successful. Otherwise, the request is
 /// aborted.
-async fn authenticate_against_kube(
-    state: State<AppState>,
+async fn authenticate<V: TokenValidator>(
+    state: State<AppState<V>>,
     request: Request,
     next: Next,
 ) -> std::result::Result<Response, StatusCode> {
@@ -61,9 +55,7 @@ async fn authenticate_against_kube(
         .and_then(|s| s.strip_prefix("Bearer "))
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    let Ok(validation_response) =
-        validate_token_against_kube(state.kube_client.clone(), token).await
-    else {
+    let Ok(validation_response) = state.validator.validate(token).await else {
         // TODO: Log something (otherwise change this to .unwrap_or(...)?;)
         return Err(StatusCode::NOT_IMPLEMENTED); // Compat with Python cluster-collector
     };
@@ -71,7 +63,7 @@ async fn authenticate_against_kube(
     let Some(status) = validation_response.status else {
         // Should never happen...?
         // TODO: Log something here, too
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        return Err(StatusCode::NOT_IMPLEMENTED);
     };
 
     if !status.authenticated.unwrap_or(false) {
@@ -80,4 +72,134 @@ async fn authenticate_against_kube(
     }
 
     Ok(next.run(request).await)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{body::Body, http::Request};
+    use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewStatus};
+    use tower::ServiceExt;
+
+    #[derive(Clone)]
+    struct MockValidator {
+        response: std::result::Result<TokenReview, ()>,
+    }
+
+    impl TokenValidator for MockValidator {
+        async fn validate(&self, _token: &str) -> Result<TokenReview> {
+            self.response
+                .clone()
+                .map_err(|_| anyhow::anyhow!("mock error"))
+        }
+    }
+
+    fn app_with_mock(validator: MockValidator) -> Router {
+        let state = AppState { validator };
+        Router::new()
+            .route("/", get(|| async { "ok" }))
+            .route_layer(middleware::from_fn_with_state(state.clone(), authenticate))
+            .with_state(state)
+    }
+
+    // Request without Authorization header should be rejected.
+    #[tokio::test]
+    async fn missing_auth_header_returns_unauthorized() {
+        let app = app_with_mock(MockValidator {
+            response: Ok(TokenReview::default()),
+        });
+        let resp = app
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    // Kubernetes API errors should return 501 (compat with Python cluster-collector).
+    #[tokio::test]
+    async fn validator_error_returns_not_implemented() {
+        let app = app_with_mock(MockValidator { response: Err(()) });
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .header("Authorization", "Bearer test-token")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_IMPLEMENTED);
+    }
+
+    // TokenReview response without status field should return 501.
+    #[tokio::test]
+    async fn missing_status_returns_not_implemented() {
+        let app = app_with_mock(MockValidator {
+            response: Ok(TokenReview::default()),
+        });
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .header("Authorization", "Bearer test-token")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_IMPLEMENTED);
+    }
+
+    // Token that Kubernetes says is not authenticated should be rejected.
+    #[tokio::test]
+    async fn unauthenticated_returns_unauthorized() {
+        for case in [Some(false), None] {
+            let app = app_with_mock(MockValidator {
+                response: Ok(TokenReview {
+                    status: Some(TokenReviewStatus {
+                        authenticated: case,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+            });
+            let resp = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/")
+                        .header("Authorization", "Bearer test-token")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+    }
+
+    // Valid authenticated token should pass through to the handler.
+    #[tokio::test]
+    async fn authenticated_passes_through() {
+        let app = app_with_mock(MockValidator {
+            response: Ok(TokenReview {
+                status: Some(TokenReviewStatus {
+                    authenticated: Some(true),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+        });
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .header("Authorization", "Bearer test-token")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
 }
