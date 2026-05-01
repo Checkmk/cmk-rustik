@@ -12,4 +12,6 @@ name = "cmk-rustik-cache-server"
 path = "src/main.rs"
 
 [dependencies]
+axum = { version = "0.8" }
 cmk-kube-types = { workspace = true }
+tokio = { workspace = true }
