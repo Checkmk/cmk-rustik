@@ -1,4 +1,5 @@
 use clap::Parser;
+use std::time::Duration;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -71,11 +72,27 @@ pub struct Args {
 
     /// Time in seconds to wait for a TCP connection to the Kubernetes API
     /// during authentication
-    #[arg(short = 'C', long = "connect-timeout", default_value_t = 10)]
-    pub connect_timeout: u8,
+    #[arg(
+        short = 'C',
+        long = "connect-timeout",
+        value_parser = parse_duration,
+        default_value = "10",
+    )]
+    pub connect_timeout: Duration,
 
     /// Time in seconds to wait for a response from the Kubernetes API during
     /// authentication
-    #[arg(short = 'R', long = "read-timeout", default_value_t = 12)]
-    pub read_timeout: u8,
+    #[arg(
+        short = 'R',
+        long = "read-timeout",
+        value_parser = parse_duration,
+        default_value = "12",
+    )]
+    pub read_timeout: Duration,
+}
+
+/// Convert a numeric argument given by the user as seconds into a Duration.
+fn parse_duration(arg: &str) -> Result<Duration, std::num::ParseIntError> {
+    let seconds = arg.parse()?;
+    Ok(Duration::from_secs(seconds))
 }
