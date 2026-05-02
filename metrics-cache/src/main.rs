@@ -28,9 +28,9 @@ async fn main() -> Result<()> {
     };
     let app = Router::new()
         .route("/", get(|| async { "foo" }))
-        // vvv Routes below this will REQUIRE AUTHENTICATION vvv
+        // vvv Routes above this will REQUIRE AUTHENTICATION vvv
         .route_layer(middleware::from_fn_with_state(state.clone(), authenticate))
-        // ^^^ Routes above this will be PUBLIC ^^^
+        // ^^^ Routes below this will be PUBLIC ^^^
         .route("/health", get(handlers::health))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind((args.address.as_str(), args.port))
