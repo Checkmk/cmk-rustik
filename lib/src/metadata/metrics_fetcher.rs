@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::metadata::Platform;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum Fetcher {
+pub enum FetcherKind {
     #[serde(rename = "Container Metrics")]
     Container,
     #[serde(rename = "Machine Sections")]
@@ -15,24 +17,16 @@ pub struct SourceVersion {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Platform {
-    pub os_name: String,
-    pub os_version: String,
-    pub python_version: String, // Not used in Checkmk, but still a required field
-    pub python_compiler: String, // Not used in Checkmk, but still a required field
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CheckmkKubeAgent {
     pub project_version: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct MetricsFetcher {
+pub struct Fetcher {
     pub node: String,
     pub host_name: String,
     pub container_platform: Platform,
     pub checkmk_kube_agent: CheckmkKubeAgent,
-    pub collector_type: Fetcher,
+    pub collector_type: FetcherKind,
     pub components: SourceVersion,
 }

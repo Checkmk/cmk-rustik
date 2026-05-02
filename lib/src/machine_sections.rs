@@ -10,5 +10,5 @@ pub struct FetchResult {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MachineSections {
     pub sections: FetchResult,
-    pub metadata: metadata::MetricsFetcher,
+    pub metadata: metadata::metrics_fetcher::Fetcher,
 }
