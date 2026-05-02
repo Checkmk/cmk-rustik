@@ -47,8 +47,13 @@ pub struct Args {
     pub cache_maxsize: u32,
 
     /// How long (seconds) entries are persisted in the cache
-    #[arg(short = 't', long = "cache-ttl", default_value_t = 120)]
-    pub cache_ttl: u32,
+    #[arg(
+        short = 't',
+        long = "cache-ttl",
+        value_parser = parse_duration,
+        default_value = "120"
+    )]
+    pub cache_ttl: Duration,
 
     /// How verbose to log
     #[arg(

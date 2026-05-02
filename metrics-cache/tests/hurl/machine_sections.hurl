@@ -18,3 +18,4 @@ Authorization: Bearer {{write_token}}
 Content-Type: application/json
 file,fixtures/machine_sections_from_python.json;
 HTTP 200
+"ok"

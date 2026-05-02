@@ -9,15 +9,18 @@ use axum::{
     routing::{get, post},
 };
 use clap::Parser;
+use moka::future::Cache;
 
 use crate::auth::authenticate;
 use crate::kube_auth::TokenValidator;
+use cmk_kube_types::machine_sections;
 
 #[derive(Clone)]
 pub struct AppState<V: TokenValidator> {
     pub validator: V,
     pub reader_allowlist: Vec<String>,
     pub writer_allowlist: Vec<String>,
+    pub machine_sections_cache: Cache<String, machine_sections::FetchResult>,
 }
 
 #[tokio::main]
@@ -28,6 +31,7 @@ async fn main() -> Result<()> {
         validator,
         reader_allowlist: args.reader_allowlist,
         writer_allowlist: args.writer_allowlist,
+        machine_sections_cache: Cache::builder().time_to_live(args.cache_ttl).build(),
     };
     let app = Router::new()
         .route("/", get(|| async { "foo" }))

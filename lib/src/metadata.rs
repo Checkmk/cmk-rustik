@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Fetcher {
     #[serde(rename = "Container Metrics")]
     Container,
@@ -8,13 +8,13 @@ pub enum Fetcher {
     Machine,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct SourceVersion {
     pub cadvisor_version: Option<String>,
     pub checkmk_agent_version: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Platform {
     pub os_name: String,
     pub os_version: String,
@@ -22,12 +22,12 @@ pub struct Platform {
     pub python_compiler: String, // Not used in Checkmk, but still a required field
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CheckmkKubeAgent {
     pub project_version: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MetricsFetcher {
     pub node: String,
     pub host_name: String,

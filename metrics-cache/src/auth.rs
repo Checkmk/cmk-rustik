@@ -89,6 +89,7 @@ mod tests {
         routing::get,
     };
     use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewStatus, UserInfo};
+    use moka::future::Cache;
     use tower::ServiceExt;
 
     #[derive(Clone)]
@@ -109,6 +110,9 @@ mod tests {
             validator,
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
+            machine_sections_cache: Cache::builder()
+                .time_to_live(std::time::Duration::from_secs(120))
+                .build(),
         }
     }
 
