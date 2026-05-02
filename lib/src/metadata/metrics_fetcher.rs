@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::metadata::{CheckmkKubeAgent, Platform};
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum FetcherKind {
     #[serde(rename = "Container Metrics")]
@@ -10,18 +8,19 @@ pub enum FetcherKind {
     Machine,
 }
 
+/// Which metrics-fetcher did the data come from?
+///
+/// Ideally an enum, but for now maintaining compatibility with Python takes
+/// takes precedence.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct SourceVersion {
     pub cadvisor_version: Option<String>,
     pub checkmk_agent_version: Option<String>,
 }
 
+/// Meant to be used with [`StaticMetadata`].
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Fetcher {
-    pub node: String,
-    pub host_name: String,
-    pub container_platform: Platform,
-    pub checkmk_kube_agent: CheckmkKubeAgent,
+pub struct Metadata {
     pub collector_type: FetcherKind,
     pub components: SourceVersion,
 }
