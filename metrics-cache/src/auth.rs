@@ -81,7 +81,13 @@ pub async fn authenticate<V: TokenValidator>(
 mod tests {
     use super::*;
     use anyhow::Result;
-    use axum::{Router, body::Body, http::Request, middleware, routing::get};
+    use axum::{
+        Router,
+        body::Body,
+        http::{Method, Request},
+        middleware,
+        routing::get,
+    };
     use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewStatus, UserInfo};
     use tower::ServiceExt;
 
@@ -98,12 +104,16 @@ mod tests {
         }
     }
 
-    fn app_with_mock(validator: MockValidator) -> Router {
-        let state = AppState {
+    fn generate_app_state(validator: MockValidator) -> AppState<MockValidator> {
+        AppState {
             validator,
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
-        };
+        }
+    }
+
+    fn app_with_mock(validator: MockValidator) -> Router {
+        let state = generate_app_state(validator);
         Router::new()
             .route("/", get(|| async { "ok" }))
             .route_layer(middleware::from_fn_with_state(state.clone(), authenticate))
@@ -121,6 +131,76 @@ mod tests {
                 ..Default::default()
             }),
             ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_extract_bearer_token() {
+        for (value, expected) in [("foobar", None), ("Bearer bear", Some("bear")), ("", None)] {
+            let request = Request::builder()
+                .uri("/")
+                .header("Authorization", value)
+                .body(Body::empty())
+                .unwrap();
+            assert_eq!(extract_bearer_token(&request), expected);
+        }
+
+        // And one without the header at all, for good measure
+        let request = Request::builder().uri("/").body(Body::empty()).unwrap();
+        assert_eq!(extract_bearer_token(&request), None);
+    }
+
+    #[tokio::test]
+    async fn test_extract_service_account() {
+        for (username, expected) in [
+            (
+                Some("system:serviceaccount:checkmk-monitoring:node-collector"),
+                Some("checkmk-monitoring:node-collector"),
+            ),
+            (
+                Some("not-system:not-serviceaccount:checkmk-monitoring:node-collector"),
+                None,
+            ),
+            (
+                Some("not-system:not-serviceaccount:checkmk-monitoring:node-collector"),
+                None,
+            ),
+            (None, None),
+        ] {
+            let token_review_status = TokenReviewStatus {
+                authenticated: Some(true),
+                user: Some(UserInfo {
+                    username: username.map(|s| s.to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+            assert_eq!(extract_service_account(&token_review_status), expected);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_is_allowed() {
+        for (account, method, expected) in [
+            ("test-ns:test-reader", Method::GET, true),
+            ("test-ns:test-reader", Method::HEAD, true),
+            ("test-ns:test-reader", Method::POST, false),
+            ("test-ns:test-reader", Method::PUT, false),
+            ("test-ns:test-reader", Method::PATCH, false),
+            ("test-ns:test-reader", Method::DELETE, false),
+            // Write access implies read access
+            ("test-ns:test-writer", Method::GET, true),
+            ("test-ns:test-writer", Method::HEAD, true),
+            ("test-ns:test-writer", Method::POST, true),
+            ("test-ns:test-writer", Method::PUT, true),
+            ("test-ns:test-writer", Method::PATCH, true),
+            ("test-ns:test-writer", Method::DELETE, true),
+            ("unknown:baduser", Method::GET, false),
+            ("unknown:baduser", Method::HEAD, false),
+            ("unknown:baduser", Method::POST, false),
+        ] {
+            let state = generate_app_state(MockValidator { response: Err(()) });
+            assert_eq!(is_allowed(account, &method, &state), expected);
         }
     }
 
