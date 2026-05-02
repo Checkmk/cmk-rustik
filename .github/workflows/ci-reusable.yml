@@ -69,13 +69,27 @@ jobs:
             tag: 1.10.0
           VALUES
           helm repo add checkmk-chart https://checkmk.github.io/checkmk_kube_agent
-          helm upgrade --install --create-namespace -n checkmk-monitoring myrelease checkmk-chart/checkmk -f values.yaml
+          helm upgrade \
+            --install \
+            --create-namespace \
+            -n checkmk-monitoring \
+            myrelease checkmk-chart/checkmk \
+            -f values.yaml
       - name: Install hurl
         uses: gacts/install-hurl@4e426ea8f8626b6f9e87f473751d8a0572370ba3
       - name: Run hurl tests
         run: |
-          TKN=$(kubectl get secret myrelease-checkmk-checkmk -n checkmk-monitoring -o=jsonpath='{.data.token}' | base64 --decode)
           sleep 15  # TODO: do a loop or something instead
+          kubectl get all -A
+          READ_TKN=$(kubectl get secret myrelease-checkmk-checkmk \
+            -n checkmk-monitoring \
+            -o=jsonpath='{.data.token}' \
+            | base64 --decode)
+          WRITE_TKN=$(kubectl \
+            -n checkmk-monitoring \
+            exec -it \
+            daemonsets/myrelease-checkmk-node-collector-machine-sections \
+            -- cat /var/run/secrets/kubernetes.io/serviceaccount/token)
           ./target/release/cmk-rustik-cache-server \
             --log-level=warning \
             --address=0.0.0.0 \
@@ -83,4 +97,8 @@ jobs:
             --reader-whitelist=checkmk-monitoring:myrelease-checkmk-checkmk \
             --writer-whitelist=checkmk-monitoring:myrelease-checkmk-node-collector-container-metrics,checkmk-monitoring:myrelease-checkmk-node-collector-machine-sections &
           sleep 2
-          hurl --test metrics-cache/tests/hurl/ --variables-file metrics-cache/tests/hurl/vars --variable token=$TKN
+          hurl \
+            --test metrics-cache/tests/hurl/ \
+            --variables-file metrics-cache/tests/hurl/vars \
+            --variable read_token=$READ_TKN \
+            --variable write_token=$WRITE_TKN

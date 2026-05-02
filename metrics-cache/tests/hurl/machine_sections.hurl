@@ -8,7 +8,13 @@ HTTP 401
 #header "Content-Type" == "application/json"
 
 POST {{baseurl}}/update_machine_sections
-Authorization: Bearer {{token}}
+Authorization: Bearer {{read_token}}
+Content-Type: application/json
+file,fixtures/machine_sections_from_python.json;
+HTTP 401
+
+POST {{baseurl}}/update_machine_sections
+Authorization: Bearer {{write_token}}
 Content-Type: application/json
 file,fixtures/machine_sections_from_python.json;
 HTTP 200

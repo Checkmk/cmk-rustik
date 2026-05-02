@@ -9,5 +9,9 @@ HTTP 401
 
 # The root endpoint should allow properly authorized requests.
 GET {{baseurl}}/
-Authorization: Bearer {{token}}
+Authorization: Bearer {{read_token}}
+HTTP 200
+
+GET {{baseurl}}/
+Authorization: Bearer {{write_token}}
 HTTP 200
