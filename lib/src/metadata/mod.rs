@@ -9,3 +9,8 @@ pub struct Platform {
     pub python_version: String, // Not used in Checkmk, but still a required field
     pub python_compiler: String, // Not used in Checkmk, but still a required field
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CheckmkKubeAgent {
+    pub project_version: String,
+}

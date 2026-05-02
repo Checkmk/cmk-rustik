@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::metadata::Platform;
+use crate::metadata::{CheckmkKubeAgent, Platform};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum FetcherKind {
@@ -14,11 +14,6 @@ pub enum FetcherKind {
 pub struct SourceVersion {
     pub cadvisor_version: Option<String>,
     pub checkmk_agent_version: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct CheckmkKubeAgent {
-    pub project_version: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
