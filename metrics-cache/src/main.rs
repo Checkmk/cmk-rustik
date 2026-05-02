@@ -35,6 +35,7 @@ async fn main() -> Result<()> {
     };
     let app = Router::new()
         .route("/", get(|| async { "foo" }))
+        .route("/machine_sections", get(handlers::machine_sections::get))
         .route(
             "/update_machine_sections",
             post(handlers::machine_sections::update),
