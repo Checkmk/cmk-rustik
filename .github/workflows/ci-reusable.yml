@@ -83,4 +83,4 @@ jobs:
             --reader-whitelist=checkmk-monitoring:myrelease-checkmk-checkmk \
             --writer-whitelist=checkmk-monitoring:myrelease-checkmk-node-collector-container-metrics,checkmk-monitoring:myrelease-checkmk-node-collector-machine-sections &
           sleep 2
-          hurl --test metrics-cache/tests/hurl/root.hurl --variables-file metrics-cache/tests/hurl/vars --variable token=$TKN
+          hurl --test metrics-cache/tests/hurl/ --variables-file metrics-cache/tests/hurl/vars --variable token=$TKN
