@@ -715,6 +715,7 @@ dependencies = [
  "cmk-kube-types",
  "k8s-openapi",
  "kube",
+ "serde",
  "tokio",
  "tower",
 ]
