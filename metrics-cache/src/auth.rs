@@ -30,11 +30,15 @@ fn extract_service_account(status: &TokenReviewStatus) -> Option<&str> {
 }
 
 /// Check if the service account is allowed for the given HTTP method.
+/// Write access also implies read access.
 fn is_allowed<V: TokenValidator>(account: &str, method: &Method, state: &AppState<V>) -> bool {
     match *method {
-        Method::GET | Method::HEAD => state.reader_allowlist.iter().any(|a| a == account),
+        Method::GET | Method::HEAD => {
+            state.reader_allowlist.contains(&account.to_string())
+                || state.writer_allowlist.contains(&account.to_string())
+        }
         Method::POST | Method::PUT | Method::DELETE | Method::PATCH => {
-            state.writer_allowlist.iter().any(|a| a == account)
+            state.writer_allowlist.contains(&account.to_string())
         }
         _ => false,
     }
