@@ -78,6 +78,9 @@ jobs:
       - name: Install hurl
         uses: gacts/install-hurl@4e426ea8f8626b6f9e87f473751d8a0572370ba3
       - name: Run hurl tests
+        env:
+          NODE_NAME: gha-runner-node
+          HOSTNAME: gha-runner-node
         run: |
           sleep 15  # TODO: do a loop or something instead
           kubectl get all -A
