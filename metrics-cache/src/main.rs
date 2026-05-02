@@ -1,11 +1,11 @@
 mod auth;
 mod cli_args;
+mod handlers;
 mod kube_auth;
 
 use anyhow::Result;
-use axum::{Json, Router, middleware, routing::get};
+use axum::{Router, middleware, routing::get};
 use clap::Parser;
-use serde::Serialize;
 
 use crate::auth::authenticate;
 use crate::kube_auth::TokenValidator;
@@ -15,17 +15,6 @@ pub struct AppState<V: TokenValidator> {
     pub validator: V,
     pub reader_allowlist: Vec<String>,
     pub writer_allowlist: Vec<String>,
-}
-
-#[derive(Serialize)]
-struct HealthResponse {
-    status: String,
-}
-
-async fn health() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "available".to_string(),
-    })
 }
 
 #[tokio::main]
@@ -42,7 +31,7 @@ async fn main() -> Result<()> {
         // vvv Routes below this will REQUIRE AUTHENTICATION vvv
         .route_layer(middleware::from_fn_with_state(state.clone(), authenticate))
         // ^^^ Routes above this will be PUBLIC ^^^
-        .route("/health", get(health))
+        .route("/health", get(handlers::health))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind((args.address.as_str(), args.port))
         .await
