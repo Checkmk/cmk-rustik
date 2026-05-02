@@ -4,7 +4,10 @@ mod handlers;
 mod kube_auth;
 
 use anyhow::Result;
-use axum::{Router, middleware, routing::get};
+use axum::{
+    Router, middleware,
+    routing::{get, post},
+};
 use clap::Parser;
 
 use crate::auth::authenticate;
@@ -28,6 +31,10 @@ async fn main() -> Result<()> {
     };
     let app = Router::new()
         .route("/", get(|| async { "foo" }))
+        .route(
+            "/update_machine_sections",
+            post(handlers::machine_sections::update),
+        )
         // vvv Routes above this will REQUIRE AUTHENTICATION vvv
         .route_layer(middleware::from_fn_with_state(state.clone(), authenticate))
         // ^^^ Routes below this will be PUBLIC ^^^
