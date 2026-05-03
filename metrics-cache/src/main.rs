@@ -8,8 +8,10 @@ use axum::{
     Router, middleware,
     routing::{get, post},
 };
+use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use moka::future::Cache;
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use crate::state::AppState;
@@ -62,9 +64,23 @@ async fn main() -> Result<()> {
         // ^^^ Routes below this will be PUBLIC ^^^
         .route("/health", get(handlers::health))
         .with_state(state);
-    let listener = tokio::net::TcpListener::bind((args.address.as_str(), args.port))
-        .await
-        .unwrap();
-    axum::serve(listener, app).await?;
+
+    let addr = SocketAddr::new(args.address.parse()?, args.port);
+    if args.secure_protocol {
+        let (Some(keyfile), Some(certfile)) = (args.ssl_keyfile, args.ssl_certfile) else {
+            anyhow::bail!(
+                "Both --keyfile and --certfile must be provided when --secure-protocol is enabled"
+            );
+        };
+        let config = RustlsConfig::from_pem_file(keyfile, certfile).await?;
+        axum_server::bind_rustls(addr, config)
+            .serve(app.into_make_service())
+            .await?;
+    } else {
+        axum_server::bind(addr)
+            .serve(app.into_make_service())
+            .await?;
+    }
+
     Ok(())
 }

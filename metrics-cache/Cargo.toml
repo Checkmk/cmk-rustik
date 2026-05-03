@@ -14,12 +14,14 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { workspace = true }
 axum = { version = "0.8" }
+axum-server = { version = "0.8.0", features = ["tls-rustls-no-provider"] }
 clap = { workspace = true }
 cmk-kube-types = { workspace = true }
 k8s-openapi = { version = "0.27.1", features = ["earliest"] }
-kube = "3.1.0"
+kube = { version = "3.1", features = ["ring"] }
 moka = { version = "0.12.15", features = ["future"] }
 os-release = { workspace = true }
+rustls = { version = "0.23.40", default-features = false, features = ["ring"] }
 serde = {workspace = true }
 tokio = { workspace = true }
 
