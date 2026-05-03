@@ -2,6 +2,7 @@ mod auth;
 mod cli_args;
 mod handlers;
 mod kube_auth;
+mod state;
 
 use anyhow::Result;
 use axum::{
@@ -13,22 +14,11 @@ use moka::future::Cache;
 use std::sync::Arc;
 
 use crate::auth::authenticate;
-use crate::kube_auth::TokenValidator;
-use cmk_kube_types::{machine_sections, metadata};
+use crate::state::AppState;
 
 // Kubernetes can have a maximum of 5000 nodes, and we currently run two
 // metrics-fetchers per node (container_metrics and machine_sections).
 const METRICS_FETCHER_METADATA_CACHE_MAX_SIZE: u64 = 10000;
-
-#[derive(Clone)]
-pub struct AppState<V: TokenValidator> {
-    pub validator: V,
-    pub reader_allowlist: Vec<String>,
-    pub writer_allowlist: Vec<String>,
-    pub metrics_cache_static_metadata: Arc<metadata::StaticMetadata>,
-    pub machine_sections_cache: Cache<String, machine_sections::FetchResult>,
-    pub metrics_fetcher_metadata_cache: Cache<String, metadata::metrics_fetcher::Metadata>,
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
