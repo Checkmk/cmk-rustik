@@ -1,6 +1,6 @@
 [package]
 name = "metrics-cache"
-version.workspace = true
+version = "1.1000.0"  # must be < 2.0.0 for Checkmk to be happy.
 license.workspace = true
 edition.workspace = true
 readme.workspace = true
