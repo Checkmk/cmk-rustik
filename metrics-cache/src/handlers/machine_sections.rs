@@ -41,7 +41,7 @@ pub async fn update(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::test_app_state;
+    use crate::state::tests::test_app_state;
     use axum::Json;
     use cmk_kube_types::machine_sections::MachineSections;
     use cmk_kube_types::metadata::metrics_fetcher::FetcherKind;

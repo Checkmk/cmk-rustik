@@ -90,7 +90,7 @@ mod tests {
     use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewStatus, UserInfo};
     use tower::ServiceExt;
 
-    use crate::test_utils::{MockValidator, test_app_state, test_app_state_with_validator};
+    use crate::state::tests::{MockValidator, test_app_state, test_app_state_with_validator};
 
     fn app_with_mock(validator: MockValidator) -> Router {
         let state = test_app_state_with_validator(validator);
