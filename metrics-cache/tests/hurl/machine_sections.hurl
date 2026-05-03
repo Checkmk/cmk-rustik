@@ -73,3 +73,11 @@ HTTP 200
 jsonpath "$" count == 2
 jsonpath "$[*].node_name" contains "kind-worker"
 jsonpath "$[*].node_name" contains "unkind-worker"
+
+# And we get metadata for it, too!
+GET {{baseurl}}/metadata
+Authorization: Bearer {{read_token}}
+Content-Type: application/json
+HTTP 200
+[Asserts]
+jsonpath "$.node_collector_metadata[?(@.collector_type == 'Machine Sections')]" count == 2

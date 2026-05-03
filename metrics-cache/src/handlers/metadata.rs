@@ -75,8 +75,12 @@ pub struct MetadataResponse {
 impl MetadataResponse {
     async fn from_state(state: AppState<impl TokenValidator>) -> Self {
         MetadataResponse {
-            cluster_collector_metadata: MetricsCacheMetadata::from_state(state).await,
-            node_collector_metadata: vec![], // TODO
+            cluster_collector_metadata: MetricsCacheMetadata::from_state(state.clone()).await,
+            node_collector_metadata: state
+                .metrics_fetcher_metadata_cache
+                .iter()
+                .map(|(_, v)| v)
+                .collect(),
         }
     }
 }

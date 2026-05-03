@@ -129,6 +129,10 @@ mod tests {
             machine_sections_cache: Cache::builder()
                 .time_to_live(std::time::Duration::from_secs(120))
                 .build(),
+            metrics_fetcher_metadata_cache: Cache::builder()
+                .time_to_live(std::time::Duration::from_secs(120))
+                .max_capacity(10000)
+                .build(),
         }
     }
 

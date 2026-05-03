@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::metadata::StaticMetadata;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum FetcherKind {
     #[serde(rename = "Container Metrics")]
@@ -18,9 +20,10 @@ pub struct SourceVersion {
     pub checkmk_agent_version: Option<String>,
 }
 
-/// Meant to be used with [`StaticMetadata`].
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Metadata {
+    #[serde(flatten)]
+    pub static_metadata: StaticMetadata,
     pub collector_type: FetcherKind,
     pub components: SourceVersion,
 }
