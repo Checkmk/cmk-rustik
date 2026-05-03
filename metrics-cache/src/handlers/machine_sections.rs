@@ -30,7 +30,7 @@ pub async fn update(
     // And its metadata
     let metadata_key = format!(
         "machine_sections:{}",
-        machine_sections.metadata.static_metadata.node
+        machine_sections.metadata.static_metadata.node_name
     );
     state
         .metrics_fetcher_metadata_cache
@@ -55,7 +55,7 @@ mod tests {
             },
             metadata: cmk_kube_types::metadata::metrics_fetcher::Metadata {
                 static_metadata: cmk_kube_types::metadata::StaticMetadata {
-                    node: node.to_string(),
+                    node_name: node.to_string(),
                     host_name: "host".to_string(),
                     container_platform: cmk_kube_types::metadata::Platform {
                         os_name: "linux".to_string(),
@@ -92,7 +92,7 @@ mod tests {
         // check metadata cache
         let metadata_key = format!(
             "machine_sections:{}",
-            machine_sections.metadata.static_metadata.node
+            machine_sections.metadata.static_metadata.node_name
         );
         let meta = state
             .metrics_fetcher_metadata_cache
@@ -100,8 +100,8 @@ mod tests {
             .await
             .expect("missing meta");
         assert_eq!(
-            meta.static_metadata.node,
-            machine_sections.metadata.static_metadata.node
+            meta.static_metadata.node_name,
+            machine_sections.metadata.static_metadata.node_name
         );
     }
 

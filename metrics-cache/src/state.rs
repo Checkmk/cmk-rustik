@@ -45,7 +45,7 @@ pub mod tests {
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
             metrics_cache_static_metadata: Arc::new(metadata::StaticMetadata {
-                node: "test-node".to_string(),
+                node_name: "test-node".to_string(),
                 host_name: "test-host".to_string(),
                 container_platform: metadata::Platform {
                     os_name: "linux".to_string(),

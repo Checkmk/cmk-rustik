@@ -92,11 +92,11 @@ fn get_env_var(var_name: &str) -> Result<String> {
 /// Generate metadata for this instance of metrics-cache. Intended to be called
 /// once at startup and stored in Axum State.
 pub fn generate_static_metadata() -> Result<StaticMetadata> {
-    let node = get_env_var("NODE_NAME")?;
+    let node_name = get_env_var("NODE_NAME")?;
     let host_name = get_env_var("HOSTNAME")?;
     let os_release = OsRelease::new()?;
     Ok(StaticMetadata {
-        node,
+        node_name,
         host_name,
         container_platform: Platform {
             os_name: os_release.id,

@@ -27,7 +27,7 @@ pub async fn update(
     // And its metadata
     let metadata_key = format!(
         "container_metrics:{}",
-        container_metrics.metadata.static_metadata.node
+        container_metrics.metadata.static_metadata.node_name
     );
     state
         .metrics_fetcher_metadata_cache

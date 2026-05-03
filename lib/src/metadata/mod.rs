@@ -18,7 +18,8 @@ pub struct CheckmkKubeAgent {
 /// Metadata that does not change once the app has been initialized.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StaticMetadata {
-    pub node: String,
+    #[serde(rename = "node")]
+    pub node_name: String,
     pub host_name: String,
     pub container_platform: Platform,
     pub checkmk_kube_agent: CheckmkKubeAgent,
