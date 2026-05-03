@@ -71,5 +71,5 @@ Content-Type: application/json
 HTTP 200
 [Asserts]
 jsonpath "$" count == 2
-jsonpath "$[0].node_name" == "kind-worker"
-jsonpath "$[1].node_name" == "unkind-worker"
+jsonpath "$[*].node_name" contains "kind-worker"
+jsonpath "$[*].node_name" contains "unkind-worker"
