@@ -10,7 +10,7 @@ pub struct AppState<V: TokenValidator> {
     pub reader_allowlist: Vec<String>,
     pub writer_allowlist: Vec<String>,
     pub metrics_cache_static_metadata: Arc<metadata::StaticMetadata>,
-    pub machine_sections_cache: Cache<String, machine_sections::FetchResult>,
+    pub machine_sections_cache: Cache<String, machine_sections::Sections>,
     pub metrics_fetcher_metadata_cache: Cache<String, metadata::metrics_fetcher::Metadata>,
     pub container_metrics_cache: Cache<String, container_metrics::Metric>,
 }

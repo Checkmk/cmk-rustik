@@ -2,9 +2,9 @@ use axum::{Json, extract::State};
 
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
-use cmk_kube_types::machine_sections::{FetchResult, MachineSections};
+use cmk_kube_types::machine_sections::{MachineSections, Sections};
 
-pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> Json<Vec<FetchResult>> {
+pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> Json<Vec<Sections>> {
     Json(
         state
             .machine_sections_cache
@@ -49,7 +49,7 @@ mod tests {
 
     fn make_machine_sections(node: &str) -> MachineSections {
         MachineSections {
-            sections: cmk_kube_types::machine_sections::FetchResult {
+            sections: cmk_kube_types::machine_sections::Sections {
                 node_name: node.to_string(),
                 sections: "s".to_string(),
             },
@@ -108,7 +108,7 @@ mod tests {
     #[tokio::test]
     async fn get_returns_cached_entries() {
         let state = test_app_state();
-        let fr = cmk_kube_types::machine_sections::FetchResult {
+        let fr = cmk_kube_types::machine_sections::Sections {
             node_name: "node-a".to_string(),
             sections: "s".to_string(),
         };
