@@ -80,7 +80,6 @@ pub async fn authenticate<V: TokenValidator>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyhow::Result;
     use axum::{
         Router,
         body::Body,
@@ -89,55 +88,12 @@ mod tests {
         routing::get,
     };
     use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewStatus, UserInfo};
-    use moka::future::Cache;
-    use std::sync::Arc;
     use tower::ServiceExt;
 
-    use cmk_kube_types::metadata;
-
-    #[derive(Clone)]
-    struct MockValidator {
-        response: std::result::Result<TokenReview, ()>,
-    }
-
-    impl TokenValidator for MockValidator {
-        async fn validate(&self, _token: &str) -> Result<TokenReview> {
-            self.response
-                .clone()
-                .map_err(|_| anyhow::anyhow!("mock error"))
-        }
-    }
-
-    fn generate_app_state(validator: MockValidator) -> AppState<MockValidator> {
-        AppState {
-            validator,
-            reader_allowlist: vec!["test-ns:test-reader".to_string()],
-            writer_allowlist: vec!["test-ns:test-writer".to_string()],
-            metrics_cache_static_metadata: Arc::new(metadata::StaticMetadata {
-                node: "test-node".to_string(),
-                host_name: "test-host".to_string(),
-                container_platform: metadata::Platform {
-                    os_name: "linux".to_string(),
-                    os_version: "5.15".to_string(),
-                    python_version: "3.9".to_string(),
-                    python_compiler: "GCC 10.2".to_string(),
-                },
-                checkmk_kube_agent: metadata::CheckmkKubeAgent {
-                    project_version: "1.0.0".to_string(),
-                },
-            }),
-            machine_sections_cache: Cache::builder()
-                .time_to_live(std::time::Duration::from_secs(120))
-                .build(),
-            metrics_fetcher_metadata_cache: Cache::builder()
-                .time_to_live(std::time::Duration::from_secs(120))
-                .max_capacity(10000)
-                .build(),
-        }
-    }
+    use crate::test_utils::{MockValidator, test_app_state, test_app_state_with_validator};
 
     fn app_with_mock(validator: MockValidator) -> Router {
-        let state = generate_app_state(validator);
+        let state = test_app_state_with_validator(validator);
         Router::new()
             .route("/", get(|| async { "ok" }))
             .route_layer(middleware::from_fn_with_state(state.clone(), authenticate))
@@ -223,7 +179,7 @@ mod tests {
             ("unknown:baduser", Method::HEAD, false),
             ("unknown:baduser", Method::POST, false),
         ] {
-            let state = generate_app_state(MockValidator { response: Err(()) });
+            let state = test_app_state();
             assert_eq!(is_allowed(account, &method, &state), expected);
         }
     }

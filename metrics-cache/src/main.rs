@@ -4,6 +4,9 @@ mod handlers;
 mod kube_auth;
 mod state;
 
+#[cfg(test)]
+mod test_utils;
+
 use anyhow::Result;
 use axum::{
     Router, middleware,
