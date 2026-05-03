@@ -36,6 +36,10 @@ async fn main() -> Result<()> {
             .time_to_live(args.cache_ttl)
             .max_capacity(METRICS_FETCHER_METADATA_CACHE_MAX_SIZE)
             .build(),
+        container_metrics_cache: Cache::builder()
+            .time_to_live(args.cache_ttl)
+            .max_capacity(args.cache_maxsize)
+            .build(),
     };
     let app = Router::new()
         .route("/", get(|| async { "foo" }))
@@ -44,6 +48,11 @@ async fn main() -> Result<()> {
         .route(
             "/update_machine_sections",
             post(handlers::machine_sections::update),
+        )
+        .route("/container_metrics", get(handlers::container_metrics::get))
+        .route(
+            "/update_container_metrics",
+            post(handlers::container_metrics::update),
         )
         // vvv Routes above this will REQUIRE AUTHENTICATION vvv
         .route_layer(middleware::from_fn_with_state(
