@@ -39,11 +39,7 @@ struct CacheHealth {
 impl CacheHealth {
     async fn from_state(state: AppState<impl TokenValidator>) -> Self {
         CacheHealth {
-            container_metrics: CacheSizeInfo {
-                // TODO
-                size: 0,
-                maxsize: Some(0),
-            },
+            container_metrics: CacheSizeInfo::from_cache(state.container_metrics_cache).await,
             machine_sections: CacheSizeInfo::from_cache(state.machine_sections_cache).await,
         }
     }

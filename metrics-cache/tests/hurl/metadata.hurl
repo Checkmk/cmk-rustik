@@ -11,3 +11,5 @@ jsonpath "$.cluster_collector_metadata.host_name" isString
 jsonpath "$.cluster_collector_metadata.container_platform.os_name" isString
 jsonpath "$.cluster_collector_metadata.container_platform.os_version" isString
 jsonpath "$.cluster_collector_metadata.checkmk_kube_agent.project_version" isString
+jsonpath "$.cluster_collector_metadata.cache_health.container_metrics.maxsize" == 50000
+jsonpath "$.cluster_collector_metadata.cache_health.machine_sections.maxsize" == 50000
