@@ -89,24 +89,3 @@ jobs:
           sleep 15  # TODO: do a loop or something instead
           kubectl get all -A
           just hurl
-          READ_TKN=$(kubectl get secret myrelease-checkmk-checkmk \
-            -n checkmk-monitoring \
-            -o=jsonpath='{.data.token}' \
-            | base64 --decode)
-          WRITE_TKN=$(kubectl \
-            -n checkmk-monitoring \
-            exec -it \
-            daemonsets/myrelease-checkmk-node-collector-machine-sections \
-            -- cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-          ./target/release/cmk-rustik-cache-server \
-            --log-level=warning \
-            --address=0.0.0.0 \
-            --cache-maxsize=50000 \
-            --reader-whitelist=checkmk-monitoring:myrelease-checkmk-checkmk \
-            --writer-whitelist=checkmk-monitoring:myrelease-checkmk-node-collector-container-metrics,checkmk-monitoring:myrelease-checkmk-node-collector-machine-sections &
-          sleep 2
-          hurl \
-            --test metrics-cache/tests/hurl/ \
-            --variables-file metrics-cache/tests/hurl/vars \
-            --variable read_token=$READ_TKN \
-            --variable write_token=$WRITE_TKN

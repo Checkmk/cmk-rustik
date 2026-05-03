@@ -18,13 +18,27 @@ run:
     --reader-whitelist=checkmk-monitoring:myrelease-checkmk-checkmk \
     --writer-whitelist=checkmk-monitoring:myrelease-checkmk-node-collector-container-metrics,checkmk-monitoring:myrelease-checkmk-node-collector-machine-sections \
     --cache-ttl=5 &
-    echo $! > .pid
 
 # Run the Hurl tests (token retrieved from Kubernetes)
 hurl: run
     #!/bin/sh
-    trap "kill $(cat .pid) && rm .pid" EXIT
-    sleep 1
+    # Modern 'just' makes this easier since it forwards SIGTERM
+    # but some distros ship a 'just' from 3 years ago, so...
+    TIMEOUT=30
+    while [ "${TIMEOUT}" -gt 0 ]; do
+      if lsof -i :62287; then
+          trap 'kill $(lsof -i :62287 -Fp | sed "s/p//")' EXIT
+          echo "Found something on :62287"
+          sleep 0.5
+          break
+      fi
+      sleep 1
+      TIMEOUT=$((TIMEOUT - 1))
+    done
+    if [ $TIMEOUT -eq 0 ]; then
+      echo "The service did not start within 30 seconds"
+      exit 1
+    fi
     READ_TKN=$(kubectl get secret {{helm_release_name}}-checkmk-checkmk \
         -n checkmk-monitoring \
         -o=jsonpath='{.data.token}' \
