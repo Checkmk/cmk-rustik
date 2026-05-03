@@ -1,7 +1,7 @@
 use axum::{Json, extract::State};
 
 use crate::AppState;
-use crate::kube_auth::TokenValidator;
+use crate::auth::kubernetes::TokenValidator;
 use cmk_kube_types::machine_sections::{FetchResult, MachineSections};
 
 pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> Json<Vec<FetchResult>> {

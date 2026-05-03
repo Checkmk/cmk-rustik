@@ -1,7 +1,6 @@
 mod auth;
 mod cli_args;
 mod handlers;
-mod kube_auth;
 mod state;
 
 use anyhow::Result;
@@ -13,7 +12,6 @@ use clap::Parser;
 use moka::future::Cache;
 use std::sync::Arc;
 
-use crate::auth::authenticate;
 use crate::state::AppState;
 
 // Kubernetes can have a maximum of 5000 nodes, and we currently run two
@@ -23,7 +21,7 @@ const METRICS_FETCHER_METADATA_CACHE_MAX_SIZE: u64 = 10000;
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = cli_args::Args::parse();
-    let validator = kube_auth::kube_client(args.connect_timeout, args.read_timeout).await?;
+    let validator = auth::kubernetes::client(args.connect_timeout, args.read_timeout).await?;
     let static_metadata = handlers::metadata::generate_static_metadata()?;
     let state = AppState {
         validator,
@@ -48,7 +46,10 @@ async fn main() -> Result<()> {
             post(handlers::machine_sections::update),
         )
         // vvv Routes above this will REQUIRE AUTHENTICATION vvv
-        .route_layer(middleware::from_fn_with_state(state.clone(), authenticate))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::middleware::authenticate,
+        ))
         // ^^^ Routes below this will be PUBLIC ^^^
         .route("/health", get(handlers::health))
         .with_state(state);

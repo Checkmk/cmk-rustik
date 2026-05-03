@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 
 use crate::AppState;
-use crate::kube_auth::TokenValidator;
+use crate::auth::kubernetes::TokenValidator;
 use cmk_kube_types::metadata::{self, CheckmkKubeAgent, Platform, StaticMetadata};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

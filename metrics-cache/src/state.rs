@@ -1,7 +1,7 @@
 use moka::future::Cache;
 use std::sync::Arc;
 
-use crate::kube_auth::TokenValidator;
+use crate::auth::kubernetes::TokenValidator;
 use cmk_kube_types::{machine_sections, metadata};
 
 #[derive(Clone)]
@@ -22,8 +22,7 @@ pub mod tests {
     use moka::future::Cache;
     use std::sync::Arc;
 
-    use super::AppState;
-    use crate::kube_auth::TokenValidator;
+    use super::*;
     use cmk_kube_types::metadata;
 
     #[derive(Clone)]

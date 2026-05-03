@@ -31,7 +31,7 @@ impl TokenValidator for Client {
 /// environment variables `KUBERNETES_SERVICE_HOST` and assuming a token in
 /// `/var/run/secrets/kubernetes.io/serviceaccount/`. This allows for testing
 /// running outside of a cluster as well as the normal in-cluster deployment.
-pub async fn kube_client(connect_timeout: Duration, read_timeout: Duration) -> Result<Client> {
+pub async fn client(connect_timeout: Duration, read_timeout: Duration) -> Result<Client> {
     let mut config = kube::Config::infer().await?;
     config.connect_timeout = Some(connect_timeout);
     config.read_timeout = Some(read_timeout);

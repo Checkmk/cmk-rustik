@@ -7,7 +7,7 @@ use axum::{
 use k8s_openapi::api::authentication::v1::TokenReviewStatus;
 
 use crate::AppState;
-use crate::kube_auth::TokenValidator;
+use crate::auth::kubernetes::TokenValidator;
 
 /// Extract bearer token from Authorization header.
 fn extract_bearer_token(request: &Request) -> Option<&str> {
