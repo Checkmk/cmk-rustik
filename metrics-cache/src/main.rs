@@ -35,7 +35,10 @@ async fn main() -> Result<()> {
         reader_allowlist: args.reader_allowlist,
         writer_allowlist: args.writer_allowlist,
         metrics_cache_static_metadata: Arc::new(static_metadata),
-        machine_sections_cache: Cache::builder().time_to_live(args.cache_ttl).build(),
+        machine_sections_cache: Cache::builder()
+            .time_to_live(args.cache_ttl)
+            .max_capacity(args.cache_maxsize)
+            .build(),
     };
     let app = Router::new()
         .route("/", get(|| async { "foo" }))
