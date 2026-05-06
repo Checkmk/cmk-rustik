@@ -9,7 +9,7 @@ pub struct Metric {
     pub pod_name: String,
     pub metric_name: String,
     pub metric_value_string: String,
-    pub timestamp: f64, // No sense converting to something else, we don't process it at all.
+    pub timestamp: f64, // It's an i64 from the sample, but for hysterical raisins we divide by 1000
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -8,3 +8,5 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+# because we need https://github.com/rust-bakery/nom/pull/1811
+nom = { git = "https://github.com/rust-bakery/nom", rev = "51c3c4e44fa78a8a09b413419372b97b2cc2a787" }
