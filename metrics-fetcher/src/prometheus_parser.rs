@@ -17,7 +17,7 @@ use nom::{
     character::complete::{
         alpha1, alphanumeric1, char, digit0, digit1, newline, none_of, not_line_ending, one_of,
     },
-    combinator::{map, opt, recognize, value},
+    combinator::{all_consuming, map, opt, recognize, value},
     multi::{many0, separated_list0},
     sequence::{delimited, pair, preceded, separated_pair, terminated},
 };
@@ -215,6 +215,15 @@ fn exposition_lines(input: &str) -> IResult<&str, Vec<Sample>> {
     many0(exposition_line)
         .map(|opts| opts.into_iter().flatten().collect())
         .parse(input)
+}
+
+/// Parse a Prometheus exposition output.
+///
+/// This is meant to be *the* function called by the end user.
+/// Internally it is wrapped with all_consuming() to ensure that we never return
+/// a partial result.
+pub fn exposition(input: &str) -> IResult<&str, Vec<Sample>> {
+    all_consuming(exposition_lines).parse(input)
 }
 
 #[cfg(test)]
@@ -581,6 +590,21 @@ mod tests {
         let (remaining, parsed) = exposition_lines(cadvisor)?;
         assert_eq!(remaining, "");
         assert_eq!(parsed.len(), 952);
+        Ok(())
+    }
+
+    #[test]
+    fn test_exposition() -> Result<(), Err<Error<&'static str>>> {
+        let broken = "metric_one{label=\"hey\"} 123.45
+metric_two{label=\"hey\"} 223.45 OH NO THIS BROKE IT
+metric_three 323.45";
+        assert_eq!(
+            exposition(broken),
+            Err(Err::Error(Error::new(
+                "metric_two{label=\"hey\"} 223.45 OH NO THIS BROKE IT\nmetric_three 323.45",
+                ErrorKind::Eof
+            )))
+        );
         Ok(())
     }
 }
