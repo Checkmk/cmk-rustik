@@ -25,11 +25,11 @@ use std::collections::HashMap;
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
-struct Sample {
-    metric_name: String,
-    labels: HashMap<String, String>,
-    value: String,
-    timestamp: Option<String>,
+pub struct Sample {
+    pub metric_name: String,
+    pub labels: HashMap<String, String>,
+    pub value: String,
+    pub timestamp: Option<String>,
 }
 
 impl Sample {
