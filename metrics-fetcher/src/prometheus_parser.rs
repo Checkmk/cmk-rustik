@@ -197,7 +197,8 @@ fn empty_line(input: &str) -> IResult<&str, Option<Sample>> {
     Ok((input, None))
 }
 
-fn parse_exposition_line(input: &str) -> IResult<&str, Option<Sample>> {
+/// Parse a full exposition line including its newline.
+fn exposition_line(input: &str) -> IResult<&str, Option<Sample>> {
     terminated(
         alt((
             sample.map(Some),
@@ -209,8 +210,9 @@ fn parse_exposition_line(input: &str) -> IResult<&str, Option<Sample>> {
     .parse(input)
 }
 
-fn parse_exposition_lines(input: &str) -> IResult<&str, Vec<Sample>> {
-    many0(parse_exposition_line)
+/// Parse many exposition lines.
+fn exposition_lines(input: &str) -> IResult<&str, Vec<Sample>> {
+    many0(exposition_line)
         .map(|opts| opts.into_iter().flatten().collect())
         .parse(input)
 }
@@ -535,12 +537,12 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_exposition_line() {
+    fn test_exposition_line() {
         let mut labels = HashMap::new();
         labels.insert("path".to_string(), "/api/v1".to_string());
         labels.insert("method".to_string(), "GET".to_string());
         assert_eq!(
-            parse_exposition_line(
+            exposition_line(
                 "req_secs_created{path=\"/api/v1\",method=\"GET\"} 1605281325.0 1778100948681\n"
             ),
             Ok((
@@ -554,7 +556,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            parse_exposition_line("life_the_universe_and_everything 42\n"),
+            exposition_line("life_the_universe_and_everything 42\n"),
             Ok((
                 "",
                 Some(Sample::new(
@@ -565,18 +567,18 @@ mod tests {
                 ))
             ))
         );
-        assert_eq!(parse_exposition_line("# foo\n"), Ok(("", None)));
-        assert_eq!(parse_exposition_line("\n"), Ok(("", None)));
+        assert_eq!(exposition_line("# foo\n"), Ok(("", None)));
+        assert_eq!(exposition_line("\n"), Ok(("", None)));
         assert_eq!(
-            parse_exposition_line("bananas"),
+            exposition_line("bananas"),
             Err(Err::Error(Error::new("bananas", ErrorKind::Char)))
         );
     }
 
     #[test]
-    fn test_parse_exposition_lines() -> Result<(), Err<Error<&'static str>>> {
+    fn test_exposition_lines() -> Result<(), Err<Error<&'static str>>> {
         let cadvisor = include_str!("../tests/fixtures/cadvisor");
-        let (remaining, parsed) = parse_exposition_lines(cadvisor)?;
+        let (remaining, parsed) = exposition_lines(cadvisor)?;
         assert_eq!(remaining, "");
         assert_eq!(parsed.len(), 952);
         Ok(())
