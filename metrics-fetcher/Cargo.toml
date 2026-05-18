@@ -9,8 +9,8 @@ repository.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-chrono = { version = "0.4.44", default-features = false, features = ["std", "now"] }
 cmk-kube-types = { workspace = true }
+jiff = { version = "0.2", default-features = false, features = ["serde"] }
 # because we need https://github.com/rust-bakery/nom/pull/1811
 nom = { git = "https://github.com/rust-bakery/nom", rev = "51c3c4e44fa78a8a09b413419372b97b2cc2a787" }
 reqwest = { version = "0.13.3", features = ["blocking", "query", "json", "rustls-no-provider", "http2", "system-proxy"], default-features = false }

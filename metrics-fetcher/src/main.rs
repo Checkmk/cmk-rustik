@@ -45,7 +45,7 @@ fn samples_to_metrics(samples: Vec<Sample>, default_timestamp_ms: i64) -> Vec<Me
 
 fn fetch_cadvisor_metrics() -> Result<Vec<Metric>> {
     let body = reqwest::blocking::get("http://localhost:8080/metrics")?.text()?;
-    let now_ms = chrono::Utc::now().timestamp_millis();
+    let now_ms = jiff::Timestamp::now().as_millisecond();
     prometheus_parser::exposition(&body)
         .map_err(|e| anyhow::anyhow!("Failed to parse Prometheus metrics: {}", e))
         .map(|(_, samples)| samples_to_metrics(samples, now_ms))
