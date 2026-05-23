@@ -18,7 +18,6 @@ pub struct AppState<V: TokenValidator> {
 // Intentionally public, provides util functions for other modules
 #[cfg(test)]
 pub mod tests {
-    use anyhow::Result;
     use k8s_openapi::api::authentication::v1::TokenReview;
     use moka::future::Cache;
     use std::sync::Arc;
@@ -32,10 +31,9 @@ pub mod tests {
     }
 
     impl TokenValidator for MockValidator {
-        async fn validate(&self, _token: &str) -> Result<TokenReview> {
-            self.response
-                .clone()
-                .map_err(|_| anyhow::anyhow!("mock error"))
+        type Error = ();
+        async fn validate(&self, _token: &str) -> Result<TokenReview, ()> {
+            self.response.clone()
         }
     }
 

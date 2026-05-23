@@ -1,9 +1,9 @@
 mod auth;
 mod cli_args;
+mod error;
 mod handlers;
 mod state;
 
-use anyhow::Result;
 use axum::{
     Router, middleware,
     routing::{get, post},
@@ -21,7 +21,7 @@ use crate::state::AppState;
 const METRICS_FETCHER_METADATA_CACHE_MAX_SIZE: u64 = 10000;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
     let args = cli_args::Args::parse();
     let validator = auth::kubernetes::client(args.connect_timeout, args.read_timeout).await?;
     let static_metadata = handlers::metadata::generate_static_metadata()?;

@@ -12,7 +12,7 @@ name = "cmk-rustik-cache-server"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow.workspace = true
 axum = { version = "0.8" }
 axum-server = { version = "0.8.0", features = ["tls-rustls-no-provider"] }
 clap = { workspace = true }
@@ -23,6 +23,7 @@ moka = { version = "0.12.15", features = ["future"] }
 os-release = { workspace = true }
 rustls = { workspace = true }
 serde = {workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]

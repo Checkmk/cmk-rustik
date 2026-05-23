@@ -1,4 +1,3 @@
-use anyhow::Result;
 use axum::{Json, extract::State};
 use clap::crate_version;
 use moka::future::Cache;
@@ -8,6 +7,7 @@ use std::env;
 
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
+use crate::error::Result;
 use cmk_kube_types::metadata::{self, CheckmkKubeAgent, Platform, StaticMetadata};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -82,7 +82,7 @@ impl MetadataResponse {
 }
 
 fn get_env_var(var_name: &str) -> Result<String> {
-    env::var(var_name).map_err(|e| anyhow::anyhow!("Failed to get {}: {}", var_name, e))
+    Ok(env::var(var_name)?)
 }
 
 /// Generate metadata for this instance of metrics-cache. Intended to be called

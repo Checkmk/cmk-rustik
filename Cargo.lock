@@ -1152,6 +1152,7 @@ dependencies = [
  "os-release",
  "rustls",
  "serde",
+ "thiserror",
  "tokio",
  "tower",
 ]
