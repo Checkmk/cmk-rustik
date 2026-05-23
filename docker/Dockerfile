@@ -4,7 +4,7 @@ COPY . .
 RUN cargo install --path ./metrics-cache && \
     cargo install --path ./metrics-fetcher
 
-FROM checkmk/check-mk-community:2.5.0-daily AS checkmk
+FROM docker.io/checkmk/check-mk-community:2.5.0-daily AS checkmk
 
 FROM alpine:3.23
 ARG CHECKMK_AGENT_DIR="/opt/omd/versions/default/share/check_mk/agents"
