@@ -9,13 +9,18 @@ use cmk_kube_types::{container_metrics, machine_sections, metadata};
 #[derive(Clone)]
 pub struct AppState<V: TokenValidator> {
     pub client: V,
-    pub pod_store: Store<Pod>,
+    pub stores: Stores,
     pub reader_allowlist: Vec<String>,
     pub writer_allowlist: Vec<String>,
     pub metrics_cache_static_metadata: Arc<metadata::StaticMetadata>,
     pub machine_sections_cache: Cache<String, machine_sections::Sections>,
     pub metrics_fetcher_metadata_cache: Cache<String, metadata::metrics_fetcher::Metadata>,
     pub container_metrics_cache: Cache<String, container_metrics::Metric>,
+}
+
+#[derive(Clone)]
+pub struct Stores {
+    pub pods: Store<Pod>,
 }
 
 // Intentionally public, provides util functions for other modules
@@ -44,7 +49,7 @@ pub mod tests {
         let (pod_store, _) = kube::runtime::reflector::store();
         AppState {
             client,
-            pod_store,
+            stores: Stores { pods: pod_store },
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
             metrics_cache_static_metadata: Arc::new(metadata::StaticMetadata {

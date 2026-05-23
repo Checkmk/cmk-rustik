@@ -8,7 +8,7 @@ use moka::future::Cache;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use metrics_cache::{AppState, auth, cli_args, handlers, reflectors};
+use metrics_cache::{AppState, Stores, auth, cli_args, handlers, reflectors};
 
 // Kubernetes can have a maximum of 5000 nodes, and we currently run two
 // metrics-fetchers per node (container_metrics and machine_sections).
@@ -22,10 +22,11 @@ async fn main() -> anyhow::Result<()> {
     let static_metadata = handlers::metadata::generate_static_metadata()?;
 
     let pod_store = reflectors::pods(watcher_client);
+    let stores = Stores { pods: pod_store };
 
     let state = AppState {
         client,
-        pod_store,
+        stores,
         reader_allowlist: args.reader_allowlist,
         writer_allowlist: args.writer_allowlist,
         metrics_cache_static_metadata: Arc::new(static_metadata),
