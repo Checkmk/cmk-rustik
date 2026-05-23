@@ -1,8 +1,4 @@
-mod auth;
-mod cli_args;
-mod error;
-mod handlers;
-mod state;
+use metrics_cache::{AppState, auth, cli_args, handlers};
 
 use axum::{
     Router, middleware,
@@ -13,8 +9,6 @@ use clap::Parser;
 use moka::future::Cache;
 use std::net::SocketAddr;
 use std::sync::Arc;
-
-use crate::state::AppState;
 
 // Kubernetes can have a maximum of 5000 nodes, and we currently run two
 // metrics-fetchers per node (container_metrics and machine_sections).
