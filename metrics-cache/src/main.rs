@@ -21,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let watcher_client = metrics_cache::kube::watcher_client(args.connect_timeout).await?;
     let static_metadata = handlers::metadata::generate_static_metadata()?;
 
-    let pod_store = reflectors::pod::pod_reflector(watcher_client);
+    let pod_store = reflectors::pods(watcher_client);
 
     let state = AppState {
         client,
