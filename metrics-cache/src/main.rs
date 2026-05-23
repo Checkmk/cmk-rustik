@@ -1,5 +1,3 @@
-use metrics_cache::{AppState, auth, cli_args, handlers};
-
 use axum::{
     Router, middleware,
     routing::{get, post},
@@ -10,6 +8,8 @@ use moka::future::Cache;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use metrics_cache::{AppState, auth, cli_args, handlers, reflectors};
+
 // Kubernetes can have a maximum of 5000 nodes, and we currently run two
 // metrics-fetchers per node (container_metrics and machine_sections).
 const METRICS_FETCHER_METADATA_CACHE_MAX_SIZE: u64 = 10000;
@@ -17,10 +17,15 @@ const METRICS_FETCHER_METADATA_CACHE_MAX_SIZE: u64 = 10000;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = cli_args::Args::parse();
-    let validator = auth::kubernetes::client(args.connect_timeout, args.read_timeout).await?;
+    let client = metrics_cache::kube::client(args.connect_timeout, args.read_timeout).await?;
+    let watcher_client = metrics_cache::kube::watcher_client(args.connect_timeout).await?;
     let static_metadata = handlers::metadata::generate_static_metadata()?;
+
+    let pod_store = reflectors::pod::pod_reflector(watcher_client);
+
     let state = AppState {
-        validator,
+        client,
+        pod_store,
         reader_allowlist: args.reader_allowlist,
         writer_allowlist: args.writer_allowlist,
         metrics_cache_static_metadata: Arc::new(static_metadata),

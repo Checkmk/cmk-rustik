@@ -1,3 +1,5 @@
+use k8s_openapi::api::core::v1::Pod;
+use kube::runtime::reflector::Store;
 use moka::future::Cache;
 use std::sync::Arc;
 
@@ -6,7 +8,8 @@ use cmk_kube_types::{container_metrics, machine_sections, metadata};
 
 #[derive(Clone)]
 pub struct AppState<V: TokenValidator> {
-    pub validator: V,
+    pub client: V,
+    pub pod_store: Store<Pod>,
     pub reader_allowlist: Vec<String>,
     pub writer_allowlist: Vec<String>,
     pub metrics_cache_static_metadata: Arc<metadata::StaticMetadata>,
@@ -37,9 +40,11 @@ pub mod tests {
         }
     }
 
-    pub fn test_app_state_with_validator(validator: MockValidator) -> AppState<MockValidator> {
+    pub fn test_app_state_with_validator(client: MockValidator) -> AppState<MockValidator> {
+        let (pod_store, _) = kube::runtime::reflector::store();
         AppState {
-            validator,
+            client,
+            pod_store,
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
             metrics_cache_static_metadata: Arc::new(metadata::StaticMetadata {

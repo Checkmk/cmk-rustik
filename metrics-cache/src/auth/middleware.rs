@@ -57,7 +57,7 @@ pub async fn authenticate<V: TokenValidator>(
     let token = extract_bearer_token(&request).ok_or(StatusCode::UNAUTHORIZED)?;
 
     let review = state
-        .validator
+        .client
         .validate(token)
         .await
         .map_err(|_| StatusCode::NOT_IMPLEMENTED)?; // Compat with Python cluster-collector
