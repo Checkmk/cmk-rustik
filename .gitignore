@@ -14,3 +14,5 @@ target
 **/mutants.out*/
 
 .pid
+
+k8s
