@@ -14,7 +14,7 @@ jobs:
         with:
           components: clippy, rustfmt
           rustflags: ""
-          target: x86_64-unknown-linux-gnu
+          target: x86_64-unknown-linux-musl
       - run: cargo test --all-features
         if: always()
       - run: cargo fmt --check
@@ -31,7 +31,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           rustflags: ""
-          target: x86_64-unknown-linux-gnu
+          target: x86_64-unknown-linux-musl
       - run: cargo build --all-features
         if: always()
       - name: Write Kind config
