@@ -7,6 +7,7 @@ use kube::runtime::watcher::Config as WatchConfig;
 use kube::runtime::{WatchStreamExt, reflector, reflector::Store, watcher};
 use kube::{Api, Client, Resource};
 use serde::de::DeserializeOwned;
+use tracing::{debug, error};
 
 pub fn start_reflector<K>(api: Api<K>, config: WatchConfig) -> Store<K>
 where
@@ -19,7 +20,7 @@ where
         .touched_objects()
         .for_each(|r| {
             if let Err(e) = r {
-                eprintln!("Watcher error: {e}");
+                error!("watcher error: {e}");
             }
             std::future::ready(())
         });
@@ -28,5 +29,6 @@ where
 }
 
 pub fn pods(client: Client) -> Store<Pod> {
+    debug!("starting Pod reflector");
     start_reflector(Api::all(client), WatchConfig::default())
 }

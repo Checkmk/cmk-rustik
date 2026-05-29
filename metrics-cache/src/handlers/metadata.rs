@@ -7,7 +7,7 @@ use std::env;
 
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use cmk_kube_types::metadata::{self, CheckmkKubeAgent, Platform, StaticMetadata};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -82,7 +82,10 @@ impl MetadataResponse {
 }
 
 fn get_env_var(var_name: &str) -> Result<String> {
-    Ok(env::var(var_name)?)
+    env::var(var_name).map_err(|source| Error::EnvVar {
+        name: var_name.to_string(),
+        source,
+    })
 }
 
 /// Generate metadata for this instance of metrics-cache. Intended to be called

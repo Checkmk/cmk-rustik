@@ -60,8 +60,8 @@ pub struct Args {
     #[arg(
         short = 'l',
         long = "log-level",
-        value_parser = ["debug", "info", "warning", "error", "critical"],
-        default_value = "error",
+        value_parser = ["trace", "debug", "info", "warn", "error", "off"],
+        default_value = "info",
     )]
     pub log_level: String,
 
