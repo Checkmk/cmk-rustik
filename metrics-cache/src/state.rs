@@ -1,3 +1,4 @@
+use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::{Node, Pod};
 use kube::runtime::reflector::Store;
 use moka::future::Cache;
@@ -22,6 +23,7 @@ pub struct AppState<V: TokenValidator> {
 pub struct Stores {
     pub pods: Store<Pod>,
     pub nodes: Store<Node>,
+    pub deployments: Store<Deployment>,
 }
 
 // Intentionally public, provides util functions for other modules
@@ -49,9 +51,14 @@ pub mod tests {
     pub fn test_app_state_with_validator(client: MockValidator) -> AppState<MockValidator> {
         let (pod_store, _) = kube::runtime::reflector::store();
         let (node_store, _) = kube::runtime::reflector::store();
+        let (deployment_store, _) = kube::runtime::reflector::store();
         AppState {
             client,
-            stores: Stores { pods: pod_store, nodes: node_store },
+            stores: Stores {
+                pods: pod_store,
+                nodes: node_store,
+                deployments: deployment_store,
+            },
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
             metrics_cache_static_metadata: Arc::new(metadata::StaticMetadata {

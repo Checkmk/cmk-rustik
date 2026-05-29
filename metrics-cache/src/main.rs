@@ -29,10 +29,12 @@ async fn main() -> anyhow::Result<()> {
     let static_metadata = handlers::metadata::generate_static_metadata()?;
 
     let pod_store = reflectors::pods(watcher_client.clone());
-    let node_store = reflectors::nodes(watcher_client);
+    let node_store = reflectors::nodes(watcher_client.clone());
+    let deployment_store = reflectors::deployments(watcher_client.clone());
     let stores = Stores {
         pods: pod_store,
         nodes: node_store,
+        deployments: deployment_store,
     };
 
     let state = AppState {
