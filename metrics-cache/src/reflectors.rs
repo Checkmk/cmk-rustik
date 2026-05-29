@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use futures_util::StreamExt;
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{Node, Pod};
 use kube::runtime::watcher::Config as WatchConfig;
 use kube::runtime::{WatchStreamExt, reflector, reflector::Store, watcher};
 use kube::{Api, Client, Resource};
@@ -30,5 +30,10 @@ where
 
 pub fn pods(client: Client) -> Store<Pod> {
     debug!("starting Pod reflector");
+    start_reflector(Api::all(client), WatchConfig::default())
+}
+
+pub fn nodes(client: Client) -> Store<Node> {
+    debug!("starting Node reflector");
     start_reflector(Api::all(client), WatchConfig::default())
 }
