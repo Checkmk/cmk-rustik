@@ -5,6 +5,15 @@ helm_release_name := "myrelease"
 dockerize:
     docker build -t {{docker_tag}} -f docker/Dockerfile .
 
+kind-dev: dockerize
+    sed "s#\\\$SRC_DIR\\\$#$(pwd)#" k8s/kind-config.yaml | \
+      kind create cluster --name rustik --config -
+    kind load docker-image cmk-rustik:1 --name rustik
+    kubectl apply -f k8s/dev-deployment.yaml
+
+kind-dev-teardown:
+    kind delete cluster --name rustik
+
 [private]
 run:
     #!/bin/sh
