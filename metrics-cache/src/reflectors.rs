@@ -4,11 +4,12 @@ use std::hash::Hash;
 use futures_util::StreamExt;
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::{Node, Pod};
+use kube::ResourceExt;
 use kube::runtime::watcher::Config as WatchConfig;
 use kube::runtime::{WatchStreamExt, reflector, reflector::Store, watcher};
 use kube::{Api, Client, Resource};
 use serde::de::DeserializeOwned;
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 
 pub fn start_reflector<K>(api: Api<K>, config: WatchConfig) -> Store<K>
 where
@@ -20,8 +21,16 @@ where
         .default_backoff()
         .touched_objects()
         .for_each(|r| {
-            if let Err(e) = r {
-                error!("watcher error: {e}");
+            match r {
+                Ok(k) => {
+                    trace!(
+                        kind = %K::kind(&K::DynamicType::default()),
+                        name = %k.name_any(),
+                        namespace = ?k.namespace(),
+                        "object touched"
+                    )
+                }
+                Err(e) => error!(error = %e, "watcher error"),
             }
             std::future::ready(())
         });

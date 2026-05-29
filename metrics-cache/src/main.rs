@@ -6,10 +6,9 @@ use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use moka::future::Cache;
 use std::net::SocketAddr;
-use std::str::FromStr;
 use std::sync::Arc;
-use tracing::level_filters::LevelFilter;
 use tracing::{debug, info};
+use tracing_subscriber::EnvFilter;
 
 use metrics_cache::{AppState, Stores, auth, cli_args, handlers, reflectors};
 
@@ -21,7 +20,9 @@ const METRICS_FETCHER_METADATA_CACHE_MAX_SIZE: u64 = 10000;
 async fn main() -> anyhow::Result<()> {
     let args = cli_args::Args::parse();
     tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::from_str(&args.log_level)?)
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&args.log_level)),
+        )
         .with_target(false)
         .init();
     let client = metrics_cache::kube::client(args.connect_timeout, args.read_timeout).await?;
