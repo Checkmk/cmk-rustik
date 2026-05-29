@@ -15,6 +15,8 @@ jobs:
           components: clippy, rustfmt
           rustflags: ""
           target: x86_64-unknown-linux-musl
+      - run: sudo apt update && sudo apt install -y musl-tools
+        if: always()
       - run: cargo test --all-features
         if: always()
       - run: cargo fmt --check
@@ -32,6 +34,8 @@ jobs:
         with:
           rustflags: ""
           target: x86_64-unknown-linux-musl
+      - run: sudo apt update && sudo apt install -y musl-tools
+        if: always()
       - run: cargo build --all-features
         if: always()
       - name: Write Kind config
