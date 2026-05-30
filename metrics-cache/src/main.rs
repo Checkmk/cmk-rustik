@@ -33,13 +33,15 @@ async fn main() -> anyhow::Result<()> {
     let node_store = reflectors::nodes(watcher_client.clone());
     let deployment_store = reflectors::deployments(watcher_client.clone());
     let daemonset_store = reflectors::daemonsets(watcher_client.clone());
-    let namespace_store = reflectors::namespaces(watcher_client);
+    let namespace_store = reflectors::namespaces(watcher_client.clone());
+    let replicaset_store = reflectors::replicasets(watcher_client);
     let stores = Stores {
         pods: pod_store,
         nodes: node_store,
         deployments: deployment_store,
         daemonsets: daemonset_store,
         namespaces: namespace_store,
+        replicasets: replicaset_store,
     };
 
     let state = AppState {

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use futures_util::StreamExt;
-use k8s_openapi::api::apps::v1::{DaemonSet, Deployment};
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet};
 use k8s_openapi::api::core::v1::{Namespace, Node, Pod};
 use kube::ResourceExt;
 use kube::runtime::watcher::Config as WatchConfig;
@@ -63,5 +63,10 @@ pub fn nodes(client: Client) -> Store<Node> {
 
 pub fn pods(client: Client) -> Store<Pod> {
     debug!("starting Pod reflector");
+    start_reflector(Api::all(client), WatchConfig::default())
+}
+
+pub fn replicasets(client: Client) -> Store<ReplicaSet> {
+    debug!("starting ReplicaSet reflector");
     start_reflector(Api::all(client), WatchConfig::default())
 }

@@ -1,4 +1,4 @@
-use k8s_openapi::api::apps::v1::{DaemonSet, Deployment};
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet};
 use k8s_openapi::api::core::v1::{Namespace, Node, Pod};
 use kube::runtime::reflector::Store;
 use moka::future::Cache;
@@ -26,6 +26,7 @@ pub struct Stores {
     pub deployments: Store<Deployment>,
     pub daemonsets: Store<DaemonSet>,
     pub namespaces: Store<Namespace>,
+    pub replicasets: Store<ReplicaSet>,
 }
 
 // Intentionally public, provides util functions for other modules
@@ -56,6 +57,7 @@ pub mod tests {
         let (deployment_store, _) = kube::runtime::reflector::store();
         let (daemonset_store, _) = kube::runtime::reflector::store();
         let (namespace_store, _) = kube::runtime::reflector::store();
+        let (replicaset_store, _) = kube::runtime::reflector::store();
         AppState {
             client,
             stores: Stores {
@@ -64,6 +66,7 @@ pub mod tests {
                 deployments: deployment_store,
                 daemonsets: daemonset_store,
                 namespaces: namespace_store,
+                replicasets: replicaset_store,
             },
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
