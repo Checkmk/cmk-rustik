@@ -35,6 +35,20 @@ subjects:
     name: metrics-cache
     namespace: checkmk-monitoring
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-cache
+  namespace: checkmk-monitoring
+spec:
+  type: NodePort
+  selector:
+    app: metrics-cache
+  ports:
+    - port: 10050
+      targetPort: 10050
+      nodePort: 30050
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -4,8 +4,8 @@ nodes:
 - role: control-plane
   image: kindest/node:v1.35.1
   extraPortMappings:
-  - containerPort: 10050
-    hostPort: 10050
+  - containerPort: 30050
+    hostPort: 30050
     listenAddress: 0.0.0.0
     protocol: tcp
   extraMounts:
