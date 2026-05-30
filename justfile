@@ -20,7 +20,7 @@ run:
     NODE_NAME=just-hurl \
     HOSTNAME=just-hurl \
     cargo run --bin cmk-rustik-cache-server -- \
-    --log-level=warning \
+    --log-level=warn \
     --address=0.0.0.0 \
     --port=62287 \
     --cache-maxsize=50000 \
