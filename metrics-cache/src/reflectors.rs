@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use futures_util::StreamExt;
-use k8s_openapi::api::apps::v1::Deployment;
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment};
 use k8s_openapi::api::core::v1::{Node, Pod};
 use kube::ResourceExt;
 use kube::runtime::watcher::Config as WatchConfig;
@@ -50,5 +50,10 @@ pub fn nodes(client: Client) -> Store<Node> {
 
 pub fn deployments(client: Client) -> Store<Deployment> {
     debug!("starting Deployment reflector");
+    start_reflector(Api::all(client), WatchConfig::default())
+}
+
+pub fn daemonsets(client: Client) -> Store<DaemonSet> {
+    debug!("starting DaemonSet reflector");
     start_reflector(Api::all(client), WatchConfig::default())
 }
