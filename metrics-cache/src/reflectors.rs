@@ -38,13 +38,8 @@ where
     reader
 }
 
-pub fn pods(client: Client) -> Store<Pod> {
-    debug!("starting Pod reflector");
-    start_reflector(Api::all(client), WatchConfig::default())
-}
-
-pub fn nodes(client: Client) -> Store<Node> {
-    debug!("starting Node reflector");
+pub fn daemonsets(client: Client) -> Store<DaemonSet> {
+    debug!("starting DaemonSet reflector");
     start_reflector(Api::all(client), WatchConfig::default())
 }
 
@@ -53,7 +48,12 @@ pub fn deployments(client: Client) -> Store<Deployment> {
     start_reflector(Api::all(client), WatchConfig::default())
 }
 
-pub fn daemonsets(client: Client) -> Store<DaemonSet> {
-    debug!("starting DaemonSet reflector");
+pub fn nodes(client: Client) -> Store<Node> {
+    debug!("starting Node reflector");
+    start_reflector(Api::all(client), WatchConfig::default())
+}
+
+pub fn pods(client: Client) -> Store<Pod> {
+    debug!("starting Pod reflector");
     start_reflector(Api::all(client), WatchConfig::default())
 }
