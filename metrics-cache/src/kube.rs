@@ -1,6 +1,22 @@
 use kube::Client;
 use std::time::Duration;
 
+/// The various Kinds with which we concern ourselves.
+/// This is used in constructing an [`OwnerGraph`].
+#[derive(Debug)]
+pub enum Kind {
+    Pod,
+    Node,
+    Deployment,
+    DaemonSet,
+    Namespace,
+    ReplicaSet,
+}
+
+/// The unique ID of a given Kubernetes object.
+#[derive(Hash, Eq, PartialEq, Debug)]
+pub struct Uid(pub String); // TODO: Debatable if this should be Deref or not.
+
 /// Build a Kubernetes client for general use (token reviews, etc.).
 pub async fn client(
     connect_timeout: Duration,

@@ -83,6 +83,7 @@ async fn main() -> anyhow::Result<()> {
         ))
         // ^^^ Routes below this will be PUBLIC ^^^
         .route("/health", get(handlers::health))
+        .route("/debug", get(handlers::debug::get))
         .with_state(state);
 
     let addr = SocketAddr::new(args.address.parse()?, args.port);
