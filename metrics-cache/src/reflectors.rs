@@ -18,6 +18,9 @@ where
 {
     let (reader, writer) = reflector::store();
     let watch = reflector(writer, watcher(api, config))
+        .modify(|k| {
+            k.managed_fields_mut().clear();
+        })
         .default_backoff()
         .touched_objects()
         .for_each(|r| {
