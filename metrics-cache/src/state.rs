@@ -29,6 +29,29 @@ pub struct Stores {
     pub replicasets: Store<ReplicaSet>,
 }
 
+#[derive(Debug)]
+pub struct FrozenStores {
+    pub pods: Vec<Arc<Pod>>,
+    pub nodes: Vec<Arc<Node>>,
+    pub deployments: Vec<Arc<Deployment>>,
+    pub daemonsets: Vec<Arc<DaemonSet>>,
+    pub namespaces: Vec<Arc<Namespace>>,
+    pub replicasets: Vec<Arc<ReplicaSet>>,
+}
+
+impl Stores {
+    pub fn freeze(&self) -> FrozenStores {
+        FrozenStores {
+            pods: self.pods.state(),
+            nodes: self.nodes.state(),
+            deployments: self.deployments.state(),
+            daemonsets: self.daemonsets.state(),
+            namespaces: self.namespaces.state(),
+            replicasets: self.replicasets.state(),
+        }
+    }
+}
+
 // Intentionally public, provides util functions for other modules
 #[cfg(test)]
 pub mod tests {

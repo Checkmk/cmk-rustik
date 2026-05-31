@@ -1,12 +1,9 @@
-use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet};
-use k8s_openapi::api::core::v1::{Namespace, Node, Pod};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::ResourceExt;
 use std::collections::HashMap;
-use std::sync::Arc;
 
-use crate::Stores;
 use crate::kube::Uid;
+use crate::{FrozenStores, Stores};
 
 /// Represents a single, static snapshot of the state of the cluster as it
 /// pertains to Checkmk monitoring.
@@ -22,30 +19,36 @@ use crate::kube::Uid;
 /// We also create and store the owner graph as part of the snapshot.
 #[derive(Debug)]
 pub struct Snapshot {
-    pub pods: Vec<Arc<Pod>>,
-    pub nodes: Vec<Arc<Node>>,
-    pub deployments: Vec<Arc<Deployment>>,
-    pub daemonsets: Vec<Arc<DaemonSet>>,
-    pub namespaces: Vec<Arc<Namespace>>,
-    pub replicasets: Vec<Arc<ReplicaSet>>,
+    pub stores: FrozenStores,
+    pub owner_graph: OwnerGraph,
 }
 
 impl Snapshot {
     /// Create a snapshot from the current state of all the monitored
     /// [`Store`]s.
     pub fn new(stores: Stores) -> Self {
+        let stores = stores.freeze();
+        let owner_graph = OwnerGraph::from_frozen_stores(&stores);
         Snapshot {
-            pods: stores.pods.state(),
-            nodes: stores.nodes.state(),
-            deployments: stores.deployments.state(),
-            daemonsets: stores.daemonsets.state(),
-            namespaces: stores.namespaces.state(),
-            replicasets: stores.replicasets.state(),
+            stores,
+            owner_graph,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct OwnerGraph {
+    pub by_uid: HashMap<Uid, OwnerReference>,
+    //pods_by_controller: HashMap<Uid, Vec<Uid>>
+}
+
+impl OwnerGraph {
+    pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
+        OwnerGraph {
+            by_uid: Self::map_object_uids_to_owner_ref(stores),
         }
     }
 
-    // TODO: This doesn't need to be public, it just makes debugging easier for
-    // now.
     /// Create a map, uid-to-OwnerReference, of objects monitored in the
     /// [`Stores`]. We take the first owner which reports being a controller.
     /// Theory says there should only be at most one per object anyway.
@@ -54,9 +57,9 @@ impl Snapshot {
     ///
     /// Not everything in the [`Stores`] is iterated; only things actually
     /// likely to have a controller owner (e.g. Pods, RepliaSets, ...).
-    pub fn map_object_uids_to_owner_ref(&self) -> HashMap<Uid, OwnerReference> {
+    fn map_object_uids_to_owner_ref(stores: &FrozenStores) -> HashMap<Uid, OwnerReference> {
         let mut map = HashMap::new();
-        for pod in &self.pods {
+        for pod in &stores.pods {
             if let Some(owner_controller) = pod
                 .owner_references()
                 .iter()
@@ -66,7 +69,7 @@ impl Snapshot {
                 map.insert(Uid(uid), owner_controller.to_owned());
             }
         }
-        for rs in &self.replicasets {
+        for rs in &stores.replicasets {
             if let Some(owner_controller) = rs
                 .owner_references()
                 .iter()

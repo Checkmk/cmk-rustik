@@ -7,4 +7,4 @@ pub mod reflectors;
 pub mod snapshot;
 pub mod state;
 
-pub use state::{AppState, Stores};
+pub use state::{AppState, FrozenStores, Stores};
