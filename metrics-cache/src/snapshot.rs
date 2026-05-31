@@ -36,6 +36,12 @@ impl Snapshot {
     }
 }
 
+/// An [`OwnerGraph`] is a structure which allows for lookups of what resource
+/// owns another resource, if any. For example, a [`Pod`] might be owned by a
+/// [`ReplicaSet`] which might be owned by a [`Deployment`].
+///
+/// `OwnerGraph` owns the structures to perform such lookups and exposes
+/// functions to make use of said structures.
 #[derive(Debug)]
 pub struct OwnerGraph {
     pub by_uid: HashMap<Uid, OwnerReference>,
