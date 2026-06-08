@@ -103,7 +103,7 @@ impl OwnerGraph {
     /// watch yet, the walk simply stops there (eventual consistency, not an
     /// error). Kubernetes should never produce a cycle, but this is
     /// nevertheless guarded against; the walk always terminates.
-    fn walk_up(&self, start: &str) -> Vec<&OwnerReference> {
+    pub fn walk_up(&self, start: &str) -> Vec<&OwnerReference> {
         let mut chain = Vec::new();
         let mut seen = HashSet::new();
         let mut cur = self.owner_ref_by_uid.get(start);
