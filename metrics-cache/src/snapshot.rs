@@ -1,6 +1,6 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::ResourceExt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::kube::Uid;
 use crate::{FrozenStores, Stores};
@@ -44,14 +44,14 @@ impl Snapshot {
 /// functions to make use of said structures.
 #[derive(Debug)]
 pub struct OwnerGraph {
-    pub by_uid: HashMap<Uid, OwnerReference>,
-    //pods_by_controller: HashMap<Uid, Vec<Uid>>
+    pub owner_ref_by_uid: HashMap<Uid, OwnerReference>,
+    //pub pods_by_controller: HashMap<Uid, Vec<Uid>>,
 }
 
 impl OwnerGraph {
     pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
         OwnerGraph {
-            by_uid: Self::map_object_uids_to_owner_ref(stores),
+            owner_ref_by_uid: Self::map_object_uids_to_owner_ref(stores),
         }
     }
 
@@ -86,5 +86,34 @@ impl OwnerGraph {
             }
         }
         map
+    }
+
+    /// Walk the ownership chain from `start`, returning the
+    /// [`OwnerReference`]s from the direct controller up to the root.
+    ///
+    /// Looks up the controller of `start`, then that controller's controller
+    /// and so on, until it reaches an object with no controlling owner (and
+    /// thus not in `owner_ref_by_uid`).
+    ///
+    /// The result is ordered nearest-first (so: a Pod owned by a RepliaSet
+    /// owned by a Deployment will yield a vector containing first the
+    /// ReplicaSet and then the Deployment).
+    ///
+    /// The chain may be incomplete: if an owner hasn't been observed by the
+    /// watch yet, the walk simply stops there (eventual consistency, not an
+    /// error). Kubernetes should never produce a cycle, but this is
+    /// nevertheless guarded against; the walk always terminates.
+    fn walk_up(&self, start: &str) -> Vec<&OwnerReference> {
+        let mut chain = Vec::new();
+        let mut seen = HashSet::new();
+        let mut cur = self.owner_ref_by_uid.get(start);
+        while let Some(owner_ref) = cur {
+            if !seen.insert(owner_ref.uid.as_str()) {
+                break;
+            }
+            chain.push(owner_ref);
+            cur = self.owner_ref_by_uid.get(owner_ref.uid.as_str());
+        }
+        chain
     }
 }
