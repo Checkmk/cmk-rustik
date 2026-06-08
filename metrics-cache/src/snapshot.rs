@@ -88,6 +88,39 @@ impl OwnerGraph {
         map
     }
 
+    /// Walk the ownership chain using the passed in uid-to-owner-ref map,
+    /// from `start`, returning the [`OwnerReference`]s from the direct
+    /// controller up to the root.
+    ///
+    /// Looks up the controller of `start`, then that controller's controller
+    /// and so on, until it reaches an object with no controlling owner (and
+    /// thus not in `owner_ref_by_uid`).
+    ///
+    /// The result is ordered nearest-first (so: a Pod owned by a RepliaSet
+    /// owned by a Deployment will yield a vector containing first the
+    /// ReplicaSet and then the Deployment).
+    ///
+    /// The chain may be incomplete: if an owner hasn't been observed by the
+    /// watch yet, the walk simply stops there (eventual consistency, not an
+    /// error). Kubernetes should never produce a cycle, but this is
+    /// nevertheless guarded against; the walk always terminates.
+    fn walk_up_in<'a>(
+        owner_ref_by_uid: &'a HashMap<Uid, OwnerReference>,
+        start: &str,
+    ) -> Vec<&'a OwnerReference> {
+        let mut chain = Vec::new();
+        let mut seen = HashSet::new();
+        let mut cur = owner_ref_by_uid.get(start);
+        while let Some(owner_ref) = cur {
+            if !seen.insert(owner_ref.uid.as_str()) {
+                break;
+            }
+            chain.push(owner_ref);
+            cur = owner_ref_by_uid.get(owner_ref.uid.as_str());
+        }
+        chain
+    }
+
     /// Walk the ownership chain from `start`, returning the
     /// [`OwnerReference`]s from the direct controller up to the root.
     ///
@@ -104,16 +137,6 @@ impl OwnerGraph {
     /// error). Kubernetes should never produce a cycle, but this is
     /// nevertheless guarded against; the walk always terminates.
     pub fn walk_up(&self, start: &str) -> Vec<&OwnerReference> {
-        let mut chain = Vec::new();
-        let mut seen = HashSet::new();
-        let mut cur = self.owner_ref_by_uid.get(start);
-        while let Some(owner_ref) = cur {
-            if !seen.insert(owner_ref.uid.as_str()) {
-                break;
-            }
-            chain.push(owner_ref);
-            cur = self.owner_ref_by_uid.get(owner_ref.uid.as_str());
-        }
-        chain
+        Self::walk_up_in(&self.owner_ref_by_uid, start)
     }
 }
