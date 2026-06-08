@@ -2,7 +2,7 @@ use k8s_openapi::api::core::v1;
 use serde::Serialize;
 use std::sync::Arc;
 
-use crate::snapshot::OwnerGraph;
+use crate::snapshot::Snapshot;
 
 #[derive(Debug, Serialize)]
 pub struct Controller {
@@ -23,10 +23,11 @@ pub struct Pod {
 }
 
 impl Pod {
-    pub fn new(api: Arc<v1::Pod>, graph: &OwnerGraph) -> Self {
+    pub fn new(api: Arc<v1::Pod>, snapshot: &Snapshot) -> Self {
         let control_chain = match &api.metadata.uid {
-            Some(uid) => graph
-                .walk_up(&uid)
+            Some(uid) => snapshot
+                .owner_graph
+                .walk_up(uid)
                 .iter()
                 .map(|o| Controller::new(o.kind.clone(), o.name.clone()))
                 .collect(),
