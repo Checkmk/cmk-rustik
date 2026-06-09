@@ -93,7 +93,7 @@ impl OwnerGraph {
                 .find(|r| r.controller == Some(true))
                 && let Some(uid) = pod.metadata.uid.clone()
             {
-                map.insert(Uid(uid), owner_controller.to_owned());
+                map.insert(Uid(uid.into()), owner_controller.to_owned());
             }
         }
         for rs in &stores.replicasets {
@@ -103,7 +103,7 @@ impl OwnerGraph {
                 .find(|r| r.controller == Some(true))
                 && let Some(uid) = rs.metadata.uid.clone()
             {
-                map.insert(Uid(uid), owner_controller.to_owned());
+                map.insert(Uid(uid.into()), owner_controller.to_owned());
             }
         }
         map
@@ -119,14 +119,14 @@ impl OwnerGraph {
     ) -> HashMap<Uid, Vec<Uid>> {
         let mut out: HashMap<Uid, Vec<Uid>> = HashMap::new();
         for pod in &stores.pods {
-            let Some(pod_uid) = &pod.metadata.uid else {
+            let Some(pod_uid) = pod.metadata.uid.as_deref() else {
                 continue;
             };
-            let chain = Self::walk_up_in(owner_ref_by_uid, &pod_uid);
+            let chain = Self::walk_up_in(owner_ref_by_uid, pod_uid);
             for parent in chain {
-                out.entry(Uid(parent.uid.clone()))
+                out.entry(Uid(parent.uid.as_str().into()))
                     .or_default()
-                    .push(Uid(pod_uid.clone()));
+                    .push(Uid(pod_uid.into()));
             }
         }
         out

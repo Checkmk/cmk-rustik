@@ -1,5 +1,6 @@
 use kube::Client;
 use std::borrow::Borrow;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// The various Kinds with which we concern ourselves.
@@ -16,12 +17,12 @@ pub enum Kind {
 
 /// The unique ID of a given Kubernetes object.
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub struct Uid(pub String); // TODO: Debatable if this should be Deref or not.
+pub struct Uid(pub Arc<str>);
 
 impl Borrow<str> for Uid {
     #[inline]
     fn borrow(&self) -> &str {
-        self.0.as_str()
+        &self.0
     }
 }
 
