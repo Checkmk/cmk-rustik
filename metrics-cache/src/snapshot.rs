@@ -55,11 +55,11 @@ impl Snapshot {
 /// - The second maps controllers (things that can own other things), by their
 ///   [`Uid`]s, to a vector containing the pods that they own. This mapping is
 ///   recursive (represents the transitive closure of all the pods owned by the
-///   controller in the key). (not yet implemented)
+///   controller in the key).
 #[derive(Debug)]
 pub struct OwnerGraph {
     pub owner_ref_by_uid: HashMap<Uid, OwnerReference>,
-    //pub pods_by_controller: HashMap<Uid, Vec<Uid>>,
+    pub pods_by_controller: HashMap<Uid, Vec<Uid>>,
 }
 
 impl OwnerGraph {
@@ -68,8 +68,11 @@ impl OwnerGraph {
     /// Outside of testing, this normally only gets called by
     /// [`Snapshot::new()`].
     pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
+        let owner_ref_by_uid = Self::map_object_uids_to_owner_ref(stores);
+        let pods_by_controller = Self::get_pods_by_controller(stores, &owner_ref_by_uid);
         OwnerGraph {
-            owner_ref_by_uid: Self::map_object_uids_to_owner_ref(stores),
+            owner_ref_by_uid,
+            pods_by_controller,
         }
     }
 
@@ -104,6 +107,37 @@ impl OwnerGraph {
             }
         }
         map
+    }
+
+    /// Build the inverse index: for each controller UID, the UIDs of all pods
+    /// it transitively owns. Each pod is registered under every ancestor in its
+    /// chain, so, for example, a Deployment entry includes pods owned via its
+    /// ReplicaSets.
+    fn get_pods_by_controller(
+        stores: &FrozenStores,
+        owner_ref_by_uid: &HashMap<Uid, OwnerReference>,
+    ) -> HashMap<Uid, Vec<Uid>> {
+        let mut out: HashMap<Uid, Vec<Uid>> = HashMap::new();
+        for pod in &stores.pods {
+            let Some(pod_uid) = &pod.metadata.uid else {
+                continue;
+            };
+            let chain = Self::walk_up_in(owner_ref_by_uid, &pod_uid);
+            for parent in chain {
+                out.entry(Uid(parent.uid.clone()))
+                    .or_default()
+                    .push(Uid(pod_uid.clone()));
+            }
+        }
+        out
+    }
+
+    /// Get the [`Uid`] of all pods that are controlled by the controller at the
+    /// given `controller_uid`.
+    pub fn pods_by_controller(&self, controller_uid: &Uid) -> &[Uid] {
+        self.pods_by_controller
+            .get(controller_uid)
+            .map_or(&[], Vec::as_slice)
     }
 
     /// Like [`Self::walk_up()`] but operates on a borrowed map directly so that
