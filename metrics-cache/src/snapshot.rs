@@ -8,15 +8,16 @@ use crate::{FrozenStores, Stores};
 /// Represents a single, static snapshot of the state of the cluster as it
 /// pertains to Checkmk monitoring.
 ///
-/// Notably: At construction time, a `Snapshot` is fed from the [`Store`]s
-/// stored in our [`Stores`] (which lives in the Axum state via [`AppState`])
-/// and the stores are iterated through once to construct the snapshot.
+/// Notably: At construction time, a `Snapshot` is fed from the
+/// [`kube::runtime::reflector::Store`]s stored in our [`Stores`] (which lives
+/// in the Axum state via [`crate::state::AppState`]) and the stores are
+/// iterated through once to construct the snapshot.
 ///
 /// This means if the store changes (because a new update comes in from the
 /// Kubernetes watch API), we don't have to worry about our snapshot state
-/// becoming out of date.
+/// becoming out of date, the new state is simply ignored in this snapshot.
 ///
-/// We also create and store the owner graph as part of the snapshot.
+/// We also create and store the [`OwnerGraph`] as part of the snapshot.
 #[derive(Debug)]
 pub struct Snapshot {
     pub stores: FrozenStores,
@@ -25,7 +26,7 @@ pub struct Snapshot {
 
 impl Snapshot {
     /// Create a snapshot from the current state of all the monitored
-    /// [`Store`]s.
+    /// [`kube::runtime::reflector::Store`]s.
     pub fn new(stores: Stores) -> Self {
         let stores = stores.freeze();
         let owner_graph = OwnerGraph::from_frozen_stores(&stores);
@@ -36,12 +37,25 @@ impl Snapshot {
     }
 }
 
-/// An [`OwnerGraph`] is a structure which allows for lookups of what resource
-/// owns another resource, if any. For example, a [`Pod`] might be owned by a
-/// [`ReplicaSet`] which might be owned by a [`Deployment`].
+/// An [`OwnerGraph`] is a structure which allows for lookups of which resource
+/// owns another resource, if any. For example, a Pod might be owned by a
+/// ReplicaSet which might be owned by a Deployment.
 ///
 /// `OwnerGraph` owns the structures to perform such lookups and exposes
 /// functions to make use of said structures.
+///
+/// When the graph is created, internally two maps are created:
+///
+/// - The first maps Kubernetes [`Uid`]s of all "controllable" objects that we
+///   monitor (e.g. Pods, ReplicaSets, etc.) to [`OwnerReference`]s. This is a
+///   **direct, non-recursive** mapping: one object to its immediate owner as
+///   reported by Kubernetes. The only requirement is that the owner is listed
+///   as a (_the_) controller for the object.
+///
+/// - The second maps controllers (things that can own other things), by their
+///   [`Uid`]s, to a vector containing the pods that they own. This mapping is
+///   recursive (represents the transitive closure of all the pods owned by the
+///   controller in the key). (not yet implemented)
 #[derive(Debug)]
 pub struct OwnerGraph {
     pub owner_ref_by_uid: HashMap<Uid, OwnerReference>,
@@ -49,6 +63,10 @@ pub struct OwnerGraph {
 }
 
 impl OwnerGraph {
+    /// Construct an `OwnerGraph` given a [`FrozenStores`] reference.
+    ///
+    /// Outside of testing, this normally only gets called by
+    /// [`Snapshot::new()`].
     pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
         OwnerGraph {
             owner_ref_by_uid: Self::map_object_uids_to_owner_ref(stores),
@@ -59,10 +77,10 @@ impl OwnerGraph {
     /// [`Stores`]. We take the first owner which reports being a controller.
     /// Theory says there should only be at most one per object anyway.
     /// If one is found, the object's [`Uid`] is used as the key in the map
-    /// and the [`OwnerReference`'] is taken as the value.
+    /// and the [`OwnerReference`] is taken as the value.
     ///
     /// Not everything in the [`Stores`] is iterated; only things actually
-    /// likely to have a controller owner (e.g. Pods, RepliaSets, ...).
+    /// likely to have a controller owner (e.g. Pods, ReplicaSets, ...).
     fn map_object_uids_to_owner_ref(stores: &FrozenStores) -> HashMap<Uid, OwnerReference> {
         let mut map = HashMap::new();
         for pod in &stores.pods {
@@ -88,22 +106,8 @@ impl OwnerGraph {
         map
     }
 
-    /// Walk the ownership chain using the passed in uid-to-owner-ref map,
-    /// from `start`, returning the [`OwnerReference`]s from the direct
-    /// controller up to the root.
-    ///
-    /// Looks up the controller of `start`, then that controller's controller
-    /// and so on, until it reaches an object with no controlling owner (and
-    /// thus not in `owner_ref_by_uid`).
-    ///
-    /// The result is ordered nearest-first (so: a Pod owned by a RepliaSet
-    /// owned by a Deployment will yield a vector containing first the
-    /// ReplicaSet and then the Deployment).
-    ///
-    /// The chain may be incomplete: if an owner hasn't been observed by the
-    /// watch yet, the walk simply stops there (eventual consistency, not an
-    /// error). Kubernetes should never produce a cycle, but this is
-    /// nevertheless guarded against; the walk always terminates.
+    /// Like [`Self::walk_up()`] but operates on a borrowed map directly so that
+    /// it can be called during construction before the graph exists.
     fn walk_up_in<'a>(
         owner_ref_by_uid: &'a HashMap<Uid, OwnerReference>,
         start: &str,
@@ -128,7 +132,7 @@ impl OwnerGraph {
     /// and so on, until it reaches an object with no controlling owner (and
     /// thus not in `owner_ref_by_uid`).
     ///
-    /// The result is ordered nearest-first (so: a Pod owned by a RepliaSet
+    /// The result is ordered nearest-first (so: a Pod owned by a ReplicaSet
     /// owned by a Deployment will yield a vector containing first the
     /// ReplicaSet and then the Deployment).
     ///

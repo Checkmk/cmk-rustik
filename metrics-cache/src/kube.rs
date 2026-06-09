@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use std::time::Duration;
 
 /// The various Kinds with which we concern ourselves.
-/// This is used in constructing an [`OwnerGraph`].
+/// This is used in constructing an [`crate::snapshot::OwnerGraph`].
 #[derive(Debug)]
 pub enum Kind {
     Pod,
