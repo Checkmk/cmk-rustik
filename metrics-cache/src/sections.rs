@@ -18,8 +18,8 @@ pub(crate) struct LabelRef<'a> {
 
 #[derive(Serialize)]
 pub(crate) struct Controller<'a> {
-    type_: &'a str,
-    name: &'a str,
+    pub(crate) type_: &'a str,
+    pub(crate) name: &'a str,
 }
 
 #[derive(Serialize)]

@@ -1,6 +1,6 @@
 use k8s_openapi::api::core::v1;
 
-use crate::sections::KubePodInfoV1;
+use crate::sections::{Controller, KubePodInfoV1};
 use crate::snapshot::Snapshot;
 use crate::writeable_section::{SectionError, WriteableSection};
 
@@ -54,11 +54,23 @@ impl Pod<'_> {
         })
     }
 
-    fn info(&self) -> KubePodInfoV1<'_> {
+    fn info<'a>(&'a self, snapshot: &'a Snapshot) -> KubePodInfoV1<'a> {
+        let control_chain = match &self.api.metadata.uid {
+            Some(uid) => snapshot
+                .owner_graph
+                .walk_up(uid)
+                .iter()
+                .map(|o| Controller {
+                    type_: &o.kind,
+                    name: &o.name,
+                })
+                .collect(),
+            None => Vec::new(),
+        };
+
         KubePodInfoV1 {
             namespace: self.meta.namespace,
             name: self.meta.name,
-            // jiff, we need .as_milliseconds() / 1000
             creation_timestamp: self
                 .api
                 .metadata
@@ -84,7 +96,7 @@ impl Pod<'_> {
                 .and_then(|s| s.restart_policy.as_deref())
                 .unwrap_or("Always"),
             uid: self.api.metadata.uid.as_deref().unwrap_or_default(),
-            controllers: vec![],                             // TODO
+            controllers: control_chain,
             cluster: "TODO_CLUSTERNAME",                     // TODO
             kubernetes_cluster_hostname: "TODO_CLUSTERNAME", // TODO
         }
@@ -92,10 +104,10 @@ impl Pod<'_> {
 }
 
 impl PiggybackHost for Pod<'_> {
-    fn emit(&self, _snapshot: &Snapshot) -> Vec<Result<WriteableSection, SectionError>> {
+    fn emit(&self, snapshot: &Snapshot) -> Vec<Result<WriteableSection, SectionError>> {
         vec![WriteableSection::of(
             self.meta.piggyback_hostname("TODO_CLUSTERNAME"),
-            &self.info(),
+            &self.info(&snapshot),
         )]
     }
 }
