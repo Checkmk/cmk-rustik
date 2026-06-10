@@ -5,7 +5,9 @@ pub mod handlers;
 pub mod kube;
 pub mod piggyback_host;
 pub mod reflectors;
+pub mod sections;
 pub mod snapshot;
 pub mod state;
+pub mod writeable_section;
 
 pub use state::{AppState, FrozenStores, Stores};

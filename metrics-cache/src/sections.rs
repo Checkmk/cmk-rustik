@@ -1,0 +1,55 @@
+//! Wire-protocol JSON to send to Checkmk.
+//!
+//! The types here are relatively "low level", i.e. they sit "close" to the wire
+//! protocol that they end up serializing into.
+
+use serde::Serialize;
+use std::collections::BTreeMap;
+
+pub(crate) trait Section: Serialize {
+    const NAME: &str;
+}
+
+#[derive(Serialize)]
+pub(crate) struct LabelRef<'a> {
+    name: &'a str,
+    value: &'a str,
+}
+
+#[derive(Serialize)]
+pub(crate) struct Controller<'a> {
+    type_: &'a str,
+    name: &'a str,
+}
+
+#[derive(Serialize)]
+pub(crate) struct KubePodInfoV1<'a> {
+    pub namespace: Option<&'a str>,
+    pub name: &'a str,
+    pub creation_timestamp: Option<f64>,
+    pub labels: BTreeMap<&'a str, LabelRef<'a>>,
+    /// Annotations filtered with user input.
+    ///
+    /// After receiving the annotations from the Kubernetes API, we cannot
+    /// process all of them as HostLabels. FilteredAnnotations are those
+    /// annotations, which can be processed. This means that the annotations can
+    /// no longer be arbitrary json objects and that options from the
+    /// `Kubernetes` rule have been taken into account.
+    pub annotations: BTreeMap<&'a str, &'a str>,
+    // A pod might not be scheduled (yet) on a node (e.g. resource constraints)
+    pub node: Option<&'a str>,
+    pub host_network: Option<bool>,
+    pub dns_policy: Option<&'a str>,
+    pub host_ip: Option<&'a str>,
+    pub pod_ip: Option<&'a str>,
+    pub qos_class: Option<&'a str>,
+    pub restart_policy: &'a str,
+    pub uid: &'a str,
+    pub controllers: Vec<Controller<'a>>,
+    pub cluster: &'a str,
+    pub kubernetes_cluster_hostname: &'a str,
+}
+
+impl Section for KubePodInfoV1<'_> {
+    const NAME: &'static str = "kube_pod_info_v1";
+}
