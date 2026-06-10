@@ -13,7 +13,7 @@ use tracing::{debug, error, trace};
 
 pub fn start_reflector<K>(api: Api<K>, config: WatchConfig) -> Store<K>
 where
-    K: Resource + Clone + DeserializeOwned + Debug + Send + Sync + 'static,
+    K: Resource + Clone + DeserializeOwned + Debug + Send + Sync + k8s_openapi::Resource + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
 {
     let (reader, writer) = reflector::store();
@@ -27,7 +27,7 @@ where
             match r {
                 Ok(k) => {
                     trace!(
-                        kind = %K::kind(&K::DynamicType::default()),
+                        kind = %K::KIND,
                         name = %k.name_any(),
                         namespace = ?k.namespace(),
                         "object touched"
