@@ -1380,8 +1380,11 @@ name = "metrics-fetcher"
 version = "2.0.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "reqwest",
  "rustls",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

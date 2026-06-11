@@ -9,5 +9,8 @@ repository.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bytes = "1.11.1"
 reqwest = { version = "0.13.3", features = ["blocking", "query", "json", "rustls-no-provider", "http2", "system-proxy"], default-features = false }
 rustls = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
