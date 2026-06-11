@@ -1380,9 +1380,6 @@ name = "metrics-fetcher"
 version = "2.0.0"
 dependencies = [
  "anyhow",
- "cmk-kube-types",
- "jiff",
- "nom",
  "reqwest",
  "rustls",
 ]
@@ -1422,14 +1419,6 @@ dependencies = [
  "smallvec",
  "tagptr",
  "uuid",
-]
-
-[[package]]
-name = "nom"
-version = "8.0.0"
-source = "git+https://github.com/rust-bakery/nom?rev=51c3c4e44fa78a8a09b413419372b97b2cc2a787#51c3c4e44fa78a8a09b413419372b97b2cc2a787"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
