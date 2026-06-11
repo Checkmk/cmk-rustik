@@ -73,9 +73,15 @@ spec:
         - name: metrics-cache
           image: cmk-rustik:1
           imagePullPolicy: Never
-          args: # TODO
-            - /bin/sleep
-            - 24h
+          args:
+            - /src/target/x86_64-unknown-linux-musl/debug/cmk-rustik-cache-server
+            - --address=0.0.0.0
+            - --log-level=debug
+            - --reader-allowlist=checkmk-monitoring:metrics-cache
+            - --writer-allowlist=checkmk-monitoring:metrics-fetcher
+          # args:
+          #   - /bin/sleep
+          #   - 24h
           env:
             - name: NODE_NAME
               valueFrom:
