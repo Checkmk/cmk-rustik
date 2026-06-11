@@ -10,6 +10,7 @@ kind-dev: dockerize
       kind create cluster --name rustik --config -
     kind load docker-image cmk-rustik:1 --name rustik
     kubectl apply -f k8s/dev-deployment.yaml
+    kubectl apply -f k8s/dev-daemonset.yaml
 
 kind-dev-teardown:
     kind delete cluster --name rustik
