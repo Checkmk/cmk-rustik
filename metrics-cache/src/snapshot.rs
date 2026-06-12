@@ -5,8 +5,8 @@ use moka::future::Cache;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use crate::ingest::kubelet_stats::StatsSummary;
 use crate::kube::Uid;
-use crate::kubelet_stats::StatsSummary;
 use crate::{FrozenStores, Stores};
 
 /// Represents a single, static snapshot of the state of the cluster as it

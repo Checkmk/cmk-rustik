@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
-use crate::kubelet_stats::StatsSummary;
+use crate::ingest::kubelet_stats::StatsSummary;
 
 pub async fn kubelet_stats_summary(
     State(state): State<AppState<impl TokenValidator>>,

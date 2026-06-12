@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
-use metrics_cache::{AppState, Stores, auth, cli_args, handlers, reflectors};
+use metrics_cache::{AppState, Stores, auth, cli_args, handlers, ingest::reflectors};
 
 // Kubernetes can have a maximum of 5000 nodes, and we currently run two
 // metrics-fetchers per node (container_metrics and machine_sections).
