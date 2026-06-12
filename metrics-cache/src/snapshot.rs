@@ -1,9 +1,11 @@
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::ResourceExt;
+use moka::future::Cache;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use crate::handlers::ingress::StatsSummary;
 use crate::kube::Uid;
 use crate::{FrozenStores, Stores};
 
@@ -24,17 +26,20 @@ use crate::{FrozenStores, Stores};
 pub struct Snapshot {
     pub stores: FrozenStores,
     pub owner_graph: OwnerGraph,
+    pub metrics: MetricTables,
 }
 
 impl Snapshot {
     /// Create a snapshot from the current state of all the monitored
-    /// [`kube::runtime::reflector::Store`]s.
-    pub fn new(stores: Stores) -> Self {
+    /// [`kube::runtime::reflector::Store`]s and all stat summaries scraped from the Kubelet.
+    pub fn new(stores: Stores, kubelet_stats_summary_cache: Cache<String, StatsSummary>) -> Self {
         let stores = stores.freeze();
         let owner_graph = OwnerGraph::from_frozen_stores(&stores);
+        let metrics = MetricTables::from_cache(kubelet_stats_summary_cache);
         Snapshot {
             stores,
             owner_graph,
+            metrics,
         }
     }
 }
@@ -179,4 +184,50 @@ impl OwnerGraph {
     pub fn walk_up(&self, start: &str) -> Vec<&OwnerReference> {
         Self::walk_up_in(&self.owner_ref_by_uid, start)
     }
+}
+
+#[derive(Debug)]
+pub struct MetricTables {
+    /// Performance samples for containers.
+    ///
+    /// Indexed by: `sample = samples[namespace][pod][container]`
+    pub containers: HashMap<String, HashMap<String, HashMap<String, Sample>>>,
+}
+
+impl MetricTables {
+    pub fn from_cache(kubelet_stats_summary_cache: Cache<String, StatsSummary>) -> Self {
+        let mut containers: HashMap<String, HashMap<String, HashMap<String, Sample>>> =
+            HashMap::new();
+
+        for (_, stats_summary) in kubelet_stats_summary_cache.iter() {
+            for pod in stats_summary.pods {
+                let pod_map = containers
+                    .entry(pod.pod_ref.namespace)
+                    .or_default()
+                    .entry(pod.pod_ref.name)
+                    .or_default();
+                for container in pod.containers {
+                    let sample = Sample {
+                        cpu_usage_nano_cores: container.cpu.and_then(|c| c.usage_nano_cores),
+                        memory_working_set_bytes: container
+                            .memory
+                            .and_then(|m| m.working_set_bytes),
+                    };
+                    pod_map.insert(container.name, sample);
+                }
+            }
+        }
+
+        Self { containers }
+    }
+
+    pub fn container(&self, namespace: &str, pod: &str, container: &str) -> Option<&Sample> {
+        self.containers.get(namespace)?.get(pod)?.get(container)
+    }
+}
+
+#[derive(Debug)]
+pub struct Sample {
+    pub cpu_usage_nano_cores: Option<u64>,
+    pub memory_working_set_bytes: Option<u64>,
 }

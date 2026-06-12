@@ -7,7 +7,7 @@ use crate::snapshot::Snapshot;
 use crate::writeable_section::frame;
 
 pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> String {
-    let snap = Snapshot::new(state.stores);
+    let snap = Snapshot::new(state.stores, state.kubelet_stats_summary_cache);
     let sections: Vec<_> = snap
         .stores
         .pods

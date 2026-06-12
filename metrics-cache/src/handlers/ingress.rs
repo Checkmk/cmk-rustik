@@ -6,53 +6,47 @@ use crate::auth::kubernetes::TokenValidator;
 
 /// The parsed response from the Kubelet endpoint `/stats/summary`.
 #[derive(Clone, Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct StatsSummary {
-    node: Node,
-    pods: Vec<Pod>,
+    pub node: Node,
+    pub pods: Vec<Pod>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Node {
     #[serde(rename = "nodeName")]
-    node_name: String,
+    pub node_name: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct Pod {
     #[serde(rename = "podRef")]
-    pod_ref: PodReference,
-    containers: Vec<Container>,
+    pub pod_ref: PodReference,
+    pub containers: Vec<Container>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct PodReference {
-    name: String,
-    namespace: String,
+    pub name: String,
+    pub namespace: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct Container {
-    name: String,
-    cpu: Option<CPUStats>,
-    memory: Option<MemoryStats>,
+    pub name: String,
+    pub cpu: Option<CPUStats>,
+    pub memory: Option<MemoryStats>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct CPUStats {
     #[serde(rename = "usageNanoCores")]
-    usage_nano_cores: Option<u64>,
+    pub usage_nano_cores: Option<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct MemoryStats {
     #[serde(rename = "workingSetBytes")]
-    working_set_bytes: Option<u64>,
+    pub working_set_bytes: Option<u64>,
 }
 
 pub async fn kubelet_stats_summary(
