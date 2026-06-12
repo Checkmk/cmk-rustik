@@ -4,7 +4,7 @@ pub mod error;
 pub mod handlers;
 pub mod kube;
 pub mod kubelet_stats;
-pub mod piggyback_host;
+pub mod piggyback;
 pub mod reflectors;
 pub mod sections;
 pub mod snapshot;

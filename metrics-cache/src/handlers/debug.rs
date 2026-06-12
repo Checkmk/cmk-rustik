@@ -2,7 +2,7 @@ use axum::extract::State;
 
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
-use crate::piggyback_host::{PiggybackHost, Pod};
+use crate::piggyback::{PiggybackHost, pod::Pod};
 use crate::snapshot::Snapshot;
 use crate::writeable_section::frame;
 
