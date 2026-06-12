@@ -5,7 +5,7 @@ use moka::future::Cache;
 use std::sync::Arc;
 
 use crate::auth::kubernetes::TokenValidator;
-use crate::handlers::ingress::StatsSummary;
+use crate::kubelet_stats::StatsSummary;
 use cmk_kube_types::{machine_sections, metadata};
 
 #[derive(Clone)]
