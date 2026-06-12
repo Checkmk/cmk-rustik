@@ -1,4 +1,5 @@
 use axum::{Json, extract::State};
+use std::sync::Arc;
 
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
@@ -10,7 +11,10 @@ pub async fn kubelet_stats_summary(
 ) -> Json<String> {
     state
         .kubelet_stats_summary_cache
-        .insert(stats_summary.node.node_name.clone(), stats_summary)
+        .insert(
+            stats_summary.node.node_name.clone(),
+            Arc::new(stats_summary),
+        )
         .await;
     Json("ok".to_string())
 }

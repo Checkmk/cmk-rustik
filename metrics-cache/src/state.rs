@@ -17,7 +17,7 @@ pub struct AppState<V: TokenValidator> {
     pub metrics_cache_static_metadata: Arc<metadata::StaticMetadata>,
     pub machine_sections_cache: Cache<String, machine_sections::Sections>,
     pub metrics_fetcher_metadata_cache: Cache<String, metadata::metrics_fetcher::Metadata>,
-    pub kubelet_stats_summary_cache: Cache<String, StatsSummary>,
+    pub kubelet_stats_summary_cache: Cache<String, Arc<StatsSummary>>,
 }
 
 #[derive(Clone)]
@@ -57,8 +57,6 @@ impl Stores {
 #[cfg(test)]
 pub mod tests {
     use k8s_openapi::api::authentication::v1::TokenReview;
-    use moka::future::Cache;
-    use std::sync::Arc;
 
     use super::*;
     use cmk_kube_types::metadata;

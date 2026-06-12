@@ -32,7 +32,10 @@ pub struct Snapshot {
 impl Snapshot {
     /// Create a snapshot from the current state of all the monitored
     /// [`kube::runtime::reflector::Store`]s and all stat summaries scraped from the Kubelet.
-    pub fn new(stores: Stores, kubelet_stats_summary_cache: Cache<String, StatsSummary>) -> Self {
+    pub fn new(
+        stores: Stores,
+        kubelet_stats_summary_cache: Cache<String, Arc<StatsSummary>>,
+    ) -> Self {
         let stores = stores.freeze();
         let owner_graph = OwnerGraph::from_frozen_stores(&stores);
         let metrics = MetricTables::from_cache(kubelet_stats_summary_cache);
@@ -195,25 +198,29 @@ pub struct MetricTables {
 }
 
 impl MetricTables {
-    pub fn from_cache(kubelet_stats_summary_cache: Cache<String, StatsSummary>) -> Self {
+    pub fn from_cache(kubelet_stats_summary_cache: Cache<String, Arc<StatsSummary>>) -> Self {
         let mut containers: HashMap<String, HashMap<String, HashMap<String, Sample>>> =
             HashMap::new();
 
         for (_, stats_summary) in kubelet_stats_summary_cache.iter() {
-            for pod in stats_summary.pods {
+            for pod in &stats_summary.pods {
                 let pod_map = containers
-                    .entry(pod.pod_ref.namespace)
+                    .entry(pod.pod_ref.namespace.clone())
                     .or_default()
-                    .entry(pod.pod_ref.name)
+                    .entry(pod.pod_ref.name.clone())
                     .or_default();
-                for container in pod.containers {
+                for container in &pod.containers {
                     let sample = Sample {
-                        cpu_usage_nano_cores: container.cpu.and_then(|c| c.usage_nano_cores),
+                        cpu_usage_nano_cores: container
+                            .cpu
+                            .as_ref()
+                            .and_then(|c| c.usage_nano_cores),
                         memory_working_set_bytes: container
                             .memory
+                            .as_ref()
                             .and_then(|m| m.working_set_bytes),
                     };
-                    pod_map.insert(container.name, sample);
+                    pod_map.insert(container.name.clone(), sample);
                 }
             }
         }
