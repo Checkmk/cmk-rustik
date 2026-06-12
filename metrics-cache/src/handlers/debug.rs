@@ -3,8 +3,8 @@ use axum::extract::State;
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
 use crate::piggyback::{PiggybackHost, pod::Pod};
+use crate::section::writeable::frame;
 use crate::snapshot::Snapshot;
-use crate::writeable_section::frame;
 
 pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> String {
     let snap = Snapshot::new(state.stores, state.kubelet_stats_summary_cache);

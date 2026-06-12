@@ -1,9 +1,12 @@
 use k8s_openapi::api::core::v1;
 
 use crate::piggyback::{Meta, PiggybackHost};
-use crate::sections::{Controller, KubePodInfoV1};
+use crate::section::{
+    common::Controller,
+    pod::KubePodInfoV1,
+    writeable::{SectionError, WriteableSection},
+};
 use crate::snapshot::Snapshot;
-use crate::writeable_section::{SectionError, WriteableSection};
 
 pub struct Pod<'a> {
     api: &'a v1::Pod,

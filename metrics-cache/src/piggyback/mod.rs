@@ -1,7 +1,7 @@
 pub mod pod;
 
+use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
-use crate::writeable_section::{SectionError, WriteableSection};
 
 /// Common, identifying data used for a given piggyback host type.
 ///

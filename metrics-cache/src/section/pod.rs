@@ -1,26 +1,10 @@
-//! Wire-protocol JSON to send to Checkmk.
-//!
-//! The types here are relatively "low level", i.e. they sit "close" to the wire
-//! protocol that they end up serializing into.
-
 use serde::Serialize;
 use std::collections::BTreeMap;
 
-pub(crate) trait Section: Serialize {
-    const NAME: &str;
-}
-
-#[derive(Serialize)]
-pub(crate) struct LabelRef<'a> {
-    name: &'a str,
-    value: &'a str,
-}
-
-#[derive(Serialize)]
-pub(crate) struct Controller<'a> {
-    pub(crate) type_: &'a str,
-    pub(crate) name: &'a str,
-}
+use crate::section::{
+    Section,
+    common::{Controller, LabelRef},
+};
 
 #[derive(Serialize)]
 pub(crate) struct KubePodInfoV1<'a> {

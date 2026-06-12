@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::sections::Section;
+use crate::section::Section;
 
 pub(crate) struct WriteableSection {
     pub piggyback_hostname: String,
