@@ -42,6 +42,7 @@ impl Payload {
             .post(&url)
             .bearer_auth(token.trim())
             .body(self.extract())
+            .header("content-type", "application/json")
             .send()
             .await?;
         if response.status().is_success() {

@@ -16,6 +16,9 @@ use metrics_cache::{AppState, Stores, auth, cli_args, handlers, reflectors};
 // metrics-fetchers per node (container_metrics and machine_sections).
 const METRICS_FETCHER_METADATA_CACHE_MAX_SIZE: u64 = 10000;
 
+// Used for the size of the various metrics-fetcher caches.
+const MAX_SUPPORTED_KUBERNETES_NODES: u64 = 5000;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = cli_args::Args::parse();
@@ -58,9 +61,8 @@ async fn main() -> anyhow::Result<()> {
             .time_to_live(args.cache_ttl)
             .max_capacity(METRICS_FETCHER_METADATA_CACHE_MAX_SIZE)
             .build(),
-        container_metrics_cache: Cache::builder()
-            .time_to_live(args.cache_ttl)
-            .max_capacity(args.cache_maxsize)
+        kubelet_stats_summary_cache: Cache::builder()
+            .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
             .build(),
     };
     let app = Router::new()
@@ -71,10 +73,9 @@ async fn main() -> anyhow::Result<()> {
             "/update_machine_sections",
             post(handlers::machine_sections::update),
         )
-        .route("/container_metrics", get(handlers::container_metrics::get))
         .route(
-            "/update_container_metrics",
-            post(handlers::container_metrics::update),
+            "/ingress/kubelet_stats_summary",
+            post(handlers::ingress::kubelet_stats_summary),
         )
         // vvv Routes above this will REQUIRE AUTHENTICATION vvv
         .route_layer(middleware::from_fn_with_state(

@@ -1,6 +1,6 @@
-pub mod container_metrics;
 pub mod debug;
 mod health;
+pub mod ingress;
 pub mod machine_sections;
 pub mod metadata;
 

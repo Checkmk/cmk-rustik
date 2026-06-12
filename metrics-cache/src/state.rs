@@ -5,7 +5,8 @@ use moka::future::Cache;
 use std::sync::Arc;
 
 use crate::auth::kubernetes::TokenValidator;
-use cmk_kube_types::{container_metrics, machine_sections, metadata};
+use crate::handlers::ingress::StatsSummary;
+use cmk_kube_types::{machine_sections, metadata};
 
 #[derive(Clone)]
 pub struct AppState<V: TokenValidator> {
@@ -16,7 +17,7 @@ pub struct AppState<V: TokenValidator> {
     pub metrics_cache_static_metadata: Arc<metadata::StaticMetadata>,
     pub machine_sections_cache: Cache<String, machine_sections::Sections>,
     pub metrics_fetcher_metadata_cache: Cache<String, metadata::metrics_fetcher::Metadata>,
-    pub container_metrics_cache: Cache<String, container_metrics::Metric>,
+    pub kubelet_stats_summary_cache: Cache<String, StatsSummary>,
 }
 
 #[derive(Clone)]
@@ -113,7 +114,7 @@ pub mod tests {
                 .time_to_live(std::time::Duration::from_secs(120))
                 .max_capacity(10000)
                 .build(),
-            container_metrics_cache: Cache::builder()
+            kubelet_stats_summary_cache: Cache::builder()
                 .time_to_live(std::time::Duration::from_secs(120))
                 .max_capacity(10000)
                 .build(),
