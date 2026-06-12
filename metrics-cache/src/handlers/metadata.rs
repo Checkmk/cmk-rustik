@@ -30,16 +30,20 @@ impl CacheSizeInfo {
     }
 }
 
+// TODO: This has now deviated from Checkmk, Checkmk needs to be changed to account for it.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct CacheHealth {
-    container_metrics: CacheSizeInfo,
+    kubelet_stats_summary_cache_metrics: CacheSizeInfo,
     machine_sections: CacheSizeInfo,
 }
 
 impl CacheHealth {
     async fn from_state(state: AppState<impl TokenValidator>) -> Self {
         CacheHealth {
-            container_metrics: CacheSizeInfo::from_cache(state.kubelet_stats_summary_cache).await,
+            kubelet_stats_summary_cache_metrics: CacheSizeInfo::from_cache(
+                state.kubelet_stats_summary_cache,
+            )
+            .await,
             machine_sections: CacheSizeInfo::from_cache(state.machine_sections_cache).await,
         }
     }
