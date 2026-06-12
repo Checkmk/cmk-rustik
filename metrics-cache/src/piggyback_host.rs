@@ -107,7 +107,7 @@ impl PiggybackHost for Pod<'_> {
     fn emit(&self, snapshot: &Snapshot) -> Vec<Result<WriteableSection, SectionError>> {
         vec![WriteableSection::of(
             self.meta.piggyback_hostname("TODO_CLUSTERNAME"),
-            &self.info(&snapshot),
+            &self.info(snapshot),
         )]
     }
 }
