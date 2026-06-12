@@ -1,6 +1,8 @@
+use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::ResourceExt;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::kube::Uid;
 use crate::{FrozenStores, Stores};
@@ -59,7 +61,7 @@ impl Snapshot {
 #[derive(Debug)]
 pub struct OwnerGraph {
     pub owner_ref_by_uid: HashMap<Uid, OwnerReference>,
-    pub pods_by_controller: HashMap<Uid, Vec<Uid>>,
+    pub pods_by_controller: HashMap<Uid, Vec<Arc<Pod>>>,
 }
 
 impl OwnerGraph {
@@ -116,8 +118,8 @@ impl OwnerGraph {
     fn get_pods_by_controller(
         stores: &FrozenStores,
         owner_ref_by_uid: &HashMap<Uid, OwnerReference>,
-    ) -> HashMap<Uid, Vec<Uid>> {
-        let mut out: HashMap<Uid, Vec<Uid>> = HashMap::new();
+    ) -> HashMap<Uid, Vec<Arc<Pod>>> {
+        let mut out: HashMap<Uid, Vec<Arc<Pod>>> = HashMap::new();
         for pod in &stores.pods {
             let Some(pod_uid) = pod.metadata.uid.as_deref() else {
                 continue;
@@ -126,7 +128,7 @@ impl OwnerGraph {
             for parent in chain {
                 out.entry(Uid(parent.uid.as_str().into()))
                     .or_default()
-                    .push(Uid(pod_uid.into()));
+                    .push(pod.clone());
             }
         }
         out
@@ -134,7 +136,7 @@ impl OwnerGraph {
 
     /// Get the [`Uid`] of all pods that are controlled by the controller at the
     /// given `controller_uid`.
-    pub fn pods_by_controller(&self, controller_uid: &Uid) -> &[Uid] {
+    pub fn pods_by_controller(&self, controller_uid: &Uid) -> &[Arc<Pod>] {
         self.pods_by_controller
             .get(controller_uid)
             .map_or(&[], Vec::as_slice)
