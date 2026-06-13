@@ -8,4 +8,4 @@ pub mod section;
 pub mod snapshot;
 pub mod state;
 
-pub use state::{AppState, FrozenStores, Stores};
+pub use state::AppState;

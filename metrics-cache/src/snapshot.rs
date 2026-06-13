@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::ingest::kubelet_stats::StatsSummary;
-use crate::{FrozenStores, Stores};
+use crate::ingest::reflectors::{FrozenStores, Stores};
 
 /// Represents a single, static snapshot of the state of the cluster as it
 /// pertains to Checkmk monitoring.

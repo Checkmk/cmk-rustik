@@ -1,12 +1,21 @@
-use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet};
-use k8s_openapi::api::core::v1::{Namespace, Node, Pod};
-use kube::runtime::reflector::Store;
+use kube::Client;
 use moka::future::Cache;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::auth::kubernetes::TokenValidator;
+use crate::cli_args::CliArgs;
+use crate::error::Result;
 use crate::ingest::kubelet_stats::StatsSummary;
+use crate::ingest::reflectors::Stores;
 use cmk_kube_types::{machine_sections, metadata};
+
+// Kubernetes can have a maximum of 5000 nodes, and we currently run two
+// metrics-fetchers per node (container_metrics and machine_sections).
+const METRICS_FETCHER_METADATA_CACHE_MAX_SIZE: u64 = 10000;
+
+// Used for the size of the various metrics-fetcher caches.
+const MAX_SUPPORTED_KUBERNETES_NODES: u64 = 5000;
 
 #[derive(Clone)]
 pub struct AppState<V: TokenValidator> {
@@ -20,36 +29,49 @@ pub struct AppState<V: TokenValidator> {
     pub kubelet_stats_summary_cache: Cache<String, Arc<StatsSummary>>,
 }
 
-#[derive(Clone)]
-pub struct Stores {
-    pub pods: Store<Pod>,
-    pub nodes: Store<Node>,
-    pub deployments: Store<Deployment>,
-    pub daemonsets: Store<DaemonSet>,
-    pub namespaces: Store<Namespace>,
-    pub replicasets: Store<ReplicaSet>,
-}
+impl AppState<Client> {
+    pub async fn new(args: &CliArgs) -> Result<Self> {
+        let client = Self::kube_client(args.connect_timeout, args.read_timeout).await?;
+        let watcher_client = Self::kube_watcher_client(args.connect_timeout).await?;
+        let static_metadata = crate::handlers::metadata::generate_static_metadata()?;
+        let state = Self {
+            client,
+            stores: Stores::spawn(watcher_client),
+            reader_allowlist: args.reader_allowlist.clone(),
+            writer_allowlist: args.writer_allowlist.clone(),
+            metrics_cache_static_metadata: Arc::new(static_metadata),
+            machine_sections_cache: Cache::builder()
+                .time_to_live(args.cache_ttl)
+                .max_capacity(args.cache_maxsize)
+                .build(),
+            metrics_fetcher_metadata_cache: Cache::builder()
+                .time_to_live(args.cache_ttl)
+                .max_capacity(METRICS_FETCHER_METADATA_CACHE_MAX_SIZE)
+                .build(),
+            kubelet_stats_summary_cache: Cache::builder()
+                .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
+                .build(),
+        };
+        Ok(state)
+    }
 
-#[derive(Debug)]
-pub struct FrozenStores {
-    pub pods: Vec<Arc<Pod>>,
-    pub nodes: Vec<Arc<Node>>,
-    pub deployments: Vec<Arc<Deployment>>,
-    pub daemonsets: Vec<Arc<DaemonSet>>,
-    pub namespaces: Vec<Arc<Namespace>>,
-    pub replicasets: Vec<Arc<ReplicaSet>>,
-}
+    /// Build a Kubernetes client for general use (token reviews, etc.).
+    async fn kube_client(connect_timeout: Duration, read_timeout: Duration) -> Result<Client> {
+        let mut config = kube::Config::infer().await?;
+        config.connect_timeout = Some(connect_timeout);
+        config.read_timeout = Some(read_timeout);
 
-impl Stores {
-    pub fn freeze(&self) -> FrozenStores {
-        FrozenStores {
-            pods: self.pods.state(),
-            nodes: self.nodes.state(),
-            deployments: self.deployments.state(),
-            daemonsets: self.daemonsets.state(),
-            namespaces: self.namespaces.state(),
-            replicasets: self.replicasets.state(),
-        }
+        Ok(Client::try_from(config)?)
+    }
+
+    /// Build a Kubernetes client suitable for watch streams. No read timeout —
+    /// watch connections are long-lived and idle between events, so a read timeout
+    /// would kill them.
+    async fn kube_watcher_client(connect_timeout: Duration) -> Result<Client> {
+        let mut config = kube::Config::infer().await?;
+        config.connect_timeout = Some(connect_timeout);
+
+        Ok(Client::try_from(config)?)
     }
 }
 

@@ -7,7 +7,7 @@ use std::time::Duration;
     name = "cmk-rustik-cache-server",
     about = "An HTTP-based caching server for Kubernetes metrics"
 )]
-pub struct Args {
+pub struct CliArgs {
     /// Path to the SSL key file for HTTPS connections
     #[arg(short = 'k', long = "ssl-keyfile", requires = "secure_protocol")]
     pub ssl_keyfile: Option<String>,
