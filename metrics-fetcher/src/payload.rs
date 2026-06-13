@@ -30,7 +30,7 @@ impl Payload {
             tokio::fs::read_to_string("/var/run/secrets/kubernetes.io/serviceaccount/token")
                 .await?;
         let url = format!(
-            "http://metrics-cache.checkmk-monitoring.svc.cluster.local:10050/ingress{}",
+            "http://metrics-cache.checkmk-monitoring.svc.cluster.local:10050/ingest{}",
             self.metrics_cache_endpoint()
         );
         debug!(url = %url, "relaying payload to metrics-cache");

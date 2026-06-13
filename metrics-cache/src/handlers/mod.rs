@@ -1,6 +1,6 @@
 pub mod debug;
 mod health;
-pub mod ingress;
+pub mod ingest;
 pub mod machine_sections;
 pub mod metadata;
 

@@ -74,8 +74,8 @@ async fn main() -> anyhow::Result<()> {
             post(handlers::machine_sections::update),
         )
         .route(
-            "/ingress/kubelet_stats_summary",
-            post(handlers::ingress::kubelet_stats_summary),
+            "/ingest/kubelet_stats_summary",
+            post(handlers::ingest::kubelet_stats_summary),
         )
         // vvv Routes above this will REQUIRE AUTHENTICATION vvv
         .route_layer(middleware::from_fn_with_state(
