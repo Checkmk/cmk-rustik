@@ -90,7 +90,7 @@ pub mod tests {
 
     impl TokenValidator for MockValidator {
         type Error = ();
-        async fn validate(&self, _token: &str) -> Result<TokenReview, ()> {
+        async fn validate(&self, _token: &str) -> std::result::Result<TokenReview, ()> {
             self.response.clone()
         }
     }
