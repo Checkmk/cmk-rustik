@@ -2,11 +2,11 @@ use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::ResourceExt;
 use moka::future::Cache;
+use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::ingest::kubelet_stats::StatsSummary;
-use crate::kube::Uid;
 use crate::{FrozenStores, Stores};
 
 /// Represents a single, static snapshot of the state of the cluster as it
@@ -44,6 +44,17 @@ impl Snapshot {
             owner_graph,
             metrics,
         }
+    }
+}
+
+/// The unique ID of a given Kubernetes object.
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct Uid(pub Arc<str>);
+
+impl Borrow<str> for Uid {
+    #[inline]
+    fn borrow(&self) -> &str {
+        &self.0
     }
 }
 
