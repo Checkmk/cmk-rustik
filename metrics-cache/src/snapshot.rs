@@ -225,11 +225,13 @@ impl MetricTables {
                         cpu_usage_nano_cores: container
                             .cpu
                             .as_ref()
-                            .and_then(|c| c.usage_nano_cores),
+                            .and_then(|c| c.usage_nano_cores)
+                            .unwrap_or(0),
                         memory_working_set_bytes: container
                             .memory
                             .as_ref()
-                            .and_then(|m| m.working_set_bytes),
+                            .and_then(|m| m.working_set_bytes)
+                            .unwrap_or(0),
                     };
                     pod_map.insert(container.name.clone(), sample);
                 }
@@ -242,10 +244,22 @@ impl MetricTables {
     pub fn container(&self, namespace: &str, pod: &str, container: &str) -> Option<&Sample> {
         self.containers.get(namespace)?.get(pod)?.get(container)
     }
+
+    pub fn pod_usage(&self, namespace: &str, pod: &str) -> Option<Sample> {
+        let mut total = Sample {
+            cpu_usage_nano_cores: 0,
+            memory_working_set_bytes: 0,
+        };
+        for sample in self.containers.get(namespace)?.get(pod)?.values() {
+            total.cpu_usage_nano_cores += sample.cpu_usage_nano_cores;
+            total.memory_working_set_bytes += sample.memory_working_set_bytes;
+        }
+        Some(total)
+    }
 }
 
 #[derive(Debug)]
 pub struct Sample {
-    pub cpu_usage_nano_cores: Option<u64>,
-    pub memory_working_set_bytes: Option<u64>,
+    pub cpu_usage_nano_cores: u64,
+    pub memory_working_set_bytes: u64,
 }

@@ -1,4 +1,5 @@
 pub mod common;
+pub mod performance;
 pub mod pod;
 pub mod writeable;
 
