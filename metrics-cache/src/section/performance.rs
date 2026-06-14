@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::section::Section;
 
 #[derive(Serialize)]
-pub(crate) enum PerformanceType {
+enum PerformanceType {
     #[serde(rename = "cpu")]
     Cpu,
     #[serde(rename = "memory")]
@@ -11,15 +11,26 @@ pub(crate) enum PerformanceType {
 }
 
 #[derive(Serialize)]
-pub(crate) struct PerformanceFields {
-    pub(crate) type_: PerformanceType,
-    pub(crate) usage: f64,
+struct PerformanceFields {
+    type_: PerformanceType,
+    usage: f64,
 }
 
 #[derive(Serialize)]
 pub(crate) struct KubePerformanceCpuV1 {
     #[serde(flatten)]
-    pub(crate) performance: PerformanceFields,
+    performance: PerformanceFields,
+}
+
+impl KubePerformanceCpuV1 {
+    pub(crate) fn new(usage: u64) -> Self {
+        Self {
+            performance: PerformanceFields {
+                type_: PerformanceType::Cpu,
+                usage: usage as f64 / 1e9,
+            },
+        }
+    }
 }
 
 impl Section for KubePerformanceCpuV1 {
@@ -29,7 +40,18 @@ impl Section for KubePerformanceCpuV1 {
 #[derive(Serialize)]
 pub(crate) struct KubePerformanceMemoryV1 {
     #[serde(flatten)]
-    pub(crate) performance: PerformanceFields,
+    performance: PerformanceFields,
+}
+
+impl KubePerformanceMemoryV1 {
+    pub(crate) fn new(usage: u64) -> Self {
+        Self {
+            performance: PerformanceFields {
+                type_: PerformanceType::Memory,
+                usage: usage as f64,
+            },
+        }
+    }
 }
 
 impl Section for KubePerformanceMemoryV1 {

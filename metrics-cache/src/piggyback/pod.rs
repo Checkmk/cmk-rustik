@@ -3,9 +3,7 @@ use k8s_openapi::api::core::v1;
 use crate::piggyback::{Meta, PiggybackHost};
 use crate::section::{
     common::Controller,
-    performance::{
-        KubePerformanceCpuV1, KubePerformanceMemoryV1, PerformanceFields, PerformanceType,
-    },
+    performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
     pod::KubePodInfoV1,
     writeable::{SectionError, WriteableSection},
 };
@@ -72,45 +70,28 @@ impl Pod<'_> {
             kubernetes_cluster_hostname: "TODO_CLUSTERNAME", // TODO
         }
     }
-
-    fn performance_cpu(&self, snapshot: &Snapshot) -> Option<KubePerformanceCpuV1> {
-        let namespace = self.api.metadata.namespace.clone()?;
-        let pod_name = self.api.metadata.name.clone()?;
-        let sample = snapshot.metrics.pod_usage(&namespace, &pod_name)?;
-        let section = KubePerformanceCpuV1 {
-            performance: PerformanceFields {
-                type_: PerformanceType::Cpu,
-                usage: sample.cpu_usage_nano_cores as f64 / 1e9,
-            },
-        };
-        Some(section)
-    }
-
-    fn performance_memory(&self, snapshot: &Snapshot) -> Option<KubePerformanceMemoryV1> {
-        let namespace = self.api.metadata.namespace.clone()?;
-        let pod_name = self.api.metadata.name.clone()?;
-        let sample = snapshot.metrics.pod_usage(&namespace, &pod_name)?;
-        let section = KubePerformanceMemoryV1 {
-            performance: PerformanceFields {
-                type_: PerformanceType::Memory,
-                usage: sample.memory_working_set_bytes as f64,
-            },
-        };
-        Some(section)
-    }
 }
 
 impl PiggybackHost for Pod<'_> {
     fn emit(&self, snapshot: &Snapshot) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname("TODO_CLUSTERNAME");
+
+        // kube_pod_info_v1
         let mut out = vec![WriteableSection::of(me.clone(), &self.info(snapshot))];
-        if let Some(kube_performance_cpu_v1) = self.performance_cpu(snapshot) {
-            out.push(WriteableSection::of(me.clone(), &kube_performance_cpu_v1));
-        }
-        if let Some(kube_performance_memory_v1) = self.performance_memory(snapshot) {
+
+        if let Some(namespace) = self.api.metadata.namespace.clone()
+            && let Some(pod_name) = self.api.metadata.name.clone()
+            && let Some(sample) = snapshot.metrics.pod_usage(&namespace, &pod_name)
+        {
+            // kube_performance_cpu_v1
             out.push(WriteableSection::of(
                 me.clone(),
-                &kube_performance_memory_v1,
+                &KubePerformanceCpuV1::new(sample.cpu_usage_nano_cores),
+            ));
+            // kube_performance_memory_v1
+            out.push(WriteableSection::of(
+                me.clone(),
+                &KubePerformanceMemoryV1::new(sample.memory_working_set_bytes),
             ));
         }
 
