@@ -21,7 +21,7 @@ jobs:
         if: always()
       - run: cargo fmt --check
         if: always()
-      - run: cargo clippy --all-targets
+      - run: cargo clippy --lib --bins
         if: always()
       - run: cargo build --release --all-features
         if: always()

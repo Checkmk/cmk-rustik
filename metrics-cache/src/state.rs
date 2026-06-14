@@ -96,7 +96,7 @@ pub mod tests {
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
             kubelet_stats_summary_cache: Cache::builder()
-                .time_to_live(std::time::Duration::from_secs(120))
+                .time_to_live(Duration::from_secs(120))
                 .max_capacity(10000)
                 .build(),
         }
