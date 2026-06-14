@@ -41,12 +41,6 @@ pub struct CliArgs {
     )]
     pub writer_allowlist: Vec<String>,
 
-    /// Maximum number of metric entries the metrics cache can hold before
-    /// entries start being discarded
-    // TODO: Split this up by cache type
-    #[arg(short = 'm', long = "cache-maxsize", default_value_t = 10000)]
-    pub cache_maxsize: u64,
-
     /// How long (seconds) entries are persisted in the cache
     #[arg(
         short = 't',

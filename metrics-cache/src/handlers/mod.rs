@@ -1,8 +1,6 @@
 pub mod debug;
 mod health;
 pub mod ingest;
-pub mod machine_sections;
-pub mod metadata;
 
 pub use health::health;
 
@@ -14,9 +12,6 @@ use axum::{Router, middleware};
 pub fn app<V: TokenValidator>(state: AppState<V>) -> Router {
     Router::new()
         .route("/", get(|| async { "foo" }))
-        .route("/metadata", get(metadata::get))
-        .route("/machine_sections", get(machine_sections::get))
-        .route("/update_machine_sections", post(machine_sections::update))
         .route(
             "/ingest/kubelet_stats_summary",
             post(ingest::kubelet_stats_summary),
