@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::Write;
 
 use crate::section::Section;
 
@@ -28,8 +29,12 @@ impl WriteableSection {
     }
 }
 
-/// Take a collection of [`WriteableSection`]s and render them.
-pub(crate) fn frame(sections: Vec<WriteableSection>) -> String {
+/// Take a collection of [`WriteableSection`]s and render them into something
+/// that can write them out.
+pub(crate) fn frame<W: Write>(
+    writer: &mut W,
+    sections: Vec<WriteableSection>,
+) -> std::io::Result<()> {
     let mut by_host: BTreeMap<&str, Vec<&WriteableSection>> = BTreeMap::new();
     for section in &sections {
         by_host
@@ -37,15 +42,14 @@ pub(crate) fn frame(sections: Vec<WriteableSection>) -> String {
             .or_default()
             .push(section);
     }
-    let mut out = String::new();
     for (host, host_sections) in by_host {
-        out.push_str(&format!("<<<<{host}>>>>\n"));
+        writeln!(writer, "<<<<{host}>>>>")?;
         for section in host_sections {
-            out.push_str(&format!("<<<{}:sep(0)>>>\n", section.name));
-            out.push_str(&section.body);
-            out.push('\n');
+            writeln!(writer, "<<<{}:sep(0)>>>", section.name)?;
+            writer.write_all(section.body.as_bytes())?;
+            writer.write_all(b"\n")?;
         }
-        out.push_str("<<<<>>>>\n");
+        writeln!(writer, "<<<<>>>>\n")?;
     }
-    out
+    Ok(())
 }
