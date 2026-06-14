@@ -90,7 +90,7 @@ impl PiggybackHost for Pod<'_> {
             ));
             // kube_performance_memory_v1
             out.push(WriteableSection::of(
-                me.clone(),
+                me,
                 &KubePerformanceMemoryV1::new(sample.memory_working_set_bytes),
             ));
         }

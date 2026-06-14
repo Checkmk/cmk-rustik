@@ -38,7 +38,7 @@ impl Stores {
             deployments: start_reflector(Api::all(client.clone()), WatchConfig::default()),
             daemonsets: start_reflector(Api::all(client.clone()), WatchConfig::default()),
             namespaces: start_reflector(Api::all(client.clone()), WatchConfig::default()),
-            replicasets: start_reflector(Api::all(client.clone()), WatchConfig::default()),
+            replicasets: start_reflector(Api::all(client), WatchConfig::default()),
         }
     }
 

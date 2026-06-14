@@ -21,3 +21,15 @@ thiserror = { version = "2.0" }
 tokio = { version = "1.52", features = ["fs", "macros", "rt-multi-thread"] }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = "deny"
+redundant_clone = "deny"
+wildcard_dependencies = "deny"
+unused_qualifications = "deny"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
