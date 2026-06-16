@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use reqwest::Client;
 use tracing::{debug, trace, warn};
 
 use crate::error::Result;
@@ -24,7 +25,7 @@ impl Payload {
     }
 
     // TODO: Unhardcode namespace name and port
-    pub async fn push_to_metrics_cache(&self) -> Result<reqwest::Response> {
+    pub async fn push_to_metrics_cache(&self, client: Client) -> Result<reqwest::Response> {
         trace!("reading kubelet token");
         let token =
             tokio::fs::read_to_string("/var/run/secrets/kubernetes.io/serviceaccount/token")
@@ -38,7 +39,7 @@ impl Payload {
             payload = ?self,
             "payload being sent"
         );
-        let response = reqwest::Client::new()
+        let response = client
             .post(&url)
             .bearer_auth(token.trim())
             .body(self.extract())
