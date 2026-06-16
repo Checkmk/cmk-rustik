@@ -18,14 +18,13 @@ struct PerformanceFields {
 
 #[derive(Serialize)]
 pub(crate) struct KubePerformanceCpuV1 {
-    #[serde(flatten)]
-    performance: PerformanceFields,
+    resource: PerformanceFields,
 }
 
 impl KubePerformanceCpuV1 {
     pub(crate) fn new(usage: u64) -> Self {
         Self {
-            performance: PerformanceFields {
+            resource: PerformanceFields {
                 type_: PerformanceType::Cpu,
                 usage: usage as f64 / 1e9,
             },
@@ -39,14 +38,13 @@ impl Section for KubePerformanceCpuV1 {
 
 #[derive(Serialize)]
 pub(crate) struct KubePerformanceMemoryV1 {
-    #[serde(flatten)]
-    performance: PerformanceFields,
+    resource: PerformanceFields,
 }
 
 impl KubePerformanceMemoryV1 {
     pub(crate) fn new(usage: u64) -> Self {
         Self {
-            performance: PerformanceFields {
+            resource: PerformanceFields {
                 type_: PerformanceType::Memory,
                 usage: usage as f64,
             },
