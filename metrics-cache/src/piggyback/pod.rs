@@ -4,7 +4,7 @@ use crate::piggyback::{Meta, PiggybackHost};
 use crate::section::{
     common::Controller,
     performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
-    pod::KubePodInfoV1,
+    pod::{KubePodInfoV1, QosClass},
     writeable::{SectionError, WriteableSection},
 };
 use crate::snapshot::Snapshot;
@@ -57,7 +57,8 @@ impl Pod<'_> {
                 .api
                 .status
                 .as_ref()
-                .and_then(|s| s.qos_class.as_deref()),
+                .and_then(|s| s.qos_class.as_deref())
+                .and_then(QosClass::from_str),
             restart_policy: self
                 .api
                 .spec

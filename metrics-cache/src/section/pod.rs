@@ -7,6 +7,27 @@ use crate::section::{
 };
 
 #[derive(Serialize)]
+pub(crate) enum QosClass {
+    #[serde(rename = "burstable")]
+    Burstable,
+    #[serde(rename = "besteffort")]
+    BestEffort,
+    #[serde(rename = "guaranteed")]
+    Guaranteed,
+}
+
+impl QosClass {
+    pub(crate) fn from_str(qos_class: &str) -> Option<Self> {
+        match qos_class {
+            "Burstable" => Some(QosClass::Burstable),
+            "BestEffort" => Some(QosClass::BestEffort),
+            "Guaranteed" => Some(QosClass::Guaranteed),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Serialize)]
 pub(crate) struct KubePodInfoV1<'a> {
     pub namespace: Option<&'a str>,
     pub name: &'a str,
@@ -26,7 +47,7 @@ pub(crate) struct KubePodInfoV1<'a> {
     pub dns_policy: Option<&'a str>,
     pub host_ip: Option<&'a str>,
     pub pod_ip: Option<&'a str>,
-    pub qos_class: Option<&'a str>,
+    pub qos_class: Option<QosClass>,
     pub restart_policy: &'a str,
     pub uid: &'a str,
     pub controllers: Vec<Controller<'a>>,
