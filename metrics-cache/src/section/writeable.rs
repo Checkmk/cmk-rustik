@@ -47,9 +47,9 @@ pub(crate) fn frame<W: Write>(
         for section in host_sections {
             writeln!(writer, "<<<{}:sep(0)>>>", section.name)?;
             writer.write_all(section.body.as_bytes())?;
-            writer.write_all(b"\n")?;
+            writeln!(writer)?;
         }
-        writeln!(writer, "<<<<>>>>\n")?;
+        writeln!(writer, "<<<<>>>>")?;
     }
     Ok(())
 }
