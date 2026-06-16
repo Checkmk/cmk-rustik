@@ -47,7 +47,7 @@ impl Payload {
             .send()
             .await?;
         if response.status().is_success() {
-            trace!(status = %response.status(), "payload accepted by metrics-cache");
+            debug!(status = %response.status(), "payload accepted by metrics-cache");
         } else {
             warn!(status = ?response, "payload rejected by metrics-cache");
         }

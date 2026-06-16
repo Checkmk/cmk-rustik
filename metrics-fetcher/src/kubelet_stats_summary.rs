@@ -36,14 +36,13 @@ impl Scraper for KubeletStatsSummaryScraper {
         trace!("reading kubelet token");
         let token = std::fs::read_to_string("/var/run/secrets/kubernetes.io/serviceaccount/token")?;
         debug!("fetching Kubelet /stats/summary");
-        let bytes = self
+        let response = self
             .scrape_client
             .get("https://127.0.0.1:10250/stats/summary")
             .bearer_auth(token.trim())
             .send()
-            .await?
-            .bytes()
             .await?;
-        Ok(Payload::KubeletStatsSummary(bytes))
+        debug!(status = %response.status(), "scrape complete");
+        Ok(Payload::KubeletStatsSummary(response.bytes().await?))
     }
 }
