@@ -257,9 +257,30 @@ impl MetricTables {
         }
         Some(total)
     }
+
+    /// Aggregate the samples for all of the given pods.
+    ///
+    /// If no sample for any pod is found, `None` is returned.
+    /// Otherwise, the summed aggregate if all available samples for the given
+    /// pods is returned.
+    pub fn aggregate<'a>(&self, pods: impl IntoIterator<Item = &'a Pod>) -> Option<Sample> {
+        let mut out: Option<Sample> = None;
+        for pod in pods {
+            if let Some(ns) = &pod.metadata.namespace
+                && let Some(name) = &pod.metadata.name
+                && let Some(sample) = self.pod_usage(ns, name)
+            {
+                out = match out {
+                    Some(total) => Some(sample + total),
+                    None => Some(sample),
+                };
+            }
+        }
+        out
+    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Sample {
     pub cpu_usage_nano_cores: u64,
     pub memory_working_set_bytes: u64,
@@ -276,7 +297,7 @@ impl Add for Sample {
 }
 
 impl AddAssign for Sample {
-    fn add_assign(&mut self, rhs: Self) -> () {
+    fn add_assign(&mut self, rhs: Self) {
         self.cpu_usage_nano_cores += rhs.cpu_usage_nano_cores;
         self.memory_working_set_bytes += rhs.memory_working_set_bytes;
     }
