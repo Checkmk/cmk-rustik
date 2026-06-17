@@ -4,6 +4,7 @@ use kube::ResourceExt;
 use moka::future::Cache;
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
+use std::ops::{Add, AddAssign};
 use std::sync::Arc;
 
 use crate::ingest::kubelet_stats::StatsSummary;
@@ -262,4 +263,21 @@ impl MetricTables {
 pub struct Sample {
     pub cpu_usage_nano_cores: u64,
     pub memory_working_set_bytes: u64,
+}
+
+impl Add for Sample {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            cpu_usage_nano_cores: self.cpu_usage_nano_cores + rhs.cpu_usage_nano_cores,
+            memory_working_set_bytes: self.memory_working_set_bytes + rhs.memory_working_set_bytes,
+        }
+    }
+}
+
+impl AddAssign for Sample {
+    fn add_assign(&mut self, rhs: Self) -> () {
+        self.cpu_usage_nano_cores += rhs.cpu_usage_nano_cores;
+        self.memory_working_set_bytes += rhs.memory_working_set_bytes;
+    }
 }
