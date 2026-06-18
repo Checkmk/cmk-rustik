@@ -13,20 +13,23 @@ use crate::snapshot::Snapshot;
 pub struct Pod<'a> {
     api: &'a v1::Pod,
     meta: Meta<'a>,
+    snapshot: &'a Snapshot,
 }
 
 impl Pod<'_> {
-    pub fn new<'a>(api: &'a v1::Pod, _snapshot: &Snapshot) -> Option<Pod<'a>> {
+    pub fn new<'a>(api: &'a v1::Pod, snapshot: &'a Snapshot) -> Option<Pod<'a>> {
         Some(Pod {
             api,
             meta: Meta::from_resource(api)?,
+            snapshot,
         })
     }
 
     /// Generate the section `kube_pod_info_v1` from a snapshot.
-    fn info<'a>(&'a self, snapshot: &'a Snapshot) -> KubePodInfoV1<'a> {
+    fn info<'a>(&'a self) -> KubePodInfoV1<'a> {
         let control_chain = match &self.api.metadata.uid {
-            Some(uid) => snapshot
+            Some(uid) => self
+                .snapshot
                 .owner_graph
                 .walk_up(uid)
                 .iter()
@@ -75,15 +78,15 @@ impl Pod<'_> {
 }
 
 impl PiggybackHost for Pod<'_> {
-    fn emit(&self, snapshot: &Snapshot) -> Vec<Result<WriteableSection, SectionError>> {
+    fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname("TODO_CLUSTERNAME");
 
         // kube_pod_info_v1
-        let mut out = vec![WriteableSection::of(me.clone(), &self.info(snapshot))];
+        let mut out = vec![WriteableSection::of(me.clone(), &self.info())];
 
         if let Some(namespace) = self.api.metadata.namespace.clone()
             && let Some(pod_name) = self.api.metadata.name.clone()
-            && let Some(sample) = snapshot.metrics.pod_usage(&namespace, &pod_name)
+            && let Some(sample) = &self.snapshot.metrics.pod_usage(&namespace, &pod_name)
         {
             // kube_performance_cpu_v1
             out.push(WriteableSection::of(

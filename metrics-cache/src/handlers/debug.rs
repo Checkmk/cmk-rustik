@@ -14,7 +14,7 @@ pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> Result<S
         .pods
         .iter()
         .filter_map(|p| Pod::new(p, &snap))
-        .flat_map(|host| host.emit(&snap))
+        .flat_map(|host| host.emit())
         .filter_map(|r| match r {
             Ok(section) => Some(section),
             Err(e) => {

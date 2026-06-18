@@ -1,7 +1,6 @@
 pub mod pod;
 
 use crate::section::writeable::{SectionError, WriteableSection};
-use crate::snapshot::Snapshot;
 
 /// Common, identifying data used for a given piggyback host type.
 ///
@@ -38,7 +37,5 @@ impl<'a> Meta<'a> {
 
 /// Represents a piggyback host for which to emit/write a section data.
 pub(crate) trait PiggybackHost {
-    /// Given a [`Snapshot`], generate _all_ of the required Checkmk sections
-    /// for this piggyback host.
-    fn emit(&self, snapshot: &Snapshot) -> Vec<Result<WriteableSection, SectionError>>;
+    fn emit(&self) -> Vec<Result<WriteableSection, SectionError>>;
 }
