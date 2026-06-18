@@ -1,6 +1,7 @@
 pub mod common;
 pub mod performance;
 pub mod pod;
+pub mod resource;
 pub mod writeable;
 
 use serde::Serialize;

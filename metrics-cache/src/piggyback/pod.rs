@@ -5,6 +5,7 @@ use crate::section::{
     common::Controller,
     performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
     pod::{KubePodInfoV1, QosClass},
+    resource::{KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis},
     writeable::{SectionError, WriteableSection},
 };
 use crate::snapshot::Snapshot;
@@ -91,10 +92,22 @@ impl PiggybackHost for Pod<'_> {
             ));
             // kube_performance_memory_v1
             out.push(WriteableSection::of(
-                me,
+                me.clone(),
                 &KubePerformanceMemoryV1::new(sample.memory_working_set_bytes),
             ));
         }
+
+        out.push(WriteableSection::of(
+            me.clone(),
+            &KubeCpuResourcesV1(ResourceAccumulator::from_pod(self.api, ResourceAxis::Cpu)),
+        ));
+        out.push(WriteableSection::of(
+            me,
+            &KubeMemoryResourcesV1(ResourceAccumulator::from_pod(
+                self.api,
+                ResourceAxis::Memory,
+            )),
+        ));
 
         out
     }
