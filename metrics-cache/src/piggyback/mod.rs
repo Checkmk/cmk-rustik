@@ -1,3 +1,4 @@
+pub mod namespace;
 pub mod pod;
 
 use crate::section::writeable::{SectionError, WriteableSection};
