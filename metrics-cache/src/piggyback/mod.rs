@@ -1,7 +1,10 @@
 pub mod namespace;
 pub mod pod;
 
+use crate::piggyback::namespace::Namespace;
+use crate::piggyback::pod::Pod;
 use crate::section::writeable::{SectionError, WriteableSection};
+use crate::snapshot::Snapshot;
 
 /// Common, identifying data used for a given piggyback host type.
 ///
@@ -39,4 +42,30 @@ impl<'a> Meta<'a> {
 /// Represents a piggyback host for which to emit/write a section data.
 pub(crate) trait PiggybackHost {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>>;
+}
+
+fn collect<A, H: PiggybackHost>(
+    items: impl Iterator<Item = A>,
+    make: impl Fn(A) -> Option<H>,
+) -> Vec<WriteableSection> {
+    items
+        .filter_map(make)
+        .flat_map(|host| host.emit())
+        .filter_map(|r| match r {
+            Ok(section) => Some(section),
+            Err(e) => {
+                tracing::warn!(section = %e.name, error = %e.source, "skipping section");
+                None
+            }
+        })
+        .collect()
+}
+
+pub(crate) fn emit_all(snap: &Snapshot) -> Vec<WriteableSection> {
+    let mut out = Vec::new();
+    out.extend(collect(snap.stores.pods.iter(), |p| Pod::new(p, snap)));
+    out.extend(collect(snap.stores.namespaces.iter(), |n| {
+        Namespace::new(n, snap)
+    }));
+    out
 }
