@@ -84,9 +84,8 @@ impl PiggybackHost for Pod<'_> {
         // kube_pod_info_v1
         let mut out = vec![WriteableSection::of(me.clone(), &self.info())];
 
-        if let Some(namespace) = self.api.metadata.namespace.clone()
-            && let Some(pod_name) = self.api.metadata.name.clone()
-            && let Some(sample) = &self.snapshot.metrics.pod_usage(&namespace, &pod_name)
+        if let Some(namespace) = &self.meta.namespace
+            && let Some(sample) = &self.snapshot.metrics.pod_usage(namespace, self.meta.name)
         {
             // kube_performance_cpu_v1
             out.push(WriteableSection::of(
