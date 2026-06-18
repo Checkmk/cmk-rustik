@@ -18,11 +18,27 @@ pub struct Namespace<'a> {
 
 impl Namespace<'_> {
     pub fn new<'a>(api: &'a v1::Namespace, snapshot: &'a Snapshot) -> Option<Namespace<'a>> {
-        Some(Namespace {
-            api,
-            meta: Meta::from_resource(api)?,
-            snapshot,
-        })
+        // To match Python: Only create a namespace host if it has a running or pending pod
+        let meta = Meta::from_resource(api)?;
+        let has_active_pod = snapshot
+            .owner_graph
+            .pods_by_namespace(meta.name)
+            .iter()
+            .any(|p| {
+                matches!(
+                    p.status.as_ref().and_then(|s| s.phase.as_deref()),
+                    Some("Running" | "Pending")
+                )
+            });
+        if has_active_pod {
+            Some(Namespace {
+                api,
+                meta: Meta::from_resource(api)?,
+                snapshot,
+            })
+        } else {
+            None
+        }
     }
 
     /// Generate the section `kube_namespace_info_v1` from a snapshot.
