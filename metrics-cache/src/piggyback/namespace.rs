@@ -1,10 +1,10 @@
-#![allow(unused)]
 use k8s_openapi::api::core::v1;
 use std::ops::Add;
 
 use crate::piggyback::{Meta, PiggybackHost};
 use crate::section::{
     namespace::KubeNamespaceInfoV1,
+    performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
     resource::{KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis},
     writeable::{SectionError, WriteableSection},
 };
@@ -63,15 +63,39 @@ impl Namespace<'_> {
             .fold(ResourceAccumulator::default(), Add::add);
         KubeMemoryResourcesV1(ra)
     }
+
+    fn cpu_performance(&self) -> Option<KubePerformanceCpuV1> {
+        let pods = self.snapshot.owner_graph.pods_by_namespace(self.meta.name);
+        Some(KubePerformanceCpuV1::new(
+            self.snapshot.metrics.aggregate(pods)?.cpu_usage_nano_cores,
+        ))
+    }
+
+    fn memory_performance(&self) -> Option<KubePerformanceMemoryV1> {
+        let pods = self.snapshot.owner_graph.pods_by_namespace(self.meta.name);
+        Some(KubePerformanceMemoryV1::new(
+            self.snapshot
+                .metrics
+                .aggregate(pods)?
+                .memory_working_set_bytes,
+        ))
+    }
 }
 
 impl PiggybackHost for Namespace<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname("TODO_CLUSTERNAME");
-        vec![
+        let mut out = vec![
             WriteableSection::of(me.clone(), &self.info()),
             WriteableSection::of(me.clone(), &self.cpu_resources()),
-            WriteableSection::of(me, &self.memory_resources()),
-        ]
+            WriteableSection::of(me.clone(), &self.memory_resources()),
+        ];
+        if let Some(cpu_perf) = &self.cpu_performance() {
+            out.push(WriteableSection::of(me.clone(), cpu_perf));
+        }
+        if let Some(mem_perf) = &self.memory_performance() {
+            out.push(WriteableSection::of(me, mem_perf));
+        }
+        out
     }
 }

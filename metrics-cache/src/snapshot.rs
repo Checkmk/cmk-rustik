@@ -289,7 +289,7 @@ impl MetricTables {
     /// If no sample for any pod is found, `None` is returned.
     /// Otherwise, the summed aggregate if all available samples for the given
     /// pods is returned.
-    pub fn aggregate<'a>(&self, pods: impl IntoIterator<Item = &'a Pod>) -> Option<Sample> {
+    pub fn aggregate<'a>(&self, pods: impl IntoIterator<Item = &'a Arc<Pod>>) -> Option<Sample> {
         let mut out: Option<Sample> = None;
         for pod in pods {
             if let Some(ns) = &pod.metadata.namespace
