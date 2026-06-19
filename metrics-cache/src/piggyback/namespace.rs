@@ -1,6 +1,7 @@
 use k8s_openapi::api::core::v1;
 use std::ops::Add;
 
+use crate::host_settings::HostSettings;
 use crate::piggyback::{Meta, PiggybackHost};
 use crate::section::{
     namespace::KubeNamespaceInfoV1,
@@ -14,10 +15,15 @@ pub struct Namespace<'a> {
     api: &'a v1::Namespace,
     meta: Meta<'a>,
     snapshot: &'a Snapshot,
+    settings: &'a HostSettings,
 }
 
 impl Namespace<'_> {
-    pub fn new<'a>(api: &'a v1::Namespace, snapshot: &'a Snapshot) -> Option<Namespace<'a>> {
+    pub fn new<'a>(
+        api: &'a v1::Namespace,
+        snapshot: &'a Snapshot,
+        settings: &'a HostSettings,
+    ) -> Option<Namespace<'a>> {
         // To match Python: Only create a namespace host if it has a running or pending pod
         let meta = Meta::from_resource(api)?;
         let has_active_pod = snapshot
@@ -35,6 +41,7 @@ impl Namespace<'_> {
                 api,
                 meta: Meta::from_resource(api)?,
                 snapshot,
+                settings,
             })
         } else {
             None
@@ -53,8 +60,8 @@ impl Namespace<'_> {
                 .map(|t| t.0.as_millisecond() as f64 / 1000.0),
             labels: std::collections::BTreeMap::new(), // TODO
             annotations: std::collections::BTreeMap::new(), // TODO
-            cluster: "TODO_CLUSTERNAME",               // TODO
-            kubernetes_cluster_hostname: "TODO_CLUSTERNAME", // TODO
+            cluster: &self.settings.cluster_name,
+            kubernetes_cluster_hostname: &self.settings.cluster_host_name,
         }
     }
 
@@ -100,7 +107,7 @@ impl Namespace<'_> {
 
 impl PiggybackHost for Namespace<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
-        let me = self.meta.piggyback_hostname("TODO_CLUSTERNAME");
+        let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = vec![
             WriteableSection::of(me.clone(), &self.info()),
             WriteableSection::of(me.clone(), &self.cpu_resources()),

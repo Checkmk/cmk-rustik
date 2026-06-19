@@ -91,6 +91,14 @@ pub struct CliArgs {
         default_value = "12",
     )]
     pub read_timeout: Duration,
+
+    /// The name of the cluster, included in each piggyback hostname.
+    #[arg(long = "cluster-name")]
+    pub cluster_name: String,
+
+    /// The name of the source host in Checkmk (should be an exact match)
+    #[arg(long = "cluster-host-name")]
+    pub cluster_host_name: String,
 }
 
 /// Convert a numeric argument given by the user as seconds into a Duration.

@@ -2,6 +2,7 @@ pub mod auth;
 pub mod cli_args;
 pub mod error;
 pub mod handlers;
+pub mod host_settings;
 pub mod ingest;
 pub mod piggyback;
 pub mod section;

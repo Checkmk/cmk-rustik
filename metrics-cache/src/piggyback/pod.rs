@@ -1,5 +1,6 @@
 use k8s_openapi::api::core::v1;
 
+use crate::host_settings::HostSettings;
 use crate::piggyback::{Meta, PiggybackHost};
 use crate::section::{
     common::Controller,
@@ -14,14 +15,20 @@ pub struct Pod<'a> {
     api: &'a v1::Pod,
     meta: Meta<'a>,
     snapshot: &'a Snapshot,
+    settings: &'a HostSettings,
 }
 
 impl Pod<'_> {
-    pub fn new<'a>(api: &'a v1::Pod, snapshot: &'a Snapshot) -> Option<Pod<'a>> {
+    pub fn new<'a>(
+        api: &'a v1::Pod,
+        snapshot: &'a Snapshot,
+        settings: &'a HostSettings,
+    ) -> Option<Pod<'a>> {
         Some(Pod {
             api,
             meta: Meta::from_resource(api)?,
             snapshot,
+            settings,
         })
     }
 
@@ -71,15 +78,15 @@ impl Pod<'_> {
                 .unwrap_or("Always"),
             uid: self.api.metadata.uid.as_deref().unwrap_or_default(),
             controllers: control_chain,
-            cluster: "TODO_CLUSTERNAME",                     // TODO
-            kubernetes_cluster_hostname: "TODO_CLUSTERNAME", // TODO
+            cluster: &self.settings.cluster_name,
+            kubernetes_cluster_hostname: &self.settings.cluster_host_name,
         }
     }
 }
 
 impl PiggybackHost for Pod<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
-        let me = self.meta.piggyback_hostname("TODO_CLUSTERNAME");
+        let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
 
         // kube_pod_info_v1
         let mut out = vec![WriteableSection::of(me.clone(), &self.info())];

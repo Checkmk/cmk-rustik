@@ -6,6 +6,7 @@ use std::time::Duration;
 use crate::auth::kubernetes::TokenValidator;
 use crate::cli_args::CliArgs;
 use crate::error::Result;
+use crate::host_settings::HostSettings;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::Stores;
 
@@ -19,12 +20,17 @@ pub struct AppState<V: TokenValidator> {
     pub reader_allowlist: Vec<String>,
     pub writer_allowlist: Vec<String>,
     pub kubelet_stats_summary_cache: Cache<String, Arc<StatsSummary>>,
+    pub host_settings: Arc<HostSettings>,
 }
 
 impl AppState<Client> {
     pub async fn new(args: &CliArgs) -> Result<Self> {
         let client = Self::kube_client(args.connect_timeout, args.read_timeout).await?;
         let watcher_client = Self::kube_watcher_client(args.connect_timeout).await?;
+        let host_settings = HostSettings {
+            cluster_name: args.cluster_name.clone(),
+            cluster_host_name: args.cluster_host_name.clone(),
+        };
         let state = Self {
             client,
             stores: Stores::spawn(watcher_client),
@@ -33,6 +39,7 @@ impl AppState<Client> {
             kubelet_stats_summary_cache: Cache::builder()
                 .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
                 .build(),
+            host_settings: host_settings.into(),
         };
         Ok(state)
     }

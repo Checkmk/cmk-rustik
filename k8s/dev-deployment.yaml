@@ -79,6 +79,8 @@ spec:
             - --log-level=debug
             - --reader-allowlist=checkmk-monitoring:metrics-cache
             - --writer-allowlist=checkmk-monitoring:metrics-fetcher
+            - --cluster-name=kind
+            - --cluster-host-name=k8s
           # args:
           #   - /bin/sleep
           #   - 24h
