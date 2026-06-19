@@ -106,6 +106,11 @@ pub mod tests {
                 .time_to_live(Duration::from_secs(120))
                 .max_capacity(10000)
                 .build(),
+            host_settings: HostSettings {
+                cluster_name: "testcluster".to_string(),
+                cluster_host_name: "testclusterhost".to_string(),
+            }
+            .into(),
         }
     }
 
