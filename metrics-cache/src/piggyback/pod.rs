@@ -3,7 +3,7 @@ use k8s_openapi::api::core::v1;
 use crate::host_settings::HostSettings;
 use crate::piggyback::{Meta, PiggybackHost};
 use crate::section::{
-    common::Controller,
+    common::{Controller, LabelRef},
     performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
     pod::{KubePodInfoV1, QosClass},
     resource::{KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis},
@@ -57,7 +57,13 @@ impl Pod<'_> {
                 .creation_timestamp
                 .as_ref()
                 .map(|t| t.0.as_millisecond() as f64 / 1000.0),
-            labels: std::collections::BTreeMap::new(), // TODO
+            labels: self
+                .api
+                .metadata
+                .labels
+                .as_ref()
+                .map(LabelRef::from_map)
+                .unwrap_or_default(),
             annotations: std::collections::BTreeMap::new(), // TODO
             node: self.api.spec.as_ref().and_then(|s| s.node_name.as_deref()),
             host_network: self.api.spec.as_ref().and_then(|s| s.host_network),

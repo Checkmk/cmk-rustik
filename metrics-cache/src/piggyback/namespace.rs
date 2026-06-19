@@ -4,6 +4,7 @@ use std::ops::Add;
 use crate::host_settings::HostSettings;
 use crate::piggyback::{Meta, PiggybackHost};
 use crate::section::{
+    common::LabelRef,
     namespace::KubeNamespaceInfoV1,
     performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
     resource::{KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis},
@@ -58,7 +59,13 @@ impl Namespace<'_> {
                 .creation_timestamp
                 .as_ref()
                 .map(|t| t.0.as_millisecond() as f64 / 1000.0),
-            labels: std::collections::BTreeMap::new(), // TODO
+            labels: self
+                .api
+                .metadata
+                .labels
+                .as_ref()
+                .map(LabelRef::from_map)
+                .unwrap_or_default(),
             annotations: std::collections::BTreeMap::new(), // TODO
             cluster: &self.settings.cluster_name,
             kubernetes_cluster_hostname: &self.settings.cluster_host_name,
