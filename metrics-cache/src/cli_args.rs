@@ -1,4 +1,5 @@
 use clap::Parser;
+use regex::Regex;
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
@@ -99,6 +100,16 @@ pub struct CliArgs {
     /// The name of the source host in Checkmk (should be an exact match)
     #[arg(long = "cluster-host-name")]
     pub cluster_host_name: String,
+
+    /// Import all annotations as host labels
+    #[arg(long = "import-all-annotations", default_value_t = false)]
+    pub import_all_annotations: bool,
+
+    #[arg(
+        long = "annotation-key-pattern",
+        conflicts_with = "import_all_annotations"
+    )]
+    pub annotation_key_pattern: Option<Regex>,
 }
 
 /// Convert a numeric argument given by the user as seconds into a Duration.

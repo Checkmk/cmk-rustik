@@ -66,7 +66,13 @@ impl Namespace<'_> {
                 .as_ref()
                 .map(LabelRef::from_map)
                 .unwrap_or_default(),
-            annotations: std::collections::BTreeMap::new(), // TODO
+            annotations: self
+                .api
+                .metadata
+                .annotations
+                .as_ref()
+                .map(|m| self.settings.annotation_key_pattern.filter(m))
+                .unwrap_or_default(),
             cluster: &self.settings.cluster_name,
             kubernetes_cluster_hostname: &self.settings.cluster_host_name,
         }

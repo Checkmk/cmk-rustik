@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::auth::kubernetes::TokenValidator;
 use crate::cli_args::CliArgs;
 use crate::error::Result;
-use crate::host_settings::HostSettings;
+use crate::host_settings::{AnnotationKeyPattern, HostSettings};
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::Stores;
 
@@ -30,6 +30,10 @@ impl AppState<Client> {
         let host_settings = HostSettings {
             cluster_name: args.cluster_name.clone(),
             cluster_host_name: args.cluster_host_name.clone(),
+            annotation_key_pattern: AnnotationKeyPattern::new(
+                args.import_all_annotations,
+                args.annotation_key_pattern.clone(),
+            ),
         };
         let state = Self {
             client,

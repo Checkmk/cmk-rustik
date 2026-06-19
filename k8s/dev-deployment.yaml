@@ -63,6 +63,10 @@ spec:
     metadata:
       labels:
         app: metrics-cache
+      annotations:
+        checkmk.com/promote-to-host: "true"
+        checkmk.com/feeling-numeric: "31337"
+        checkmk.com/now-its-empty: ""
     spec:
       serviceAccountName: metrics-cache
       volumes:
@@ -81,6 +85,7 @@ spec:
             - --writer-allowlist=checkmk-monitoring:metrics-fetcher
             - --cluster-name=kind
             - --cluster-host-name=k8s
+            - --import-all-annotations
           # args:
           #   - /bin/sleep
           #   - 24h

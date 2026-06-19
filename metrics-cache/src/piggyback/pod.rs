@@ -64,7 +64,13 @@ impl Pod<'_> {
                 .as_ref()
                 .map(LabelRef::from_map)
                 .unwrap_or_default(),
-            annotations: std::collections::BTreeMap::new(), // TODO
+            annotations: self
+                .api
+                .metadata
+                .annotations
+                .as_ref()
+                .map(|m| self.settings.annotation_key_pattern.filter(m))
+                .unwrap_or_default(),
             node: self.api.spec.as_ref().and_then(|s| s.node_name.as_deref()),
             host_network: self.api.spec.as_ref().and_then(|s| s.host_network),
             dns_policy: self.api.spec.as_ref().and_then(|s| s.dns_policy.as_deref()),
