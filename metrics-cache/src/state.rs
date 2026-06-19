@@ -113,6 +113,7 @@ pub mod tests {
             host_settings: HostSettings {
                 cluster_name: "testcluster".to_string(),
                 cluster_host_name: "testclusterhost".to_string(),
+                annotation_key_pattern: AnnotationKeyPattern::ImportAll,
             }
             .into(),
         }
