@@ -24,5 +24,6 @@ pub fn app<V: TokenValidator>(state: AppState<V>) -> Router {
         // ^^^ Routes below this will be PUBLIC ^^^
         .route("/health", get(health))
         .route("/debug", get(debug::get))
+        .layer(tower_http::compression::CompressionLayer::new())
         .with_state(state)
 }
