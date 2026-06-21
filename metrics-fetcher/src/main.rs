@@ -4,6 +4,7 @@ mod payload;
 mod scraper;
 
 use anyhow::Result;
+use std::io;
 use tracing_subscriber::EnvFilter;
 
 use crate::kubelet_stats_summary::KubeletStatsSummaryScraper;
@@ -14,6 +15,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_target(false)
+        .with_writer(io::stderr)
         .init();
 
     // We use ring instead of aws-lc-rs

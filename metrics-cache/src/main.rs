@@ -1,5 +1,6 @@
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
+use std::io;
 use std::net::SocketAddr;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
@@ -14,6 +15,7 @@ fn init_tracing(args: &CliArgs) {
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&args.log_level)),
         )
         .with_target(false)
+        .with_writer(io::stderr)
         .init();
 }
 
