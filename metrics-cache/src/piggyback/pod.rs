@@ -6,6 +6,7 @@ use crate::section::{
     common::{Controller, LabelRef},
     performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
     pod::{KubePodInfoV1, QosClass},
+    pvc::KubePvcV1,
     resource::{KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis},
     writeable::{SectionError, WriteableSection},
 };
@@ -94,6 +95,13 @@ impl Pod<'_> {
             kubernetes_cluster_hostname: &self.settings.cluster_host_name,
         }
     }
+
+    /// Generate the section `kube_pvc_v1`, for each volume attached to the pod
+    /// which has a corresponding PVC in the snapshot.
+    fn pvcs<'a>(&'a self) -> Option<KubePvcV1<'a>> {
+        let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
+        KubePvcV1::from_claim_names(self.snapshot, self.meta.namespace?, claim_names)
+    }
 }
 
 impl PiggybackHost for Pod<'_> {
@@ -123,12 +131,15 @@ impl PiggybackHost for Pod<'_> {
             &KubeCpuResourcesV1(ResourceAccumulator::from_pod(self.api, ResourceAxis::Cpu)),
         ));
         out.push(WriteableSection::of(
-            me,
+            me.clone(),
             &KubeMemoryResourcesV1(ResourceAccumulator::from_pod(
                 self.api,
                 ResourceAxis::Memory,
             )),
         ));
+        if let Some(kube_pvc_v1) = &self.pvcs() {
+            out.push(WriteableSection::of(me, kube_pvc_v1));
+        };
 
         out
     }

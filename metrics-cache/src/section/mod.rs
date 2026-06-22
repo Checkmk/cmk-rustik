@@ -2,6 +2,7 @@ pub mod common;
 pub mod namespace;
 pub mod performance;
 pub mod pod;
+pub mod pvc;
 pub mod resource;
 pub mod writeable;
 
