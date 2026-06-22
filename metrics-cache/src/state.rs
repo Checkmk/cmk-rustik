@@ -94,6 +94,9 @@ pub mod tests {
         let (daemonset_store, _) = kube::runtime::reflector::store();
         let (namespace_store, _) = kube::runtime::reflector::store();
         let (replicaset_store, _) = kube::runtime::reflector::store();
+        let (persistent_volume_store, _) = kube::runtime::reflector::store();
+        let (persistent_volume_claim_store, _) = kube::runtime::reflector::store();
+        let (stateful_set_store, _) = kube::runtime::reflector::store();
         AppState {
             client,
             stores: Stores {
@@ -103,6 +106,9 @@ pub mod tests {
                 daemonsets: daemonset_store,
                 namespaces: namespace_store,
                 replicasets: replicaset_store,
+                persistent_volumes: persistent_volume_store,
+                persistent_volume_claims: persistent_volume_claim_store,
+                stateful_sets: stateful_set_store,
             },
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],

@@ -1,6 +1,6 @@
 use futures_util::StreamExt;
-use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet};
-use k8s_openapi::api::core::v1::{Namespace, Node, Pod};
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
+use k8s_openapi::api::core::v1::{Namespace, Node, PersistentVolume, PersistentVolumeClaim, Pod};
 use kube::runtime::watcher::Config as WatchConfig;
 use kube::runtime::{WatchStreamExt, reflector, reflector::Store, watcher};
 use kube::{Api, Client, Resource, ResourceExt};
@@ -18,6 +18,9 @@ pub struct Stores {
     pub daemonsets: Store<DaemonSet>,
     pub namespaces: Store<Namespace>,
     pub replicasets: Store<ReplicaSet>,
+    pub persistent_volumes: Store<PersistentVolume>,
+    pub persistent_volume_claims: Store<PersistentVolumeClaim>,
+    pub stateful_sets: Store<StatefulSet>,
 }
 
 #[derive(Debug)]
@@ -28,6 +31,9 @@ pub struct FrozenStores {
     pub daemonsets: Vec<Arc<DaemonSet>>,
     pub namespaces: Vec<Arc<Namespace>>,
     pub replicasets: Vec<Arc<ReplicaSet>>,
+    pub persistent_volumes: Vec<Arc<PersistentVolume>>,
+    pub persistent_volume_claims: Vec<Arc<PersistentVolumeClaim>>,
+    pub stateful_sets: Vec<Arc<StatefulSet>>,
 }
 
 impl Stores {
@@ -38,7 +44,13 @@ impl Stores {
             deployments: start_reflector(Api::all(client.clone()), WatchConfig::default()),
             daemonsets: start_reflector(Api::all(client.clone()), WatchConfig::default()),
             namespaces: start_reflector(Api::all(client.clone()), WatchConfig::default()),
-            replicasets: start_reflector(Api::all(client), WatchConfig::default()),
+            replicasets: start_reflector(Api::all(client.clone()), WatchConfig::default()),
+            persistent_volumes: start_reflector(Api::all(client.clone()), WatchConfig::default()),
+            persistent_volume_claims: start_reflector(
+                Api::all(client.clone()),
+                WatchConfig::default(),
+            ),
+            stateful_sets: start_reflector(Api::all(client), WatchConfig::default()),
         }
     }
 
@@ -50,6 +62,9 @@ impl Stores {
             daemonsets: self.daemonsets.state(),
             namespaces: self.namespaces.state(),
             replicasets: self.replicasets.state(),
+            persistent_volumes: self.persistent_volumes.state(),
+            persistent_volume_claims: self.persistent_volume_claims.state(),
+            stateful_sets: self.stateful_sets.state(),
         }
     }
 }
