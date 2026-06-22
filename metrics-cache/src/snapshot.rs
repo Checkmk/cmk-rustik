@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{PersistentVolumeClaim, Pod};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::ResourceExt;
 use moka::future::Cache;
@@ -22,12 +22,14 @@ use crate::ingest::reflectors::{FrozenStores, Stores};
 /// Kubernetes watch API), we don't have to worry about our snapshot state
 /// becoming out of date, the new state is simply ignored in this snapshot.
 ///
-/// We also create and store the [`OwnerGraph`] as part of the snapshot.
+/// We also create and store the [`OwnerGraph`] as part of the snapshot and
+/// indexes useful for looking up resources by particular keys.
 #[derive(Debug)]
 pub struct Snapshot {
     pub stores: FrozenStores,
     pub owner_graph: OwnerGraph,
     pub metrics: MetricTables,
+    pub indexes: Indexes,
 }
 
 impl Snapshot {
@@ -40,10 +42,12 @@ impl Snapshot {
         let stores = stores.freeze();
         let owner_graph = OwnerGraph::from_frozen_stores(&stores);
         let metrics = MetricTables::from_cache(kubelet_stats_summary_cache);
+        let indexes = Indexes::from_frozen_stores(&stores);
         Snapshot {
             stores,
             owner_graph,
             metrics,
+            indexes,
         }
     }
 }
@@ -268,10 +272,15 @@ impl MetricTables {
         Self { containers }
     }
 
+    /// Given a namespace, pod, and container name, try to find the relevant
+    /// metrics sample associated with the container. O(1).
     pub fn container(&self, namespace: &str, pod: &str, container: &str) -> Option<&Sample> {
         self.containers.get(namespace)?.get(pod)?.get(container)
     }
 
+    /// Given a namespace and pod, try to find the roll-up (summed total) of
+    /// all the containers in the pod. O(1) lookup and O(n) over the number of
+    /// containers in the pod.
     pub fn pod_usage(&self, namespace: &str, pod: &str) -> Option<Sample> {
         let mut total = Sample {
             cpu_usage_nano_cores: 0,
@@ -303,6 +312,45 @@ impl MetricTables {
             }
         }
         out
+    }
+}
+
+#[derive(Debug)]
+pub struct Indexes {
+    /// Persistent Volume Claims, indexed by `pvc[namespace][name]`.
+    ///
+    /// Pods reference a PVC by name (and only in the same namespace).
+    pub pvcs: HashMap<String, HashMap<String, Arc<PersistentVolumeClaim>>>,
+}
+
+impl Indexes {
+    pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
+        Self {
+            pvcs: Self::pvcs_by_ns_and_name(stores),
+        }
+    }
+
+    /// Iterate the PVCs in the store and map them out to be keyed on their
+    /// namespace and name. O(n) over the PVCs in the store.
+    fn pvcs_by_ns_and_name(
+        stores: &FrozenStores,
+    ) -> HashMap<String, HashMap<String, Arc<PersistentVolumeClaim>>> {
+        let mut out: HashMap<String, HashMap<String, Arc<PersistentVolumeClaim>>> = HashMap::new();
+        for pvc in &stores.persistent_volume_claims {
+            let Some(namespace) = pvc.metadata.namespace.clone() else {
+                continue;
+            };
+            let Some(name) = pvc.metadata.name.clone() else {
+                continue;
+            };
+            out.entry(namespace).or_default().insert(name, pvc.clone());
+        }
+        out
+    }
+
+    /// Given a namespace and a PVC name, try to find the PVC. O(1).
+    pub fn pvc(&self, namespace: &str, name: &str) -> Option<&PersistentVolumeClaim> {
+        self.pvcs.get(namespace)?.get(name).map(Arc::as_ref)
     }
 }
 
