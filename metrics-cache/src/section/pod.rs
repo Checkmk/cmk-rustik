@@ -58,3 +58,37 @@ pub(crate) struct KubePodInfoV1<'a> {
 impl Section for KubePodInfoV1<'_> {
     const NAME: &'static str = "kube_pod_info_v1";
 }
+
+/// The Kubernetes Pod lifecycle phase. (`kube_pod_lifecycle_v1`)
+///
+/// According to upstream [documentation], this information from the Pod status
+/// is guaranteed to be one of the values: `Pending`, `Running`, `Succeeded`,
+/// `Failed`, or `Unknown`.
+///
+/// [documentation]: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
+#[derive(Debug, Serialize)]
+pub(crate) struct KubePodLifecycleV1 {
+    phase: String,
+}
+
+impl KubePodLifecycleV1 {
+    /// Create a section given the Pod phase from the Kubernetes API.
+    ///
+    /// Note that the Kubernetes API provides the Pod phase as a title-case
+    /// string and we explicitly convert it to its lowercase equivalent, as this
+    /// is what the existing wire protocol expects.
+    ///
+    /// Also note that aside from converting to lowercase, we make no attempt to
+    /// validate the phase here, instead relying on the check plugin to decide
+    /// what to do (e.g. crash so we can get a crash report and add levels for
+    /// a new phase or similar).
+    pub fn new(phase: &str) -> Self {
+        Self {
+            phase: phase.to_lowercase(),
+        }
+    }
+}
+
+impl Section for KubePodLifecycleV1 {
+    const NAME: &'static str = "kube_pod_lifecycle_v1";
+}
