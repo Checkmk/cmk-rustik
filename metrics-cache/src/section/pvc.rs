@@ -141,8 +141,8 @@ impl<'a> KubePvcV1<'a> {
         Some(out)
     }
 
-    /// Given an [`&Arc<Pod>`], get all of the claim names it references in its
-    /// specification.
+    /// Given an [`Arc<Pod>`] reference, get all of the claim names it
+    /// references in its specification.
     ///
     /// Only PVCs are kept, any other kind of volume is discarded.
     pub fn pod_pvc_claim_names(pod: &Pod) -> impl Iterator<Item = &str> {

@@ -22,7 +22,7 @@ use crate::snapshot::owner_graph::OwnerGraph;
 ///
 /// This means if the store changes (because a new update comes in from the
 /// Kubernetes watch API), we don't have to worry about our snapshot state
-/// becoming out of date, the new state is simply ignored in this snapshot.
+/// becoming inconsistent, the new state is simply ignored in this snapshot.
 ///
 /// We also create and store the [`OwnerGraph`] as part of the snapshot and
 /// indexes useful for looking up resources by particular keys.

@@ -9,7 +9,7 @@ use crate::snapshot::Snapshot;
 
 /// Common, identifying data used for a given piggyback host type.
 ///
-/// Mostly, this is used (via [`self::piggyback_hostname()`]) to generate the
+/// Mostly, this is used (via [`Self::piggyback_hostname()`]) to generate the
 /// piggyback hostname for a given resource.
 struct Meta<'a> {
     name: &'a str,
