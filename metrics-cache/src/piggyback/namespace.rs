@@ -28,7 +28,7 @@ impl Namespace<'_> {
         // To match Python: Only create a namespace host if it has a running or pending pod
         let meta = Meta::from_resource(api)?;
         let has_active_pod = snapshot
-            .owner_graph
+            .indexes
             .pods_by_namespace(meta.name)
             .iter()
             .any(|p| {
@@ -81,7 +81,7 @@ impl Namespace<'_> {
     fn cpu_resources(&self) -> KubeCpuResourcesV1 {
         let ra = self
             .snapshot
-            .owner_graph
+            .indexes
             .pods_by_namespace(self.meta.name)
             .iter()
             .map(|p| ResourceAccumulator::from_pod(p, ResourceAxis::Cpu))
@@ -92,7 +92,7 @@ impl Namespace<'_> {
     fn memory_resources(&self) -> KubeMemoryResourcesV1 {
         let ra = self
             .snapshot
-            .owner_graph
+            .indexes
             .pods_by_namespace(self.meta.name)
             .iter()
             .map(|p| ResourceAccumulator::from_pod(p, ResourceAxis::Memory))
@@ -101,14 +101,14 @@ impl Namespace<'_> {
     }
 
     fn cpu_performance(&self) -> Option<KubePerformanceCpuV1> {
-        let pods = self.snapshot.owner_graph.pods_by_namespace(self.meta.name);
+        let pods = self.snapshot.indexes.pods_by_namespace(self.meta.name);
         Some(KubePerformanceCpuV1::new(
             self.snapshot.metrics.aggregate(pods)?.cpu_usage_nano_cores,
         ))
     }
 
     fn memory_performance(&self) -> Option<KubePerformanceMemoryV1> {
-        let pods = self.snapshot.owner_graph.pods_by_namespace(self.meta.name);
+        let pods = self.snapshot.indexes.pods_by_namespace(self.meta.name);
         Some(KubePerformanceMemoryV1::new(
             self.snapshot
                 .metrics

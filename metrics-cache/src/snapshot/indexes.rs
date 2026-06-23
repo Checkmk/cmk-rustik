@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::PersistentVolumeClaim;
+use k8s_openapi::api::core::v1::{PersistentVolumeClaim, Pod};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -6,6 +6,9 @@ use crate::ingest::reflectors::FrozenStores;
 
 #[derive(Debug)]
 pub struct Indexes {
+    /// Map namespace names to all the pods within that namespace.
+    pub pods_by_namespace: HashMap<String, Vec<Arc<Pod>>>,
+
     /// Persistent Volume Claims, indexed by `pvc[namespace][name]`.
     ///
     /// Pods reference a PVC by name (and only in the same namespace).
@@ -16,6 +19,7 @@ impl Indexes {
     pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
         Self {
             pvcs: Self::pvcs_by_ns_and_name(stores),
+            pods_by_namespace: Self::get_pods_by_namespace(stores),
         }
     }
 
@@ -40,5 +44,28 @@ impl Indexes {
     /// Given a namespace and a PVC name, try to find the PVC. O(1).
     pub fn pvc(&self, namespace: &str, name: &str) -> Option<&PersistentVolumeClaim> {
         self.pvcs.get(namespace)?.get(name).map(Arc::as_ref)
+    }
+
+    /// List all the pods in the given namespace
+    pub fn pods_by_namespace(&self, namespace: &str) -> &[Arc<Pod>] {
+        self.pods_by_namespace
+            .get(namespace)
+            .map_or(&[], Vec::as_slice)
+    }
+
+    /// Compute all the pods associated with each namespace in the snapshot.
+    fn get_pods_by_namespace(stores: &FrozenStores) -> HashMap<String, Vec<Arc<Pod>>> {
+        let mut out: HashMap<String, Vec<Arc<Pod>>> = HashMap::new();
+        for pod in &stores.pods {
+            let Some(namespace) = &pod.metadata.namespace else {
+                continue;
+            };
+            if let Some(namespace_vec) = out.get_mut(namespace) {
+                namespace_vec.push(pod.clone());
+            } else {
+                out.insert(namespace.clone(), vec![pod.clone()]);
+            }
+        }
+        out
     }
 }

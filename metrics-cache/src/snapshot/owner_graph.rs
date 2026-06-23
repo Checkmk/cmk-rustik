@@ -30,32 +30,31 @@ use crate::snapshot::Uid;
 pub struct OwnerGraph {
     pub owner_ref_by_uid: HashMap<Uid, OwnerReference>,
     pub pods_by_controller: HashMap<Uid, Vec<Arc<Pod>>>,
-    pub pods_by_namespace: HashMap<String, Vec<Arc<Pod>>>,
 }
 
 impl OwnerGraph {
     /// Construct an `OwnerGraph` given a [`FrozenStores`] reference.
     ///
     /// Outside of testing, this normally only gets called by
-    /// [`Snapshot::new()`].
+    /// [`crate::snapshot::Snapshot::new()`].
     pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
         let owner_ref_by_uid = Self::map_object_uids_to_owner_ref(stores);
         let pods_by_controller = Self::get_pods_by_controller(stores, &owner_ref_by_uid);
-        let pods_by_namespace = Self::get_pods_by_namespace(stores);
         OwnerGraph {
             owner_ref_by_uid,
             pods_by_controller,
-            pods_by_namespace,
         }
     }
 
     /// Create a map, uid-to-OwnerReference, of objects monitored in the
-    /// [`Stores`]. We take the first owner which reports being a controller.
+    /// [`crate::ingest::reflectors::Stores`]. We take the first owner which
+    /// reports being a controller.
+    ///
     /// Theory says there should only be at most one per object anyway.
     /// If one is found, the object's [`Uid`] is used as the key in the map
     /// and the [`OwnerReference`] is taken as the value.
     ///
-    /// Not everything in the [`Stores`] is iterated; only things actually
+    /// Not everything in the `Stores` is iterated; only things actually
     /// likely to have a controller owner (e.g. Pods, ReplicaSets, ...).
     fn map_object_uids_to_owner_ref(stores: &FrozenStores) -> HashMap<Uid, OwnerReference> {
         let mut map = HashMap::new();
@@ -100,29 +99,6 @@ impl OwnerGraph {
                 out.entry(Uid(parent.uid.as_str().into()))
                     .or_default()
                     .push(pod.clone());
-            }
-        }
-        out
-    }
-
-    /// List all the pods in the given namespace
-    pub fn pods_by_namespace(&self, namespace: &str) -> &[Arc<Pod>] {
-        self.pods_by_namespace
-            .get(namespace)
-            .map_or(&[], Vec::as_slice)
-    }
-
-    /// Compute all the pods associated with each namespace in the snapshot.
-    fn get_pods_by_namespace(stores: &FrozenStores) -> HashMap<String, Vec<Arc<Pod>>> {
-        let mut out: HashMap<String, Vec<Arc<Pod>>> = HashMap::new();
-        for pod in &stores.pods {
-            let Some(namespace) = &pod.metadata.namespace else {
-                continue;
-            };
-            if let Some(namespace_vec) = out.get_mut(namespace) {
-                namespace_vec.push(pod.clone());
-            } else {
-                out.insert(namespace.clone(), vec![pod.clone()]);
             }
         }
         out
