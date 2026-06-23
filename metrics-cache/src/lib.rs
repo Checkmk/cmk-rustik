@@ -90,7 +90,7 @@
 //!
 //! [Checkmk documentation]: https://docs.checkmk.com/latest/en/monitoring_kubernetes.html
 //! [watch]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
-//! [kind]: https://kubernetes.io/docs/reference/using-api/api-concepts/#standard-api-terminology
+//! [kind]: https://kubernetes.io/docs/reference/using-api/api-concepts/#standard-api-terminology:~:text=All%20resource%20types%20have%20a%20concrete%20representation%20(their%20object%20schema)%20which%20is%20called%20a%20kind
 
 pub mod auth;
 pub mod cli_args;
