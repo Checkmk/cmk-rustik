@@ -1,0 +1,55 @@
+---
+name: Docs
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+# Allow the deploy job to publish to GitHub Pages via OIDC.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two Pages deployments concurrently, but let an in-flight one finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # .cargo/config.toml pins build.target to musl, so cargo doc emits its
+      # output under this target-specific directory, not plain target/doc.
+      DOC_DIR: target/x86_64-unknown-linux-musl/doc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: x86_64-unknown-linux-musl
+      - name: Build rustdoc
+        # --workspace: document all member crates (lib, metrics-cache, metrics-fetcher)
+        # --no-deps: skip third-party deps, only our own crates
+        # --document-private-items: this is an internal maintenance doc site
+        run: cargo doc --workspace --no-deps --document-private-items
+      - name: Redirect root to the metrics-cache crate
+        # cargo doc produces no top-level index.html for a workspace, so point
+        # the Pages root at the primary crate (hyphen -> underscore in the path).
+        run: echo '<meta http-equiv="refresh" content="0; url=metrics_cache/index.html">' > "$DOC_DIR/index.html"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.DOC_DIR }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
