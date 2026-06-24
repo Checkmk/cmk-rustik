@@ -169,6 +169,7 @@ impl Add for ResourceAccumulator {
     }
 }
 
+/// Memory resources. (`kube_memory_resources_v1`)
 #[derive(Debug, Serialize)]
 pub struct KubeMemoryResourcesV1(pub ResourceAccumulator);
 
@@ -176,6 +177,7 @@ impl Section for KubeMemoryResourcesV1 {
     const NAME: &'static str = "kube_memory_resources_v1";
 }
 
+/// CPU resources. (`kube_cpu_resources_v1`)
 #[derive(Debug, Serialize)]
 pub struct KubeCpuResourcesV1(pub ResourceAccumulator);
 

@@ -16,6 +16,7 @@ struct PerformanceFields {
     usage: f64,
 }
 
+/// CPU performance/utilization. (`kube_performance_cpu_v1`)
 #[derive(Serialize)]
 pub(crate) struct KubePerformanceCpuV1 {
     resource: PerformanceFields,
@@ -36,6 +37,7 @@ impl Section for KubePerformanceCpuV1 {
     const NAME: &'static str = "kube_performance_cpu_v1";
 }
 
+/// Memory performance/utilization. (`kube_performance_memory_v1`)
 #[derive(Serialize)]
 pub(crate) struct KubePerformanceMemoryV1 {
     resource: PerformanceFields,

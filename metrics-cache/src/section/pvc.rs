@@ -53,7 +53,7 @@ struct Claim<'a> {
     volume_name: Option<&'a str>,
 }
 
-/// The section `kube_pvc_v1`.
+/// PVC overview. (`kube_pvc_v1`)
 ///
 /// At a high level, this section represents the join of two kinds of data from
 /// the same source: The Kubernetes API.

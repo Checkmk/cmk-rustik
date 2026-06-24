@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 
 use crate::section::{Section, common::LabelRef};
 
+/// Namespace info. (`kube_namespace_info_v1`)
 #[derive(Serialize)]
 pub(crate) struct KubeNamespaceInfoV1<'a> {
     pub name: &'a str,

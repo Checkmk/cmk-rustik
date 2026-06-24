@@ -27,6 +27,7 @@ impl QosClass {
     }
 }
 
+/// Pod info. (`kube_pod_info_v1`)
 #[derive(Serialize)]
 pub(crate) struct KubePodInfoV1<'a> {
     pub namespace: Option<&'a str>,
