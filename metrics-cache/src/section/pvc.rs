@@ -141,7 +141,7 @@ impl<'a> KubePvcV1<'a> {
         Some(out)
     }
 
-    /// Given an [`Arc<Pod>`] reference, get all of the claim names it
+    /// Given an [`Pod`] reference, get all of the claim names it
     /// references in its specification.
     ///
     /// Only PVCs are kept, any other kind of volume is discarded.
@@ -171,4 +171,56 @@ impl<'a> KubePvcV1<'a> {
 
 impl Section for KubePvcV1<'_> {
     const NAME: &'static str = "kube_pvc_v1";
+}
+
+#[derive(Debug, Serialize)]
+struct AttachedVolume<'a> {
+    capacity: f64,
+    free: f64,
+    persistent_volume_claim: &'a str,
+    namespace: &'a str,
+}
+
+/// Live usage data for PVCs. (`kube_pvc_volumes_v1`)
+#[derive(Debug, Default, Serialize)]
+pub(crate) struct KubePvcVolumesV1<'a> {
+    volumes: BTreeMap<String, AttachedVolume<'a>>,
+}
+
+impl<'a> KubePvcVolumesV1<'a> {
+    /// Uses data from the [`crate::snapshot::metric_tables::MetricTables`] of
+    /// the given [`Snapshot`] to provide real-time usage data for PVC volumes,
+    /// in contrast to [`KubePvcV1::from_claim_names()`] which uses only API
+    /// data and does not provide usage data.
+    ///
+    /// Returns None if no claim has volume stats.
+    pub fn from_claim_names(
+        snap: &'a Snapshot,
+        namespace: &'a str,
+        claim_names: impl IntoIterator<Item = &'a str>,
+    ) -> Option<KubePvcVolumesV1<'a>> {
+        let mut out = Self::default();
+        for claim_name in claim_names {
+            let Some(sample) = snap.metrics.pvc_volume(namespace, claim_name) else {
+                continue;
+            };
+            let volume = AttachedVolume {
+                capacity: sample.capacity_bytes as f64,
+                free: sample.available_bytes as f64,
+                persistent_volume_claim: claim_name,
+                namespace,
+            };
+            out.volumes.insert(claim_name.to_string(), volume);
+        }
+
+        if out.volumes.is_empty() {
+            return None;
+        }
+
+        Some(out)
+    }
+}
+
+impl Section for KubePvcVolumesV1<'_> {
+    const NAME: &'static str = "kube_pvc_volumes_v1";
 }

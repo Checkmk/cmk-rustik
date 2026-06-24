@@ -6,7 +6,7 @@ use crate::section::{
     common::{Controller, LabelRef},
     performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
     pod::{KubePodInfoV1, KubePodLifecycleV1, QosClass},
-    pvc::KubePvcV1,
+    pvc::{KubePvcV1, KubePvcVolumesV1},
     resource::{KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis},
     writeable::{SectionError, WriteableSection},
 };
@@ -96,11 +96,18 @@ impl Pod<'_> {
         }
     }
 
-    /// Generate the section `kube_pvc_v1`, for each volume attached to the pod
-    /// which has a corresponding PVC in the snapshot.
+    /// Generate the section `kube_pvc_v1`, which includes each volume attached
+    /// to the pod which has a corresponding PVC in the snapshot.
     fn pvcs<'a>(&'a self) -> Option<KubePvcV1<'a>> {
         let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
         KubePvcV1::from_claim_names(self.snapshot, self.meta.namespace?, claim_names)
+    }
+
+    /// Generate the section `kube_pvc_volumes_v1` which extends PVC information
+    /// with live usage metrics (capacity/free space).
+    fn pvc_volumes<'a>(&'a self) -> Option<KubePvcVolumesV1<'a>> {
+        let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
+        KubePvcVolumesV1::from_claim_names(self.snapshot, self.meta.namespace?, claim_names)
     }
 }
 
@@ -138,6 +145,9 @@ impl PiggybackHost for Pod<'_> {
         ));
         if let Some(kube_pvc_v1) = &self.pvcs() {
             out.push(WriteableSection::of(me.clone(), kube_pvc_v1));
+        };
+        if let Some(kube_pvc_volumes_v1) = &self.pvc_volumes() {
+            out.push(WriteableSection::of(me.clone(), kube_pvc_volumes_v1));
         };
         if let Some(phase) = &self.api.status.as_ref().and_then(|s| s.phase.as_deref()) {
             out.push(WriteableSection::of(me, &KubePodLifecycleV1::new(phase)));
