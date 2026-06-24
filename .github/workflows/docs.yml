@@ -31,6 +31,11 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: x86_64-unknown-linux-musl
+      - name: Install musl C toolchain
+        # cargo doc still *compiles* deps (running their build scripts) to
+        # document our crates. ring's build script needs the musl C compiler
+        # for the musl target, even though no final binary is linked.
+        run: sudo apt update && sudo apt install -y musl-tools
       - name: Build rustdoc
         # --workspace: document all member crates (lib, metrics-cache, metrics-fetcher)
         # --no-deps: skip third-party deps, only our own crates
