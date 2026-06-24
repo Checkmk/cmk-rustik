@@ -9,7 +9,7 @@ pub struct Indexes {
     /// Map namespace names to all the pods within that namespace.
     pub pods_by_namespace: HashMap<String, Vec<Arc<Pod>>>,
 
-    /// Persistent Volume Claims, indexed by `pvc[namespace][name]`.
+    /// Persistent Volume Claims, indexed by `pvc = pvcs[namespace][name]`.
     ///
     /// Pods reference a PVC by name (and only in the same namespace).
     pub pvcs: HashMap<String, HashMap<String, Arc<PersistentVolumeClaim>>>,

@@ -49,9 +49,9 @@ pub struct MemoryStats {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Volume {
     #[serde(rename = "availableBytes")]
-    pub available_bytes: u64,
+    pub available_bytes: Option<u64>,
     #[serde(rename = "capacityBytes")]
-    pub capacity_bytes: u64,
+    pub capacity_bytes: Option<u64>,
     #[serde(rename = "pvcRef")]
     pub pvc_ref: Option<PVCRef>,
 }
@@ -97,11 +97,11 @@ mod tests {
         );
         assert_matches!(
             parsed.pods[4].volume.as_ref().map(|m| m[0].available_bytes),
-            Some(349491232768)
+            Some(Some(349491232768))
         );
         assert_matches!(
             parsed.pods[4].volume.as_ref().map(|m| m[0].capacity_bytes),
-            Some(1003736440832)
+            Some(Some(1003736440832))
         );
         assert_matches!(
             parsed.pods[4]

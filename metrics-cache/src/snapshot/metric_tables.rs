@@ -29,21 +29,43 @@ impl AddAssign for Sample {
     }
 }
 
+/// A slim extraction of the metrics we need from the [`StatsSummary`] for PVC
+/// volumes.
+#[derive(Debug)]
+pub struct VolumeSample {
+    pub available_bytes: u64,
+    pub capacity_bytes: u64,
+}
+
 #[derive(Debug)]
 pub struct MetricTables {
     /// Performance samples for containers.
     ///
     /// Indexed by: `sample = samples[namespace][pod][container]`
     pub containers: HashMap<String, HashMap<String, HashMap<String, Sample>>>,
+
+    /// PVC volumes.
+    ///
+    /// We ignore volumes with no `pvcRef` (they aren't PVCs).
+    ///
+    /// Indexed by `volume = volumes[namespace][pvc_name]`
+    pub pvc_volumes: HashMap<String, HashMap<String, VolumeSample>>,
 }
 
 impl MetricTables {
+    /// Collect stats from the Kubelet stats summary and index them by some
+    /// known key.
+    ///
+    /// We iterate each Kubelet stats summary (one per node) once, and iterate its
+    /// pods once.
     pub fn from_cache(kubelet_stats_summary_cache: Cache<String, Arc<StatsSummary>>) -> Self {
         let mut containers: HashMap<String, HashMap<String, HashMap<String, Sample>>> =
             HashMap::new();
+        let mut pvc_volumes: HashMap<String, HashMap<String, VolumeSample>> = HashMap::new();
 
         for (_, stats_summary) in kubelet_stats_summary_cache.iter() {
             for pod in &stats_summary.pods {
+                // Containers
                 let pod_map = containers
                     .entry(pod.pod_ref.namespace.clone())
                     .or_default()
@@ -64,10 +86,35 @@ impl MetricTables {
                     };
                     pod_map.insert(container.name.clone(), sample);
                 }
+
+                // PVC volumes
+                if let Some(volumes) = &pod.volume {
+                    for volume in volumes {
+                        if let Some(pvc_ref) = &volume.pvc_ref {
+                            let Some(available_bytes) = volume.available_bytes else {
+                                continue;
+                            };
+                            let Some(capacity_bytes) = volume.capacity_bytes else {
+                                continue;
+                            };
+                            let sample = VolumeSample {
+                                available_bytes,
+                                capacity_bytes,
+                            };
+                            pvc_volumes
+                                .entry(pvc_ref.namespace.clone())
+                                .or_default()
+                                .insert(pvc_ref.name.clone(), sample);
+                        }
+                    }
+                }
             }
         }
 
-        Self { containers }
+        Self {
+            containers,
+            pvc_volumes,
+        }
     }
 
     /// Given a namespace, pod, and container name, try to find the relevant
@@ -110,5 +157,10 @@ impl MetricTables {
             }
         }
         out
+    }
+
+    /// Get the slim [`VolumeSample`] given a namespace and PVC claim name.
+    pub fn pvc_volume(&self, namespace: &str, claim_name: &str) -> Option<&VolumeSample> {
+        self.pvc_volumes.get(namespace)?.get(claim_name)
     }
 }
