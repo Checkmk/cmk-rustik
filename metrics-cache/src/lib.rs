@@ -99,6 +99,7 @@ pub mod handlers;
 pub mod host_settings;
 pub mod ingest;
 pub mod piggyback;
+pub mod push;
 pub mod section;
 pub mod snapshot;
 pub mod state;

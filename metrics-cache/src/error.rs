@@ -18,4 +18,10 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("address parse error")]
     AddrParse(#[from] std::net::AddrParseError),
+    #[error("rcgen error")]
+    Rcgen(#[from] rcgen::Error),
+    #[error("push-mode error")]
+    Push(#[from] crate::push::Error),
+    #[error("http (reqwest) error")]
+    Reqwest(#[from] reqwest::Error),
 }

@@ -93,7 +93,7 @@ pub struct CliArgs {
     )]
     pub read_timeout: Duration,
 
-    /// The name of the cluster, included in each piggyback hostname.
+    /// The name of the cluster, included in each piggyback hostname
     #[arg(long = "cluster-name")]
     pub cluster_name: String,
 
@@ -110,6 +110,11 @@ pub struct CliArgs {
         conflicts_with = "import_all_annotations"
     )]
     pub annotation_key_pattern: Option<Regex>,
+
+    /// Enable push mode and send sections to the specified server (including
+    /// port)
+    #[arg(long = "push-receiver")]
+    pub push_receiver: Option<String>,
 }
 
 /// Convert a numeric argument given by the user as seconds into a Duration.
