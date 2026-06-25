@@ -3,14 +3,14 @@ use std::io::Write;
 
 use crate::section::Section;
 
-pub(crate) struct WriteableSection {
+pub struct WriteableSection {
     pub piggyback_hostname: String,
     pub name: &'static str,
     /// The JSON serialized body of the section
     pub body: String,
 }
 
-pub(crate) struct SectionError {
+pub struct SectionError {
     pub name: &'static str,
     pub source: serde_json::Error,
 }
@@ -31,10 +31,7 @@ impl WriteableSection {
 
 /// Take a collection of [`WriteableSection`]s and render them into something
 /// that can write them out.
-pub(crate) fn frame<W: Write>(
-    writer: &mut W,
-    sections: Vec<WriteableSection>,
-) -> std::io::Result<()> {
+pub fn frame<W: Write>(writer: &mut W, sections: Vec<WriteableSection>) -> std::io::Result<()> {
     let mut by_host: BTreeMap<&str, Vec<&WriteableSection>> = BTreeMap::new();
     for section in &sections {
         by_host

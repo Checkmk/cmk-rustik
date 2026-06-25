@@ -7,6 +7,8 @@ use tracing_subscriber::EnvFilter;
 
 use metrics_cache::cli_args::CliArgs;
 use metrics_cache::handlers;
+use metrics_cache::push::client::CheckmkPushClient;
+use metrics_cache::push::push_loop;
 use metrics_cache::push::register::CheckmkPushRegistration;
 use metrics_cache::state::AppState;
 
@@ -48,11 +50,12 @@ async fn main() -> anyhow::Result<()> {
     let args = CliArgs::parse();
     init_tracing(&args);
     let state = AppState::new(&args).await?;
-    let registration = CheckmkPushRegistration::new(state.clone().client, &args);
-    if args.push_receiver.is_some() {
+    if let Some(base_url) = &args.push_receiver {
         info!("Push receiver enabled, attempting registration with Checkmk server");
-        let _secret = registration.register_if_needed().await?;
-        // state.push_client = CheckmkPushClient::new(&args, &secret).await?;
+        let registration = CheckmkPushRegistration::new(state.clone().client, &args);
+        let secret = registration.register_if_needed().await?;
+        let client = CheckmkPushClient::from_secret(base_url, &secret)?;
+        tokio::spawn(push_loop(client, state.clone()));
     }
     let app = handlers::app(state);
     bind(&args, app).await

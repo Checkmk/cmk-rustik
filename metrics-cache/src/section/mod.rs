@@ -12,6 +12,6 @@ use serde::Serialize;
 ///
 /// The types that implement this are relatively "low level", i.e. they sit
 /// "close" to the wire protocol that they end up serializing into.
-pub(crate) trait Section: Serialize {
+pub trait Section: Serialize {
     const NAME: &str;
 }

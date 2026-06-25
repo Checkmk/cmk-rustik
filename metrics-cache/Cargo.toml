@@ -17,6 +17,7 @@ axum = "0.8"
 axum-server = { version = "0.8.0", features = ["tls-rustls-no-provider"] }
 clap = { workspace = true }
 cmk-kube-types = { workspace = true }
+flate2 = "1.1.9"
 futures-util = "0.3.32"
 k8s-openapi = { version = "0.27.1", features = ["latest"] }
 kube = { version = "3.1", features = ["ring", "runtime"] }
@@ -24,7 +25,7 @@ moka = { version = "0.12.15", features = ["future"] }
 os-release = { workspace = true }
 rcgen = "0.14.8"
 regex = "1.12.4"
-reqwest = { version = "0.13.4", default-features = false, features = ["charset", "http2", "json", "rustls-no-provider", "system-proxy"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["charset", "http2", "json", "multipart", "rustls-no-provider", "system-proxy"] }
 rustls = { workspace = true }
 serde = {workspace = true }
 serde_json = "1.0.150"

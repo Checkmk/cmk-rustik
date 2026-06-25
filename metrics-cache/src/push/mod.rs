@@ -1,11 +1,67 @@
+pub mod client;
 pub mod register;
 
+use anyhow::Context;
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
 use thiserror::Error;
+use tokio::time;
+use tokio::time::Duration;
+use tracing::{debug, error};
+
+use crate::auth::kubernetes::TokenValidator;
+use crate::piggyback::emit_all;
+use crate::push::client::CheckmkPushClient;
+use crate::section::writeable::frame;
+use crate::snapshot::Snapshot;
+use crate::state::AppState;
 
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("rcgen error")]
     Rcgen(#[from] rcgen::Error),
-    #[error("push-mode error")]
+    #[error("push-mode error: {0}")]
     PushMode(String),
+}
+
+/// Generate, compress, and push sections from the current state.
+///
+/// This is what actually generates the sections, compresses them, and pushes
+/// them to Checkmk using the push client. It runs once per push interval,
+/// called via [`push_loop()`], and builds a [`Snapshot`], emits all sections,
+/// zlib-compresses them, and pushes via the [`CheckmkPushClient`].
+async fn push_cycle(
+    client: &CheckmkPushClient,
+    state: &AppState<impl TokenValidator>,
+) -> anyhow::Result<()> {
+    let snap = Snapshot::new(
+        state.stores.clone(),
+        state.kubelet_stats_summary_cache.clone(),
+    );
+    let sections = emit_all(&snap, &state.host_settings);
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    frame(&mut encoder, sections).context("framing push data")?;
+    let encoded = encoder.finish().context("finishing zlib encoding")?;
+    client
+        .push_section_data(encoded)
+        .await
+        .context("pushing to Checkmk")?;
+    Ok(())
+}
+
+/// Run the push loop forever.
+///
+/// Every push interval, [`push_cycle()`] is called to generate sections and
+/// send them to the Checkmk server.
+///
+/// Owns the [`CheckmkPushClient`] for the lifetime of the loop.
+pub async fn push_loop(client: CheckmkPushClient, state: AppState<impl TokenValidator>) {
+    let mut interval = time::interval(Duration::from_secs(60)); // TODO: Unhardcode
+    loop {
+        match push_cycle(&client, &state).await {
+            Ok(_) => debug!("Successfully pushed metrics to Checkmk server"),
+            Err(e) => error!(error = %e, "Failed to push metrics to Checkmk server"),
+        }
+        interval.tick().await;
+    }
 }

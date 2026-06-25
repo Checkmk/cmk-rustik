@@ -62,7 +62,7 @@ fn collect<A, H: PiggybackHost>(
         .collect()
 }
 
-pub(crate) fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSection> {
+pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSection> {
     let mut out = Vec::new();
     out.extend(collect(snap.stores.pods.iter(), |p| {
         Pod::new(p, snap, settings)
