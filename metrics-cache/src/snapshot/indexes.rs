@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::{PersistentVolumeClaim, Pod};
+use k8s_openapi::api::core::v1::{PersistentVolume, PersistentVolumeClaim, Pod};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -13,13 +13,17 @@ pub struct Indexes {
     ///
     /// Pods reference a PVC by name (and only in the same namespace).
     pub pvcs: HashMap<String, HashMap<String, Arc<PersistentVolumeClaim>>>,
+
+    /// Persistent volumes, by name.
+    pub pvs: HashMap<String, Arc<PersistentVolume>>,
 }
 
 impl Indexes {
     pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
         Self {
-            pvcs: Self::pvcs_by_ns_and_name(stores),
             pods_by_namespace: Self::get_pods_by_namespace(stores),
+            pvcs: Self::pvcs_by_ns_and_name(stores),
+            pvs: Self::get_pvs_by_name(stores),
         }
     }
 
@@ -67,5 +71,22 @@ impl Indexes {
             }
         }
         out
+    }
+
+    /// Index all PVs by their (cluster-global) name.
+    fn get_pvs_by_name(stores: &FrozenStores) -> HashMap<String, Arc<PersistentVolume>> {
+        let mut out: HashMap<String, Arc<PersistentVolume>> = HashMap::new();
+        for pv in &stores.persistent_volumes {
+            let Some(name) = &pv.metadata.name else {
+                continue;
+            };
+            out.insert(name.clone(), pv.clone());
+        }
+        out
+    }
+
+    /// Get a (cluster-global) PV by name. O(1).
+    pub fn pv(&self, name: &str) -> Option<&PersistentVolume> {
+        self.pvs.get(name).map(Arc::as_ref)
     }
 }

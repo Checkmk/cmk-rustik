@@ -224,3 +224,92 @@ impl<'a> KubePvcVolumesV1<'a> {
 impl Section for KubePvcVolumesV1<'_> {
     const NAME: &'static str = "kube_pvc_volumes_v1";
 }
+
+#[derive(Debug, Serialize)]
+struct PersistentVolumeSpec<'a> {
+    access_modes: &'a [String],
+    storage_class_name: Option<&'a str>,
+    volume_mode: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+struct PersistentVolume<'a> {
+    name: &'a str,
+    spec: PersistentVolumeSpec<'a>,
+}
+
+/// Persistent volumes. (`kube_pvc_pvs_v1`)
+///
+/// Mainly used in the details section of the PVC services.
+#[derive(Debug, Default, Serialize)]
+pub(crate) struct KubePvcPvsV1<'a> {
+    volumes: BTreeMap<String, PersistentVolume<'a>>,
+}
+
+impl<'a> KubePvcPvsV1<'a> {
+    /// Uses the PV index to collect information about the PVs that back the
+    /// PVCs provided by the claim names given.
+    ///
+    /// Returns None if no claims have a backing PV.
+    pub fn from_claim_names(
+        snap: &'a Snapshot,
+        namespace: &'a str,
+        claim_names: impl IntoIterator<Item = &'a str>,
+    ) -> Option<KubePvcPvsV1<'a>> {
+        let mut out = Self::default();
+        for claim_name in claim_names {
+            let Some(pvc) = snap.indexes.pvc(namespace, claim_name) else {
+                continue;
+            };
+
+            let Some(volume_name) = pvc.spec.as_ref().and_then(|s| s.volume_name.as_deref()) else {
+                continue;
+            };
+
+            let Some(pv) = snap.indexes.pv(volume_name) else {
+                continue;
+            };
+
+            let access_modes: &'a [String] = pv
+                .spec
+                .as_ref()
+                .and_then(|spec| spec.access_modes.as_deref())
+                .unwrap_or(&[]);
+
+            let storage_class_name = pv
+                .spec
+                .as_ref()
+                .and_then(|s| s.storage_class_name.as_deref());
+
+            let volume_mode = pv
+                .spec
+                .as_ref()
+                .and_then(|s| s.volume_mode.as_deref())
+                .unwrap_or("Filesystem");
+
+            let pv_spec = PersistentVolumeSpec {
+                access_modes,
+                storage_class_name,
+                volume_mode,
+            };
+
+            let persistent_volume = PersistentVolume {
+                name: volume_name,
+                spec: pv_spec,
+            };
+
+            out.volumes
+                .insert(volume_name.to_string(), persistent_volume);
+        }
+
+        if out.volumes.is_empty() {
+            return None;
+        }
+
+        Some(out)
+    }
+}
+
+impl Section for KubePvcPvsV1<'_> {
+    const NAME: &'static str = "kube_pvc_pvs_v1";
+}
