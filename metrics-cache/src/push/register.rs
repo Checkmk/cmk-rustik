@@ -213,7 +213,11 @@ impl<'a> CheckmkPushRegistration<'a> {
                 };
                 secrets.create(&Default::default(), &secret).await?;
                 info!("Successfully registered push agent and created certificate secret");
-                Ok(secret)
+                // The secret will only have string_data from above, we need to
+                // fetch it again so we have data in the data fields, too (and a
+                // full, consistent Secret object). This lets us use the Secret
+                // immediately after registration.
+                Ok(secrets.get(CERT_SECRET).await?)
             }
         }
     }
