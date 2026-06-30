@@ -1,7 +1,9 @@
+pub mod cluster;
 pub mod namespace;
 pub mod pod;
 
 use crate::host_settings::HostSettings;
+use crate::piggyback::cluster::Cluster;
 use crate::piggyback::namespace::Namespace;
 use crate::piggyback::pod::Pod;
 use crate::section::writeable::{SectionError, WriteableSection};
@@ -69,6 +71,11 @@ pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSectio
     }));
     out.extend(collect(snap.stores.namespaces.iter(), |n| {
         Namespace::new(n, snap, settings)
+    }));
+
+    // Cluster is a special snowflake, there aren't any reflectors to iterate
+    out.extend(collect(std::iter::once(()), |()| {
+        Some(Cluster::new(snap, settings))
     }));
     out
 }
