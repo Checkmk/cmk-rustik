@@ -40,13 +40,18 @@ pub fn frame<W: Write>(writer: &mut W, sections: Vec<WriteableSection>) -> std::
             .push(section);
     }
     for (host, host_sections) in by_host {
-        writeln!(writer, "<<<<{host}>>>>")?;
+        let bare = host.is_empty();
+        if !bare {
+            writeln!(writer, "<<<<{host}>>>>")?;
+        }
         for section in host_sections {
             writeln!(writer, "<<<{}:sep(0)>>>", section.name)?;
             writer.write_all(section.body.as_bytes())?;
             writeln!(writer)?;
         }
-        writeln!(writer, "<<<<>>>>")?;
+        if !bare {
+            writeln!(writer, "<<<<>>>>")?;
+        }
     }
     Ok(())
 }
