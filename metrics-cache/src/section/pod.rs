@@ -1,10 +1,13 @@
+use k8s_openapi::api::core::v1::Pod;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
+use crate::host_settings::HostSettings;
 use crate::section::{
     Section,
     common::{Controller, LabelRef},
 };
+use crate::snapshot::owner_graph::OwnerGraph;
 
 #[derive(Serialize)]
 pub(crate) enum QosClass {
@@ -54,6 +57,69 @@ pub(crate) struct KubePodInfoV1<'a> {
     pub controllers: Vec<Controller<'a>>,
     pub cluster: &'a str,
     pub kubernetes_cluster_hostname: &'a str,
+}
+
+impl<'a> KubePodInfoV1<'a> {
+    pub(crate) fn from_pod(
+        pod: &'a Pod,
+        owner_graph: &'a OwnerGraph,
+        settings: &'a HostSettings,
+    ) -> Option<KubePodInfoV1<'a>> {
+        let control_chain = match &pod.metadata.uid {
+            Some(uid) => owner_graph
+                .walk_up(uid)
+                .into_iter()
+                .map(|o| Controller {
+                    type_: &o.kind,
+                    name: &o.name,
+                })
+                .collect(),
+            None => Vec::new(),
+        };
+
+        let section = KubePodInfoV1 {
+            namespace: pod.metadata.namespace.as_deref(),
+            name: pod.metadata.name.as_deref()?,
+            creation_timestamp: pod
+                .metadata
+                .creation_timestamp
+                .as_ref()
+                .map(|t| t.0.as_millisecond() as f64 / 1000.0),
+            labels: pod
+                .metadata
+                .labels
+                .as_ref()
+                .map(LabelRef::from_map)
+                .unwrap_or_default(),
+            annotations: pod
+                .metadata
+                .annotations
+                .as_ref()
+                .map(|m| settings.annotation_key_pattern.filter(m))
+                .unwrap_or_default(),
+            node: pod.spec.as_ref().and_then(|s| s.node_name.as_deref()),
+            host_network: pod.spec.as_ref().and_then(|s| s.host_network),
+            dns_policy: pod.spec.as_ref().and_then(|s| s.dns_policy.as_deref()),
+            host_ip: pod.status.as_ref().and_then(|s| s.host_ip.as_deref()),
+            pod_ip: pod.status.as_ref().and_then(|s| s.pod_ip.as_deref()),
+            qos_class: pod
+                .status
+                .as_ref()
+                .and_then(|s| s.qos_class.as_deref())
+                .and_then(QosClass::from_str),
+            restart_policy: pod
+                .spec
+                .as_ref()
+                .and_then(|s| s.restart_policy.as_deref())
+                .unwrap_or("Always"),
+            uid: pod.metadata.uid.as_deref().unwrap_or_default(),
+            controllers: control_chain,
+            cluster: &settings.cluster_name,
+            kubernetes_cluster_hostname: &settings.cluster_host_name,
+        };
+
+        Some(section)
+    }
 }
 
 impl Section for KubePodInfoV1<'_> {
