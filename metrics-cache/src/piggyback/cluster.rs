@@ -25,8 +25,8 @@ impl<'a> Cluster<'a> {
     ///
     /// Importantly, nodes considered here are potentially filtered by user
     /// preference and the node role patterns to exclude are specified as a CLI
-    /// argument and land in
-    /// [`HostSettings.excluded_node_role_patterns`].
+    /// argument and land in the [`HostSettings`] `excluded_node_role_patterns`
+    /// field.
     ///
     /// This impacts both the nodes that are considered here and pod
     /// aggregations.
