@@ -1,12 +1,18 @@
 use k8s_openapi::api::core::v1::{Node, Pod};
 use std::collections::HashSet;
+use std::ops::Add;
 use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::PiggybackHost;
-use crate::section::writeable::{SectionError, WriteableSection};
+use crate::section::{
+    performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
+    resource::{KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis},
+    writeable::{SectionError, WriteableSection},
+};
 use crate::snapshot::Snapshot;
 
+#[allow(dead_code)]
 pub struct Cluster<'a> {
     snapshot: &'a Snapshot,
     settings: &'a HostSettings,
@@ -67,11 +73,58 @@ impl<'a> Cluster<'a> {
             )
             .collect()
     }
+
+    fn cpu_resources(&self) -> KubeCpuResourcesV1 {
+        let ra = self
+            .aggregation_pods
+            .iter()
+            .map(|p| ResourceAccumulator::from_pod(p, ResourceAxis::Cpu))
+            .fold(ResourceAccumulator::default(), Add::add);
+        KubeCpuResourcesV1(ra)
+    }
+
+    fn memory_resources(&self) -> KubeMemoryResourcesV1 {
+        let ra = self
+            .aggregation_pods
+            .iter()
+            .map(|p| ResourceAccumulator::from_pod(p, ResourceAxis::Memory))
+            .fold(ResourceAccumulator::default(), Add::add);
+        KubeMemoryResourcesV1(ra)
+    }
+
+    fn cpu_performance(&self) -> Option<KubePerformanceCpuV1> {
+        Some(KubePerformanceCpuV1::new(
+            self.snapshot
+                .metrics
+                .aggregate(self.aggregation_pods.iter().copied())?
+                .cpu_usage_nano_cores,
+        ))
+    }
+
+    fn memory_performance(&self) -> Option<KubePerformanceMemoryV1> {
+        Some(KubePerformanceMemoryV1::new(
+            self.snapshot
+                .metrics
+                .aggregate(self.aggregation_pods.iter().copied())?
+                .memory_working_set_bytes,
+        ))
+    }
 }
 
 impl PiggybackHost for Cluster<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
-        Vec::new()
+        let me = String::new();
+        let mut out = vec![
+            WriteableSection::of(me.clone(), &self.cpu_resources()),
+            WriteableSection::of(me.clone(), &self.memory_resources()),
+        ];
+        if let Some(cpu_perf) = &self.cpu_performance() {
+            out.push(WriteableSection::of(me.clone(), cpu_perf));
+        }
+        if let Some(mem_perf) = &self.memory_performance() {
+            out.push(WriteableSection::of(me, mem_perf));
+        }
+        out
     }
 }
 
