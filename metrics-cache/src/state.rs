@@ -34,6 +34,7 @@ impl AppState<Client> {
                 args.import_all_annotations,
                 args.annotation_key_pattern.clone(),
             ),
+            excluded_node_role_patterns: args.excluded_node_role_patterns.clone(),
         };
         let state = Self {
             client,
@@ -120,6 +121,7 @@ pub mod tests {
                 cluster_name: "testcluster".to_string(),
                 cluster_host_name: "testclusterhost".to_string(),
                 annotation_key_pattern: AnnotationKeyPattern::ImportAll,
+                excluded_node_role_patterns: Vec::new(),
             }
             .into(),
         }

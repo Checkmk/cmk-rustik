@@ -115,6 +115,11 @@ pub struct CliArgs {
     /// port)
     #[arg(long = "push-receiver")]
     pub push_receiver: Option<String>,
+
+    /// Excluded node role (infix) patterns for cluster-level aggregations,
+    /// comma-separated
+    #[arg(long = "excluded-node-role-patterns", value_delimiter = ',')]
+    pub excluded_node_role_patterns: Vec<String>,
 }
 
 /// Convert a numeric argument given by the user as seconds into a Duration.
