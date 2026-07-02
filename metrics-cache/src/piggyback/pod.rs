@@ -73,6 +73,7 @@ impl PiggybackHost for Pod<'_> {
 
         if let Some(namespace) = &self.meta.namespace
             && let Some(sample) = &self.snapshot.metrics.pod_usage(namespace, self.meta.name)
+            && self.api.status.as_ref().and_then(|s| s.phase.as_deref()) == Some("Running")
         {
             // kube_performance_cpu_v1
             out.push(WriteableSection::of(

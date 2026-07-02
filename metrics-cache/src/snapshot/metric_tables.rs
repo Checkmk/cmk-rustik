@@ -141,11 +141,16 @@ impl MetricTables {
     /// Aggregate the samples for all of the given pods.
     ///
     /// If no sample for any pod is found, `None` is returned.
-    /// Otherwise, the summed aggregate if all available samples for the given
-    /// pods is returned.
+    /// Otherwise, the summed aggregate of all available samples for the given
+    /// pods **in `Running` phase** is returned (pods in other phases are
+    /// ignored).
     pub fn aggregate<'a>(&self, pods: impl IntoIterator<Item = &'a Arc<Pod>>) -> Option<Sample> {
         let mut out: Option<Sample> = None;
         for pod in pods {
+            if pod.status.as_ref().and_then(|s| s.phase.as_deref()) != Some("Running") {
+                continue;
+            }
+
             if let Some(ns) = &pod.metadata.namespace
                 && let Some(name) = &pod.metadata.name
                 && let Some(sample) = self.pod_usage(ns, name)
