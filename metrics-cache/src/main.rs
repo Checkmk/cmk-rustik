@@ -50,13 +50,28 @@ async fn main() -> anyhow::Result<()> {
     let args = CliArgs::parse();
     init_tracing(&args);
     let state = AppState::new(&args).await?;
+    let app = handlers::app(state.clone());
     if let Some(base_url) = &args.push_receiver {
         info!("Push receiver enabled, attempting registration with Checkmk server");
         let registration = CheckmkPushRegistration::new(state.clone().client, &args);
         let secret = registration.register_if_needed().await?;
         let client = CheckmkPushClient::from_secret(base_url, &secret)?;
-        tokio::spawn(push_loop(client, state.clone()));
+        tokio::select! {
+            res = push_loop(client, state) => {
+                if let Err(e) = res {
+                    tracing::error!(error = %e, "push loop exited with error");
+                }
+                anyhow::bail!("push loop terminated unexpectedly");
+            }
+            res = bind(&args, app) => {
+                if let Err(e) = res {
+                    tracing::error!(error = %e, "Axum server exited with error");
+                }
+                anyhow::bail!("Axum server terminated unexpectedly");
+            }
+        }
+    } else {
+        bind(&args, app).await?;
     }
-    let app = handlers::app(state);
-    bind(&args, app).await
+    Ok(())
 }
