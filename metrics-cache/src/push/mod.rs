@@ -4,6 +4,7 @@ pub mod register;
 use anyhow::Context;
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
+use kube::runtime::reflector::store::WriterDropped;
 use thiserror::Error;
 use tokio::time;
 use tokio::time::Duration;
@@ -54,14 +55,20 @@ async fn push_cycle(
 /// Every push interval, [`push_cycle()`] is called to generate sections and
 /// send them to the Checkmk server.
 ///
+/// Waits until all stores are ready before doing its initial push and looping.
+///
 /// Owns the [`CheckmkPushClient`] for the lifetime of the loop.
-pub async fn push_loop(client: CheckmkPushClient, state: AppState<impl TokenValidator>) {
+pub async fn push_loop(
+    client: CheckmkPushClient,
+    state: AppState<impl TokenValidator>,
+) -> Result<(), WriterDropped> {
+    state.stores.wait_until_all_ready().await?;
     let mut interval = time::interval(Duration::from_secs(60)); // TODO: Unhardcode
     loop {
+        interval.tick().await; // note: The very first tick() is no-op
         match push_cycle(&client, &state).await {
             Ok(_) => debug!("Successfully pushed metrics to Checkmk server"),
             Err(e) => error!(error = %e, "Failed to push metrics to Checkmk server"),
         }
-        interval.tick().await;
     }
 }

@@ -1,6 +1,7 @@
 use futures_util::StreamExt;
 use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
 use k8s_openapi::api::core::v1::{Namespace, Node, PersistentVolume, PersistentVolumeClaim, Pod};
+use kube::runtime::reflector::store::WriterDropped;
 use kube::runtime::watcher::Config as WatchConfig;
 use kube::runtime::{WatchStreamExt, reflector, reflector::Store, watcher};
 use kube::{Api, Client, Resource, ResourceExt};
@@ -66,6 +67,21 @@ impl Stores {
             persistent_volume_claims: self.persistent_volume_claims.state(),
             stateful_sets: self.stateful_sets.state(),
         }
+    }
+
+    pub async fn wait_until_all_ready(&self) -> Result<(), WriterDropped> {
+        tokio::try_join!(
+            self.pods.wait_until_ready(),
+            self.nodes.wait_until_ready(),
+            self.deployments.wait_until_ready(),
+            self.daemonsets.wait_until_ready(),
+            self.namespaces.wait_until_ready(),
+            self.replicasets.wait_until_ready(),
+            self.persistent_volumes.wait_until_ready(),
+            self.persistent_volume_claims.wait_until_ready(),
+            self.stateful_sets.wait_until_ready(),
+        )?;
+        Ok(())
     }
 }
 
