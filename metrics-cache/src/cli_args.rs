@@ -119,7 +119,7 @@ pub struct CliArgs {
     /// Excluded node role (infix) patterns for cluster-level aggregations,
     /// comma-separated
     #[arg(long = "excluded-node-role-patterns", value_delimiter = ',')]
-    pub excluded_node_role_patterns: Vec<String>,
+    pub excluded_node_role_patterns: Vec<Regex>,
 }
 
 /// Convert a numeric argument given by the user as seconds into a Duration.

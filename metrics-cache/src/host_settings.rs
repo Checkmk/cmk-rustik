@@ -39,7 +39,7 @@ pub struct HostSettings {
     pub cluster_name: String,
     pub cluster_host_name: String,
     pub annotation_key_pattern: AnnotationKeyPattern,
-    pub excluded_node_role_patterns: Vec<String>,
+    pub excluded_node_role_patterns: Vec<Regex>,
 }
 
 impl HostSettings {
@@ -64,7 +64,7 @@ impl HostSettings {
         roles.iter().any(|r| {
             self.excluded_node_role_patterns
                 .iter()
-                .any(|p| r.contains(p))
+                .any(|p| p.is_match(r))
         })
     }
 }
@@ -75,7 +75,7 @@ mod tests {
     use k8s_openapi::api::core::v1::Node;
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
-    fn host_settings_with_excluded_roles(patterns: Vec<String>) -> HostSettings {
+    fn host_settings_with_excluded_roles(patterns: Vec<Regex>) -> HostSettings {
         HostSettings {
             cluster_name: "test-cluster".to_string(),
             cluster_host_name: "test-host".to_string(),
@@ -99,17 +99,30 @@ mod tests {
 
     #[test]
     fn test_node_exclusion() {
-        let exclude_c_plane = host_settings_with_excluded_roles(vec!["control-plane".to_string()]);
+        let pattern = Regex::new("control-plane").unwrap();
+        let pattern_exact = Regex::new("^control-plane$").unwrap();
+
+        let exclude_c_plane = host_settings_with_excluded_roles(vec![pattern]);
+        let exclude_exact = host_settings_with_excluded_roles(vec![pattern_exact]);
         let no_exclusion = host_settings_with_excluded_roles(vec![]);
+
         let control_plane = node_with_role("control-plane");
         let worker = node_with_role("worker");
         let silly_control_plane_node = node_with_role("silly-control-plane-node");
 
+        // effectively, substring-search
         assert!(exclude_c_plane.is_node_excluded(&control_plane));
         assert!(!exclude_c_plane.is_node_excluded(&worker));
         assert!(exclude_c_plane.is_node_excluded(&silly_control_plane_node));
+
+        // empty patterns list
         assert!(!no_exclusion.is_node_excluded(&control_plane));
         assert!(!no_exclusion.is_node_excluded(&worker));
         assert!(!no_exclusion.is_node_excluded(&silly_control_plane_node));
+
+        // regex with anchors ^/$ should not match substring
+        assert!(exclude_exact.is_node_excluded(&control_plane));
+        assert!(!exclude_exact.is_node_excluded(&worker));
+        assert!(!exclude_exact.is_node_excluded(&silly_control_plane_node));
     }
 }
