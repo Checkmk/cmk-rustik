@@ -40,7 +40,7 @@ impl Namespace<'_> {
         if has_active_pod {
             Some(Namespace {
                 api,
-                meta: Meta::from_resource(api)?,
+                meta,
                 snapshot,
                 settings,
             })
