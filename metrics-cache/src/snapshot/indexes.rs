@@ -9,6 +9,9 @@ pub struct Indexes {
     /// Map namespace names to all the pods within that namespace.
     pub pods_by_namespace: HashMap<String, Vec<Arc<Pod>>>,
 
+    /// Map node names to all pods on that node.
+    pub pods_by_node: HashMap<String, Vec<Arc<Pod>>>,
+
     /// Persistent Volume Claims, indexed by `pvc = pvcs[namespace][name]`.
     ///
     /// Pods reference a PVC by name (and only in the same namespace).
@@ -22,6 +25,7 @@ impl Indexes {
     pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
         Self {
             pods_by_namespace: Self::get_pods_by_namespace(stores),
+            pods_by_node: Self::get_pods_by_node(stores),
             pvcs: Self::pvcs_by_ns_and_name(stores),
             pvs: Self::get_pvs_by_name(stores),
         }
@@ -69,6 +73,23 @@ impl Indexes {
             } else {
                 out.insert(namespace.clone(), vec![pod.clone()]);
             }
+        }
+        out
+    }
+
+    /// List all the pods scheduled on the given node name
+    pub fn pods_by_node(&self, node: &str) -> &[Arc<Pod>] {
+        self.pods_by_node.get(node).map_or(&[], Vec::as_slice)
+    }
+
+    /// Compute all the pods scheduled on each node in the snapshot.
+    fn get_pods_by_node(stores: &FrozenStores) -> HashMap<String, Vec<Arc<Pod>>> {
+        let mut out: HashMap<String, Vec<Arc<Pod>>> = HashMap::new();
+        for pod in &stores.pods {
+            let Some(node) = pod.spec.as_ref().and_then(|s| s.node_name.as_ref()) else {
+                continue;
+            };
+            out.entry(node.clone()).or_default().push(pod.clone());
         }
         out
     }
