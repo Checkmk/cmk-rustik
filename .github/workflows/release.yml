@@ -6,6 +6,9 @@ on:
     tags:
       - '*'
 
+permissions:
+  contents: read
+
 jobs:
   preflight:
     name: Preflight checks
@@ -30,6 +33,9 @@ jobs:
     needs: ci
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 15
+    # Needed to create the GitHub release and upload the built artifacts.
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:

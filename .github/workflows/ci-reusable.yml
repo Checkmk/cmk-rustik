@@ -4,6 +4,9 @@ name: Reusable CI workflow
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     runs-on: ubuntu-latest
