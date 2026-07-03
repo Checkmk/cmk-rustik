@@ -1,3 +1,4 @@
+pub mod aggregation_host;
 pub mod cluster;
 pub mod daemonset;
 pub mod deployment;
@@ -7,6 +8,7 @@ pub mod pod;
 pub mod statefulset;
 
 use crate::host_settings::HostSettings;
+pub(crate) use crate::piggyback::aggregation_host::AggregationHost;
 use crate::piggyback::cluster::Cluster;
 use crate::piggyback::daemonset::DaemonSet;
 use crate::piggyback::deployment::Deployment;

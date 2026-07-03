@@ -16,13 +16,13 @@ pub struct SectionError {
 }
 
 impl WriteableSection {
-    pub fn of<S: Section>(piggyback_hostname: String, section: &S) -> Result<Self, SectionError> {
+    pub fn of<S: Section>(piggyback_hostname: &str, section: &S) -> Result<Self, SectionError> {
         let body = serde_json::to_string(section).map_err(|source| SectionError {
             name: S::NAME,
             source,
         })?;
         Ok(Self {
-            piggyback_hostname,
+            piggyback_hostname: piggyback_hostname.to_string(),
             name: S::NAME,
             body,
         })

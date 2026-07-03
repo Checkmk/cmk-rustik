@@ -1,18 +1,17 @@
 use k8s_openapi::api::core::v1;
+use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
-use crate::piggyback::{Meta, PiggybackHost};
+use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
 use crate::section::{
-    performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
     pod::{KubePodInfoV1, KubePodLifecycleV1},
     pvc::{KubePvcPvsV1, KubePvcV1, KubePvcVolumesV1},
-    resource::{KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis},
     writeable::{SectionError, WriteableSection},
 };
 use crate::snapshot::Snapshot;
 
 pub struct Pod<'a> {
-    api: &'a v1::Pod,
+    api: &'a Arc<v1::Pod>,
     meta: Meta<'a>,
     snapshot: &'a Snapshot,
     settings: &'a HostSettings,
@@ -20,13 +19,13 @@ pub struct Pod<'a> {
 
 impl<'a> Pod<'a> {
     pub fn new(
-        api: &'a v1::Pod,
+        api: &'a Arc<v1::Pod>,
         snapshot: &'a Snapshot,
         settings: &'a HostSettings,
     ) -> Option<Pod<'a>> {
         Some(Pod {
             api,
-            meta: Meta::from_resource(api)?,
+            meta: Meta::from_resource(api.as_ref())?,
             snapshot,
             settings,
         })
@@ -60,54 +59,37 @@ impl<'a> Pod<'a> {
     }
 }
 
+impl AggregationHost for Pod<'_> {
+    fn snapshot(&self) -> &Snapshot {
+        self.snapshot
+    }
+
+    fn pods(&self) -> impl Iterator<Item = &Arc<v1::Pod>> {
+        std::iter::once(self.api)
+    }
+}
+
 impl PiggybackHost for Pod<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
-
-        // kube_pod_info_v1
         let mut out = Vec::new();
+        out.extend(self.aggregation_sections(&me));
 
         if let Some(kube_pod_info_v1) = &self.info() {
-            out.push(WriteableSection::of(me.clone(), kube_pod_info_v1));
+            out.push(WriteableSection::of(&me, kube_pod_info_v1));
         }
 
-        if let Some(namespace) = &self.meta.namespace
-            && let Some(sample) = &self.snapshot.metrics.pod_usage(namespace, self.meta.name)
-            && self.api.status.as_ref().and_then(|s| s.phase.as_deref()) == Some("Running")
-        {
-            // kube_performance_cpu_v1
-            out.push(WriteableSection::of(
-                me.clone(),
-                &KubePerformanceCpuV1::new(sample.cpu_usage_nano_cores),
-            ));
-            // kube_performance_memory_v1
-            out.push(WriteableSection::of(
-                me.clone(),
-                &KubePerformanceMemoryV1::new(sample.memory_working_set_bytes),
-            ));
-        }
-        out.push(WriteableSection::of(
-            me.clone(),
-            &KubeCpuResourcesV1(ResourceAccumulator::from_pod(self.api, ResourceAxis::Cpu)),
-        ));
-        out.push(WriteableSection::of(
-            me.clone(),
-            &KubeMemoryResourcesV1(ResourceAccumulator::from_pod(
-                self.api,
-                ResourceAxis::Memory,
-            )),
-        ));
         if let Some(kube_pvc_v1) = &self.pvcs() {
-            out.push(WriteableSection::of(me.clone(), kube_pvc_v1));
+            out.push(WriteableSection::of(&me, kube_pvc_v1));
         };
         if let Some(kube_pvc_volumes_v1) = &self.pvc_volumes() {
-            out.push(WriteableSection::of(me.clone(), kube_pvc_volumes_v1));
+            out.push(WriteableSection::of(&me, kube_pvc_volumes_v1));
         };
         if let Some(kube_pvc_pvs_v1) = &self.pvs() {
-            out.push(WriteableSection::of(me.clone(), kube_pvc_pvs_v1));
+            out.push(WriteableSection::of(&me, kube_pvc_pvs_v1));
         };
         if let Some(phase) = &self.api.status.as_ref().and_then(|s| s.phase.as_deref()) {
-            out.push(WriteableSection::of(me, &KubePodLifecycleV1::new(phase)));
+            out.push(WriteableSection::of(&me, &KubePodLifecycleV1::new(phase)));
         }
 
         out
