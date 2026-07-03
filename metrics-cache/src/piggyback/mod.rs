@@ -1,10 +1,12 @@
 pub mod cluster;
+pub mod deployment;
 pub mod namespace;
 pub mod node;
 pub mod pod;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::cluster::Cluster;
+use crate::piggyback::deployment::Deployment;
 use crate::piggyback::namespace::Namespace;
 use crate::piggyback::node::Node;
 use crate::piggyback::pod::Pod;
@@ -76,6 +78,9 @@ pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSectio
     }));
     out.extend(collect(snap.stores.nodes.iter(), |n| {
         Node::new(n, snap, settings)
+    }));
+    out.extend(collect(snap.stores.deployments.iter(), |n| {
+        Deployment::new(n, snap, settings)
     }));
 
     // Cluster is a special snowflake, there aren't any reflectors to iterate
