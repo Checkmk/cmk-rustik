@@ -97,7 +97,7 @@ pub mod tests {
         let (replicaset_store, _) = kube::runtime::reflector::store();
         let (persistent_volume_store, _) = kube::runtime::reflector::store();
         let (persistent_volume_claim_store, _) = kube::runtime::reflector::store();
-        let (stateful_set_store, _) = kube::runtime::reflector::store();
+        let (statefulset_store, _) = kube::runtime::reflector::store();
         AppState {
             client,
             stores: Stores {
@@ -109,7 +109,7 @@ pub mod tests {
                 replicasets: replicaset_store,
                 persistent_volumes: persistent_volume_store,
                 persistent_volume_claims: persistent_volume_claim_store,
-                stateful_sets: stateful_set_store,
+                statefulsets: statefulset_store,
             },
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],

@@ -21,7 +21,7 @@ pub struct Stores {
     pub replicasets: Store<ReplicaSet>,
     pub persistent_volumes: Store<PersistentVolume>,
     pub persistent_volume_claims: Store<PersistentVolumeClaim>,
-    pub stateful_sets: Store<StatefulSet>,
+    pub statefulsets: Store<StatefulSet>,
 }
 
 #[derive(Debug)]
@@ -34,7 +34,7 @@ pub struct FrozenStores {
     pub replicasets: Vec<Arc<ReplicaSet>>,
     pub persistent_volumes: Vec<Arc<PersistentVolume>>,
     pub persistent_volume_claims: Vec<Arc<PersistentVolumeClaim>>,
-    pub stateful_sets: Vec<Arc<StatefulSet>>,
+    pub statefulsets: Vec<Arc<StatefulSet>>,
 }
 
 impl Stores {
@@ -51,7 +51,7 @@ impl Stores {
                 Api::all(client.clone()),
                 WatchConfig::default(),
             ),
-            stateful_sets: start_reflector(Api::all(client), WatchConfig::default()),
+            statefulsets: start_reflector(Api::all(client), WatchConfig::default()),
         }
     }
 
@@ -65,7 +65,7 @@ impl Stores {
             replicasets: self.replicasets.state(),
             persistent_volumes: self.persistent_volumes.state(),
             persistent_volume_claims: self.persistent_volume_claims.state(),
-            stateful_sets: self.stateful_sets.state(),
+            statefulsets: self.statefulsets.state(),
         }
     }
 
@@ -79,7 +79,7 @@ impl Stores {
             self.replicasets.wait_until_ready(),
             self.persistent_volumes.wait_until_ready(),
             self.persistent_volume_claims.wait_until_ready(),
-            self.stateful_sets.wait_until_ready(),
+            self.statefulsets.wait_until_ready(),
         )?;
         Ok(())
     }
