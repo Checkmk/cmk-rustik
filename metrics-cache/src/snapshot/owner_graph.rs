@@ -104,9 +104,9 @@ impl OwnerGraph {
         out
     }
 
-    /// Get the [`Uid`] of all pods that are controlled by the controller at the
-    /// given `controller_uid`.
-    pub fn pods_by_controller(&self, controller_uid: &Uid) -> &[Arc<Pod>] {
+    /// Get all pods that are controlled by the controller at the given
+    /// `controller_uid`.
+    pub fn pods_by_controller(&self, controller_uid: &str) -> &[Arc<Pod>] {
         self.pods_by_controller
             .get(controller_uid)
             .map_or(&[], Vec::as_slice)
