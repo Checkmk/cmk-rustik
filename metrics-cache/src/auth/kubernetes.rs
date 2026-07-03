@@ -18,7 +18,7 @@ impl TokenValidator for Client {
         let api: Api<TokenReview> = Api::all(self.clone());
         let tr = TokenReview {
             spec: TokenReviewSpec {
-                token: Some(token.to_string()),
+                token: token.to_string(),
                 ..Default::default()
             },
             ..Default::default()
