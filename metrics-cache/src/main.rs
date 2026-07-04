@@ -51,27 +51,37 @@ async fn main() -> anyhow::Result<()> {
     init_tracing(&args);
     let state = AppState::new(&args).await?;
     let app = handlers::app(state.clone());
-    if let Some(base_url) = &args.push_receiver {
-        info!("Push receiver enabled, attempting registration with Checkmk server");
-        let registration = CheckmkPushRegistration::new(state.clone().client, &args);
-        let secret = registration.register_if_needed().await?;
-        let client = CheckmkPushClient::from_secret(base_url, &secret)?;
-        tokio::select! {
-            res = push_loop(client, state) => {
-                if let Err(e) = res {
-                    tracing::error!(error = %e, "push loop exited with error");
-                }
-                anyhow::bail!("push loop terminated unexpectedly");
-            }
-            res = bind(&args, app) => {
-                if let Err(e) = res {
-                    tracing::error!(error = %e, "Axum server exited with error");
-                }
-                anyhow::bail!("Axum server terminated unexpectedly");
-            }
+
+    let push_client = match &args.push_receiver {
+        Some(base_url) => {
+            info!("Push receiver enabled, will push updates to Checkmk server");
+            let registration = CheckmkPushRegistration::new(state.clone().client, &args);
+            let secret = registration.register_if_needed().await?;
+            Some(CheckmkPushClient::from_secret(base_url, &secret)?)
         }
-    } else {
-        bind(&args, app).await?;
+        None => None,
+    };
+
+    tokio::select! {
+        // HTTP (pull mode, metrics-fetcher ingestion)
+        res = bind(&args, app) => {
+            if let Err(e) = res {
+                tracing::error!(error = %e, "Axum server exited with error");
+            }
+            anyhow::bail!("Axum server terminated unexpectedly");
+        }
+
+        // Push to Checkmk server
+        res = async {
+            match push_client {
+                Some(client) => push_loop(client, state).await,
+                None => std::future::pending().await,
+            }
+        } => {
+            if let Err(e) = res {
+                tracing::error!(error = %e, "push loop exited with error");
+            }
+            anyhow::bail!("push loop terminated unexpectedly");
+        }
     }
-    Ok(())
 }
