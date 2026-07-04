@@ -22,6 +22,8 @@ pub enum Error {
     Rcgen(#[from] rcgen::Error),
     #[error("push-mode error")]
     Push(#[from] crate::push::Error),
+    #[error("OTel export error")]
+    Otel(#[from] crate::otel::Error),
     #[error("http (reqwest) error")]
     Reqwest(#[from] reqwest::Error),
 }

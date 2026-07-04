@@ -7,6 +7,8 @@ use tracing_subscriber::EnvFilter;
 
 use metrics_cache::cli_args::CliArgs;
 use metrics_cache::handlers;
+use metrics_cache::otel::client::OtelClient;
+use metrics_cache::otel::otel_loop;
 use metrics_cache::push::client::CheckmkPushClient;
 use metrics_cache::push::push_loop;
 use metrics_cache::push::register::CheckmkPushRegistration;
@@ -54,10 +56,19 @@ async fn main() -> anyhow::Result<()> {
 
     let push_client = match &args.push_receiver {
         Some(base_url) => {
-            info!("Push receiver enabled, will push updates to Checkmk server");
+            info!("Push receiver enabled, will push sections to Checkmk server");
             let registration = CheckmkPushRegistration::new(state.clone().client, &args);
             let secret = registration.register_if_needed().await?;
             Some(CheckmkPushClient::from_secret(base_url, &secret)?)
+        }
+        None => None,
+    };
+
+    let otel_client = match &args.otel_endpoint {
+        Some(base_url) => {
+            info!("OpenTelemetry enabled, will push metrics to OpenTelemetry collector");
+            // TODO: Auth, etc.
+            Some(OtelClient::new(base_url))
         }
         None => None,
     };
@@ -74,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
         // Push to Checkmk server
         res = async {
             match push_client {
-                Some(client) => push_loop(client, state).await,
+                Some(client) => push_loop(client, state.clone()).await,
                 None => std::future::pending().await,
             }
         } => {
@@ -82,6 +93,17 @@ async fn main() -> anyhow::Result<()> {
                 tracing::error!(error = %e, "push loop exited with error");
             }
             anyhow::bail!("push loop terminated unexpectedly");
+        }
+
+        // Push to OpenTelemetry collector
+        () = async {
+            match otel_client {
+                Some(client) => otel_loop(client, state.clone()).await,
+                None => std::future::pending().await,
+            }
+        } => {
+            tracing::error!("OpenTelemetry loop exited unexpectedly");
+            anyhow::bail!("OpenTelemetry loop terminated unexpectedly");
         }
     }
 }

@@ -98,6 +98,7 @@ pub mod error;
 pub mod handlers;
 pub mod host_settings;
 pub mod ingest;
+pub mod otel;
 pub mod piggyback;
 pub mod push;
 pub mod section;

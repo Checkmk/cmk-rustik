@@ -120,6 +120,10 @@ pub struct CliArgs {
     /// comma-separated
     #[arg(long = "excluded-node-role-patterns", value_delimiter = ',')]
     pub excluded_node_role_patterns: Vec<Regex>,
+
+    /// Enable sending OTel metrics to the endpoint given
+    #[arg(long = "otel-endpoint")]
+    pub otel_endpoint: Option<String>,
 }
 
 /// Convert a numeric argument given by the user as seconds into a Duration.
