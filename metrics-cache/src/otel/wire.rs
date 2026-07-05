@@ -1,11 +1,7 @@
 //! The OTLP wire mapping: our domain types and their translation into the
 //! protobuf structures.
-//!
-//! This is the sealed half of the OTel module. Once verified against a real
-//! kubeletstats receiver, nothing in here should need to change unless the
-//! set of *metric kinds* grows (a Sum, a histogram); new metrics and new
-//! entity kinds are purely [`super::collect`]'s business.
 
+use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 use opentelemetry_proto::tonic::common::v1::{AnyValue, InstrumentationScope, KeyValue, any_value};
 use opentelemetry_proto::tonic::metrics::v1::{
     Gauge, Metric, NumberDataPoint, ResourceMetrics, ScopeMetrics, metric, number_data_point,
@@ -142,6 +138,14 @@ impl From<KubeEntity> for ResourceMetrics {
                 ..Default::default()
             }],
             ..Default::default()
+        }
+    }
+}
+
+impl FromIterator<KubeEntity> for ExportMetricsServiceRequest {
+    fn from_iter<I: IntoIterator<Item = KubeEntity>>(iter: I) -> Self {
+        ExportMetricsServiceRequest {
+            resource_metrics: iter.into_iter().map(ResourceMetrics::from).collect(),
         }
     }
 }

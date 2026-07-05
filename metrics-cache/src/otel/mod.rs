@@ -54,17 +54,7 @@ use tracing::{debug, error};
 use crate::auth::kubernetes::TokenValidator;
 use crate::otel::client::OtelClient;
 use crate::otel::collect::collect_entities;
-use crate::otel::wire::KubeEntity;
 use crate::state::AppState;
-use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
-use opentelemetry_proto::tonic::metrics::v1::ResourceMetrics;
-
-/// Wrap the entities into the OTLP request envelope (one request per export).
-fn to_request(entities: Vec<KubeEntity>) -> ExportMetricsServiceRequest {
-    ExportMetricsServiceRequest {
-        resource_metrics: entities.into_iter().map(ResourceMetrics::from).collect(),
-    }
-}
 
 /// Run the OTel export loop forever.
 ///
@@ -81,7 +71,7 @@ pub async fn otel_loop(client: OtelClient, state: AppState<impl TokenValidator>)
         let stat_summaries = state.kubelet_stats_summary_cache.iter().map(|(_, v)| v);
         let entities = collect_entities(stat_summaries, &state.host_settings.cluster_name);
         let resources = entities.len();
-        match client.export(to_request(entities)).await {
+        match client.export(entities.into_iter().collect()).await {
             Ok(()) => debug!(resources, "exported metrics to OTel collector"),
             Err(err) => error!(%err, "failed to export metrics to OTel collector"),
         }
