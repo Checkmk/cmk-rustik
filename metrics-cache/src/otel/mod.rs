@@ -78,7 +78,8 @@ pub async fn otel_loop(client: OtelClient, state: AppState<impl TokenValidator>)
     let mut interval = time::interval(Duration::from_secs(60)); // TODO: Unhardcode
     loop {
         interval.tick().await; // note: The very first tick() is no-op
-        let entities = collect_entities(&state);
+        let stat_summaries = state.kubelet_stats_summary_cache.iter().map(|(_, v)| v);
+        let entities = collect_entities(stat_summaries, &state.host_settings.cluster_name);
         let resources = entities.len();
         match client.export(to_request(entities)).await {
             Ok(()) => debug!(resources, "exported metrics to OTel collector"),

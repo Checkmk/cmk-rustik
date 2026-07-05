@@ -6,10 +6,8 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::auth::kubernetes::TokenValidator;
-use crate::ingest::kubelet_stats::{Container, Pod};
+use crate::ingest::kubelet_stats::{Container, Pod, StatsSummary};
 use crate::otel::wire::{Attribute, KubeEntity, KubeGauge, Value};
-use crate::state::AppState;
 
 /// Extract a container's samples as (memory working set bytes, CPU cores).
 /// `None` where the kubelet reported no sample.
@@ -53,14 +51,16 @@ fn epoch_nanos() -> u64 {
 /// A missing kubelet sample produces a *gap* rather than a fabricated zero:
 /// the gauge is simply omitted, and an entity with no gauges at all is not
 /// emitted (this mirrors the kubeletstats receiver's behavior).
-pub(super) fn collect_entities(state: &AppState<impl TokenValidator>) -> Vec<KubeEntity> {
+pub(super) fn collect_entities(
+    stat_summaries: impl IntoIterator<Item = Arc<StatsSummary>>,
+    cluster_name: &str,
+) -> Vec<KubeEntity> {
     let mut out: Vec<KubeEntity> = Vec::new();
     let now = epoch_nanos();
-    let cluster = &state.host_settings.cluster_name;
-    for (_, summary) in state.kubelet_stats_summary_cache.iter() {
+    for summary in stat_summaries {
         for pod in &summary.pods {
             // Attributes for the pod *and* its containers
-            let p_attributes = pod_attributes(cluster, &summary.node.node_name, pod);
+            let p_attributes = pod_attributes(cluster_name, &summary.node.node_name, pod);
 
             // Pod aggregations. `None` until some container reports a sample.
             let mut p_working_set_bytes: Option<i64> = None;
