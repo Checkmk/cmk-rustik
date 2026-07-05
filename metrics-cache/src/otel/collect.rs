@@ -78,7 +78,7 @@ pub(super) fn collect_entities(
                         "By",
                         Value::Bytes(bytes),
                         now,
-                        vec![container_name.clone()],
+                        vec![],
                     ));
                 }
                 if let Some(cores) = c_cores {
@@ -88,7 +88,7 @@ pub(super) fn collect_entities(
                         "{cpu}",
                         Value::Cores(cores),
                         now,
-                        vec![container_name.clone()],
+                        vec![],
                     ));
                 }
                 if gauges.is_empty() {
