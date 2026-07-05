@@ -56,5 +56,16 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # The Pages deployment service flakes fairly regularly ("Deployment
+      # failed, try again later" after a successful build). Retry once, and
+      # never fail the workflow over it: the docs BUILD failing is signal,
+      # the deploy hiccuping is GitHub weather.
       - id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - id: deployment-retry
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - if: steps.deployment.outcome == 'failure' && steps.deployment-retry.outcome == 'failure'
+        run: echo "::warning::Pages deployment failed twice; docs were built but not published this run."
