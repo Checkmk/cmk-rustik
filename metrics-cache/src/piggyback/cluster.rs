@@ -92,44 +92,19 @@ impl PiggybackHost for Cluster<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k8s_openapi::api::core::v1::PodSpec;
-    use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
-
-    fn pod(name: &str, node: Option<&str>) -> Arc<Pod> {
-        Arc::new(Pod {
-            metadata: ObjectMeta {
-                name: Some(name.to_string()),
-                ..Default::default()
-            },
-            spec: Some(PodSpec {
-                node_name: node.map(String::from),
-                ..Default::default()
-            }),
-            ..Default::default()
-        })
-    }
-
-    fn node(name: &str) -> Arc<Node> {
-        Arc::new(Node {
-            metadata: ObjectMeta {
-                name: Some(name.to_string()),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-    }
+    use crate::test_support::*;
 
     #[test]
     /// Test that [`Cluster::aggregation_pods()`] includes pods only running on
     /// non-excluded nodes.
     fn test_aggregation_pods() {
-        let nodes = vec![node("worker-1")];
+        let nodes = vec![Arc::new(node("worker-1"))];
         let aggregation_nodes: Vec<&Arc<Node>> = nodes.iter().collect();
 
         let pods = vec![
-            pod("on-worker", Some("worker-1")),       // node is included
-            pod("on-control", Some("control-plane")), // node is dropped
-            pod("unscheduled", None),                 // node is included
+            Arc::new(pod("on-worker", Some("worker-1"))), // node is included
+            Arc::new(pod("on-control", Some("control-plane"))), // node is dropped
+            Arc::new(pod("unscheduled", None)),           // node is included
         ];
 
         let result = Cluster::aggregation_pods(&pods, &aggregation_nodes);

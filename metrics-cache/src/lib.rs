@@ -104,5 +104,7 @@ pub mod push;
 pub mod section;
 pub mod snapshot;
 pub mod state;
+#[cfg(test)]
+mod test_support;
 
 pub use state::AppState;
