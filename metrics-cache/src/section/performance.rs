@@ -57,3 +57,18 @@ impl KubePerformanceMemoryV1 {
 impl Section for KubePerformanceMemoryV1 {
     const NAME: &'static str = "kube_performance_memory_v1";
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kube_performance_cpu_v1() {
+        insta::assert_json_snapshot!(KubePerformanceCpuV1::new(1_500_000_000));
+    }
+
+    #[test]
+    fn kube_performance_memory_v1() {
+        insta::assert_json_snapshot!(KubePerformanceMemoryV1::new(104_857_600));
+    }
+}

@@ -1,0 +1,10 @@
+---
+source: metrics-cache/src/section/performance.rs
+expression: "KubePerformanceCpuV1::new(1_500_000_000)"
+---
+{
+  "resource": {
+    "type_": "cpu",
+    "usage": 1.5
+  }
+}
