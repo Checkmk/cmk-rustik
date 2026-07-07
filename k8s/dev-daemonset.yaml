@@ -42,18 +42,17 @@ spec:
         app: metrics-fetcher
     spec:
       serviceAccountName: metrics-fetcher
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
+      # hostNetwork: true
+      # dnsPolicy: ClusterFirstWithHostNet
       volumes:
+        # TODO: helm var
         - name: src
           hostPath:
             path: /src
       containers:
         - name: metrics-fetcher
-          image: cmk-rustik:1
+          image: cmk-rustik-metrics-fetcher:local
           imagePullPolicy: Never
-          args:
-            - /src/target/x86_64-unknown-linux-musl/debug/metrics-fetcher
           env:
             - name: NODE_IP
               valueFrom:

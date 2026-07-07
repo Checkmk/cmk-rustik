@@ -78,10 +78,9 @@ spec:
             path: /src
       containers:
         - name: metrics-cache
-          image: cmk-rustik:1
+          image: cmk-rustik-metrics-cache:local
           imagePullPolicy: Never
           args:
-            - /src/target/x86_64-unknown-linux-musl/debug/cmk-rustik-cache-server
             - --address=0.0.0.0
             - --log-level=debug
             - --reader-allowlist=checkmk-monitoring:metrics-cache
