@@ -159,3 +159,14 @@ impl KubePodLifecycleV1 {
 impl Section for KubePodLifecycleV1 {
     const NAME: &'static str = "kube_pod_lifecycle_v1";
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kube_pod_lifecycle_v1() {
+        insta::assert_json_snapshot!(KubePodLifecycleV1::new("Pending"));
+        insta::assert_json_snapshot!(KubePodLifecycleV1::new("Running"));
+    }
+}
