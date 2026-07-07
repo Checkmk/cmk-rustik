@@ -1,0 +1,10 @@
+---
+source: metrics-cache/src/section/writeable.rs
+expression: "String::from_utf8(out).unwrap()"
+---
+<<<test_section_v1:sep(0)>>>
+{"value":42}
+<<<<piggyback-host>>>>
+<<<test_section_v1:sep(0)>>>
+{"value":26}
+<<<<>>>>

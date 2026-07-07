@@ -14,3 +14,7 @@ target
 **/mutants.out*/
 
 .pid
+
+# rejected/unreviewed cargo-insta test snapshots
+*.snap.new
+*.pending-snap

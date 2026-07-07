@@ -3,6 +3,7 @@ use std::io::Write;
 
 use crate::section::Section;
 
+#[derive(Debug)]
 pub struct WriteableSection {
     pub piggyback_hostname: String,
     pub name: &'static str,
@@ -10,6 +11,7 @@ pub struct WriteableSection {
     pub body: String,
 }
 
+#[derive(Debug)]
 pub struct SectionError {
     pub name: &'static str,
     pub source: serde_json::Error,
@@ -54,4 +56,29 @@ pub fn frame<W: Write>(writer: &mut W, sections: Vec<WriteableSection>) -> std::
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, serde::Serialize)]
+    struct TestSectionV1 {
+        value: u8,
+    }
+
+    impl Section for TestSectionV1 {
+        const NAME: &'static str = "test_section_v1";
+    }
+
+    #[test]
+    fn frame_piggyback_and_bare() {
+        let sections = vec![
+            WriteableSection::of("piggyback-host", &TestSectionV1 { value: 26 }).unwrap(),
+            WriteableSection::of("", &TestSectionV1 { value: 42 }).unwrap(),
+        ];
+        let mut out = Vec::new();
+        frame(&mut out, sections).unwrap();
+        insta::assert_snapshot!(String::from_utf8(out).unwrap());
+    }
 }
