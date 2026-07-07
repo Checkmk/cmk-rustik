@@ -47,8 +47,8 @@ pub(crate) trait AggregationHost {
         Some(KubePerformanceCpuV1::new(
             self.snapshot()
                 .metrics
-                .aggregate(self.pods())?
-                .cpu_usage_nano_cores,
+                .aggregate(self.pods())
+                .cpu_usage_nano_cores?,
         ))
     }
 
@@ -56,8 +56,8 @@ pub(crate) trait AggregationHost {
         Some(KubePerformanceMemoryV1::new(
             self.snapshot()
                 .metrics
-                .aggregate(self.pods())?
-                .memory_working_set_bytes,
+                .aggregate(self.pods())
+                .memory_working_set_bytes?,
         ))
     }
 

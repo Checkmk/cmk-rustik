@@ -6,26 +6,50 @@ use std::sync::Arc;
 
 use crate::ingest::kubelet_stats::StatsSummary;
 
-#[derive(Clone, Debug)]
+/// One point-in-time performance sample for a container (or a sum of such
+/// samples).
+///
+/// A field is `None` when the kubelet did not report that metric. This is a
+/// normal, transient state: `usageNanoCores` is a rate and needs two scrapes
+/// to compute, so a just-started container reports memory but no CPU.
+///
+/// A missing sample means *absent*, never zero: absence must not turn into
+/// fake zero datapoints downstream.
+///
+/// `Sample::default()` (all fields `None`) is the identity for `+`/`+=`,
+/// which makes it the correct seed for accumulation loops.
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub struct Sample {
-    pub cpu_usage_nano_cores: u64,
-    pub memory_working_set_bytes: u64,
+    pub cpu_usage_nano_cores: Option<u64>,
+    pub memory_working_set_bytes: Option<u64>,
 }
 
 impl Add for Sample {
     type Output = Self;
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            cpu_usage_nano_cores: self.cpu_usage_nano_cores + rhs.cpu_usage_nano_cores,
-            memory_working_set_bytes: self.memory_working_set_bytes + rhs.memory_working_set_bytes,
-        }
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
     }
 }
 
+/// Field-wise accumulation: a `None` on either side contributes nothing
+/// and never wipes out an existing sum; the first `Some` a field sees
+/// flips the accumulator's field to `Some`.
 impl AddAssign for Sample {
     fn add_assign(&mut self, rhs: Self) {
-        self.cpu_usage_nano_cores += rhs.cpu_usage_nano_cores;
-        self.memory_working_set_bytes += rhs.memory_working_set_bytes;
+        match (&mut self.cpu_usage_nano_cores, rhs.cpu_usage_nano_cores) {
+            (Some(a), Some(b)) => *a += b,
+            (a @ None, b) => *a = b,
+            _ => {}
+        }
+        match (
+            &mut self.memory_working_set_bytes,
+            rhs.memory_working_set_bytes,
+        ) {
+            (Some(a), Some(b)) => *a += b,
+            (a @ None, b) => *a = b,
+            _ => {}
+        }
     }
 }
 
@@ -76,13 +100,11 @@ impl MetricTables {
                         cpu_usage_nano_cores: container
                             .cpu
                             .as_ref()
-                            .and_then(|c| c.usage_nano_cores)
-                            .unwrap_or(0),
+                            .and_then(|c| c.usage_nano_cores),
                         memory_working_set_bytes: container
                             .memory
                             .as_ref()
-                            .and_then(|m| m.working_set_bytes)
-                            .unwrap_or(0),
+                            .and_then(|m| m.working_set_bytes),
                     };
                     pod_map.insert(container.name.clone(), sample);
                 }
@@ -126,26 +148,29 @@ impl MetricTables {
     /// Given a namespace and pod, try to find the roll-up (summed total) of
     /// all the containers in the pod. O(1) lookup and O(n) over the number of
     /// containers in the pod.
+    ///
+    /// `None` means the pod is unknown to the table. A known pod whose
+    /// containers have reported nothing yields `Some(Sample::default())`.
     pub fn pod_usage(&self, namespace: &str, pod: &str) -> Option<Sample> {
-        let mut total = Sample {
-            cpu_usage_nano_cores: 0,
-            memory_working_set_bytes: 0,
-        };
+        let mut total = Sample::default();
         for sample in self.containers.get(namespace)?.get(pod)?.values() {
-            total.cpu_usage_nano_cores += sample.cpu_usage_nano_cores;
-            total.memory_working_set_bytes += sample.memory_working_set_bytes;
+            total += *sample;
         }
         Some(total)
     }
 
     /// Aggregate the samples for all of the given pods.
     ///
-    /// If no sample for any pod is found, `None` is returned.
-    /// Otherwise, the summed aggregate of all available samples for the given
-    /// pods **in `Running` phase** is returned (pods in other phases are
-    /// ignored).
-    pub fn aggregate<'a>(&self, pods: impl IntoIterator<Item = &'a Arc<Pod>>) -> Option<Sample> {
-        let mut out: Option<Sample> = None;
+    /// Sums the available samples of the given pods **in `Running` phase**
+    /// (pods in other phases are ignored). The sum over no pods, or no
+    /// samples, is `Sample::default()`; each field stays `None` until some
+    /// pod contributes to it.
+    ///
+    /// A sum covers the pods that reported the metric: a pod without a
+    /// sample (typically just-started) contributes nothing rather than
+    /// suppressing the aggregate.
+    pub fn aggregate<'a>(&self, pods: impl IntoIterator<Item = &'a Arc<Pod>>) -> Sample {
+        let mut out: Sample = Sample::default();
         for pod in pods {
             if pod.status.as_ref().and_then(|s| s.phase.as_deref()) != Some("Running") {
                 continue;
@@ -155,10 +180,7 @@ impl MetricTables {
                 && let Some(name) = &pod.metadata.name
                 && let Some(sample) = self.pod_usage(ns, name)
             {
-                out = match out {
-                    Some(total) => Some(sample + total),
-                    None => Some(sample),
-                };
+                out += sample;
             }
         }
         out
@@ -167,5 +189,33 @@ impl MetricTables {
     /// Get the slim [`VolumeSample`] given a namespace and PVC claim name.
     pub fn pvc_volume(&self, namespace: &str, claim_name: &str) -> Option<&VolumeSample> {
         self.pvc_volumes.get(namespace)?.get(claim_name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample(cpu_usage_nano_cores: Option<u64>, memory_working_set_bytes: Option<u64>) -> Sample {
+        Sample {
+            cpu_usage_nano_cores,
+            memory_working_set_bytes,
+        }
+    }
+
+    #[test]
+    fn add_assign() {
+        for ((l1, l2), (r1, r2), (expected1, expected2)) in [
+            ((None, None), (None, None), (None, None)),
+            ((Some(3), None), (None, None), (Some(3), None)),
+            ((None, Some(4)), (None, Some(4)), (None, Some(8))),
+            ((Some(1), Some(4)), (Some(2), Some(4)), (Some(3), Some(8))),
+            ((None, None), (Some(2), Some(4)), (Some(2), Some(4))),
+            ((Some(2), Some(4)), (None, None), (Some(2), Some(4))),
+        ] {
+            let mut acc = sample(l1, l2);
+            acc += sample(r1, r2);
+            assert_eq!(acc, sample(expected1, expected2));
+        }
     }
 }
