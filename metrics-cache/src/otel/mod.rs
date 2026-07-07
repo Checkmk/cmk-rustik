@@ -28,8 +28,10 @@
 //!
 //! These types have `From` implementations in [`wire`] that convert them into
 //! the appropriate pieces of the Protobuf hierarchy for OpenTelemetry.
-//! Ultimately, using _this_ module's [`to_request()`], the result is wrapped in
-//! the final layer, ready to be encoded and shipped by [`OtelClient::export()`].
+//! Ultimately, using the `FromIterator<KubeEntity>` implementation for
+//! `ExportMetricsServiceRequest`, the result is wrapped in
+//! the final layer, ready to be encoded and shipped by
+//! [`OtelClient::export()`].
 
 pub mod client;
 mod collect;
