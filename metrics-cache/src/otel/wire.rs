@@ -26,8 +26,8 @@ impl From<Value> for number_data_point::Value {
 }
 
 pub(super) struct Attribute {
-    key: &'static str,
-    value: String,
+    pub(super) key: &'static str,
+    pub(super) value: String,
 }
 
 impl Attribute {
