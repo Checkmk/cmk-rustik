@@ -7,6 +7,9 @@ pub mod node;
 pub mod pod;
 pub mod statefulset;
 
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+use k8s_openapi::{ClusterResourceScope, NamespaceResourceScope};
+
 use crate::host_settings::HostSettings;
 pub(crate) use crate::piggyback::aggregation_host::AggregationHost;
 use crate::piggyback::cluster::Cluster;
@@ -19,10 +22,23 @@ use crate::piggyback::statefulset::StatefulSet;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
+trait Scoped {
+    const NAMESPACED: bool;
+}
+
+impl Scoped for ClusterResourceScope {
+    const NAMESPACED: bool = false;
+}
+
+impl Scoped for NamespaceResourceScope {
+    const NAMESPACED: bool = true;
+}
+
 /// Common, identifying data used for a given piggyback host type.
 ///
 /// Mostly, this is used (via [`Self::piggyback_hostname()`]) to generate the
 /// piggyback hostname for a given resource.
+#[derive(Debug)]
 struct Meta<'a> {
     name: &'a str,
     namespace: Option<&'a str>, // None for cluster-scoped kinds
@@ -32,12 +48,19 @@ struct Meta<'a> {
 impl<'a> Meta<'a> {
     fn from_resource<K>(api: &'a K) -> Option<Self>
     where
-        K: kube::Resource + k8s_openapi::Resource,
+        K: k8s_openapi::Metadata<Ty = ObjectMeta>,
+        K::Scope: Scoped,
     {
-        let meta = api.meta();
+        let meta = api.metadata();
+        let namespace = meta.namespace.as_deref();
+
+        if K::Scope::NAMESPACED && namespace.is_none() {
+            return None;
+        }
+
         Some(Meta {
             name: meta.name.as_deref()?,
-            namespace: meta.namespace.as_deref(),
+            namespace,
             kind: K::KIND.to_lowercase(),
         })
     }
@@ -100,4 +123,46 @@ pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSectio
         Some(Cluster::new(snap, settings))
     }));
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::assert_matches;
+
+    use crate::test_support::*;
+
+    /// Namespace-scoped resources with no namespace are rejected by our [`Meta`].
+    #[test]
+    fn meta_from_resource_rejects_namespaceless_namespace_scoped_resources() {
+        let mut pod = pod("pod-1", Some("node01"));
+        assert_matches!(pod.metadata.namespace, None); // sanity
+        assert_matches!(Meta::from_resource(&pod), None);
+
+        pod.metadata.namespace = Some("my-ns".to_string());
+        assert_matches!(Meta::from_resource(&pod), Some(_));
+    }
+
+    /// Generation of hostnames for cluster and namespace-scoped resources.
+    #[test]
+    fn meta_piggyback_hostname() {
+        // Cluster-scope
+        assert_eq!(
+            Meta::from_resource(&node("node-1"))
+                .unwrap()
+                .piggyback_hostname("mycluster"),
+            "node_mycluster_node-1",
+        );
+
+        // Namespaced
+        let mut pod = pod("pod-1", Some("node01"));
+        pod.metadata.namespace = Some("my-ns".to_string());
+        assert_eq!(
+            Meta::from_resource(&pod)
+                .unwrap()
+                .piggyback_hostname("mycluster"),
+            "pod_mycluster_my-ns_pod-1"
+        );
+    }
 }
