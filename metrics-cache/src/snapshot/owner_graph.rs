@@ -96,7 +96,7 @@ impl OwnerGraph {
             };
             let chain = Self::walk_up_in(owner_ref_by_uid, pod_uid);
             for parent in chain {
-                out.entry(Uid(parent.uid.as_str().into()))
+                out.entry(parent.uid.as_str().into())
                     .or_default()
                     .push(pod.clone());
             }

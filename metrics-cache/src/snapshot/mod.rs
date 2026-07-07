@@ -64,3 +64,17 @@ impl Borrow<str> for Uid {
         &self.0
     }
 }
+
+impl From<&str> for Uid {
+    #[inline]
+    fn from(s: &str) -> Uid {
+        Uid(s.into())
+    }
+}
+
+impl From<String> for Uid {
+    #[inline]
+    fn from(s: String) -> Uid {
+        Uid(s.into())
+    }
+}
