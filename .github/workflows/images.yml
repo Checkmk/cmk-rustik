@@ -25,6 +25,7 @@ jobs:
       file: docker/Dockerfile
       cache: ${{ github.ref_type == 'branch' }}
       cache-scope: ${{ matrix.component }}
+      target: ${{ matrix.component }}
       meta-images: ghcr.io/${{ github.repository }}-${{ matrix.component }}
       meta-tags: |
         type=sha,format=long
