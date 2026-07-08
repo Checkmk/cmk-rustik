@@ -37,8 +37,20 @@ jobs:
             kubeconform -strict -summary -kubernetes-version 1.36.0 -
       - name: Run chart-testing (lint)
         run: ct lint --all
-      - name: Prepare kind (create cluster, build and load docker image)
-        run: just fetcher_target=metrics-fetcher cache_target=metrics-cache kind-load
+      # The install test uses the dev images: they skip the (slow, in-Docker)
+      # Rust build and instead run the binaries from the /src mount, exactly
+      # like the local dev env. This job tests the *chart*; the production
+      # images are built (with caching) by the images workflow.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+          target: x86_64-unknown-linux-musl
+      - name: Install musl C toolchain
+        run: sudo apt update && sudo apt install -y musl-tools
+      - name: Build binaries for the /src mount
+        run: cargo build
+      - name: Prepare kind (create cluster, build and load docker images)
+        run: just kind-load
       - name: Run chart-testing (install)
         run: ct install --all
   ci:
