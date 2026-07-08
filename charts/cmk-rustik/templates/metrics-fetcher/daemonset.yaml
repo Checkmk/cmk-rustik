@@ -1,37 +1,7 @@
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: metrics-fetcher
-  namespace: checkmk-monitoring
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: metrics-fetcher
-rules:
-  - apiGroups: [""]
-    resources: ["nodes/stats"]
-    verbs: ["get", "create"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: metrics-fetcher
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: metrics-fetcher
-subjects:
-  - kind: ServiceAccount
-    name: metrics-fetcher
-    namespace: checkmk-monitoring
----
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: metrics-fetcher
-  namespace: checkmk-monitoring
 spec:
   selector:
     matchLabels:
@@ -51,8 +21,8 @@ spec:
             path: /src
       containers:
         - name: metrics-fetcher
-          image: cmk-rustik-metrics-fetcher:local
-          imagePullPolicy: Never
+          image: {{ .Values.metricsFetcher.image.repository }}:{{ default .Chart.AppVersion .Values.metricsFetcher.image.tag }}
+          imagePullPolicy: {{ .Values.metricsFetcher.image.pullPolicy }}
           env:
             - name: NODE_IP
               valueFrom:

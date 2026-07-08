@@ -8,11 +8,44 @@ permissions:
   contents: read
 
 jobs:
+  helm-chart:
+    name: Run the helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Helm
+        uses: azure/setup-helm@v5.0.1
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: '3.x'
+          check-latest: true
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.8.0
+      - name: Install kind
+        uses: helm/kind-action@v1.12.0
+        with:
+          install_only: true
+          version: v0.32.0
+      - uses: extractions/setup-just@v3
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | \
+            tar xz -C /usr/local/bin kubeconform
+      - name: Run kubeconform
+        run: |
+          helm template rustik charts/cmk-rustik | \
+            kubeconform -strict -summary -kubernetes-version 1.36.0 -
+      - name: Run chart-testing (lint)
+        run: ct lint --all
+      - name: Prepare kind (create cluster, build and load docker image)
+        run: just fetcher_target=metrics-fetcher cache_target=metrics-cache kind-load
+      - name: Run chart-testing (install)
+        run: ct install --all
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: clippy, rustfmt

@@ -1,0 +1,11 @@
+# values.yaml overrides for the dev env (`just kind-dev`)
+
+metricsFetcher:
+  image:
+    repository: cmk-rustik-metrics-fetcher
+    tag: local
+
+metricsCache:
+  image:
+    repository: cmk-rustik-metrics-cache
+    tag: local

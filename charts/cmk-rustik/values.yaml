@@ -1,0 +1,11 @@
+metricsFetcher:
+  image:
+    repository: ghcr.io/relrod/cmk-rustik-metrics-fetcher
+    tag: ""  # defaults to .Chart.AppVersion
+    pullPolicy: IfNotPresent
+
+metricsCache:
+  image:
+    repository: ghcr.io/relrod/cmk-rustik-metrics-cache
+    tag: ""  # defaults to .Chart.AppVersion
+    pullPolicy: IfNotPresent
