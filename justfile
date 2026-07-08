@@ -20,7 +20,7 @@ kind-load: dockerize kind-create
     kind load docker-image {{cache_tag}} --name rustik
 
 # Load the helm chart into the kind cluster with devel/values.yaml
-kind-helm-install: kind-load
+kind-helm-install:
     helm upgrade --install rustik ./charts/cmk-rustik -n checkmk-monitoring \
       --create-namespace -f devel/values.yaml
 
