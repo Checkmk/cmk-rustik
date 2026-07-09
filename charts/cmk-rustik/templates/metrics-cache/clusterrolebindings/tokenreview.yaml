@@ -1,11 +1,11 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
-  name: {{ include "rustik.fullname" . }}-metrics-cache
+  name: {{ include "rustik.fullname" . }}-metrics-cache-tokenreview
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ include "rustik.fullname" . }}-metrics-cache
+  kind: ClusterRole
+  name: {{ include "rustik.fullname" . }}-metrics-cache-tokenreview
 subjects:
   - kind: ServiceAccount
     name: {{ include "rustik.fullname" . }}-metrics-cache
