@@ -1,37 +1,34 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: metrics-cache
+  name: {{ include "rustik.fullname" . }}-metrics-cache
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: metrics-cache
+      app: {{ include "rustik.fullname" . }}-metrics-cache
   template:
     metadata:
       labels:
-        app: metrics-cache
+        app: {{ include "rustik.fullname" . }}-metrics-cache
       annotations:
         checkmk.com/promote-to-host: "true"
-        checkmk.com/feeling-numeric: "31337"
-        checkmk.com/now-its-empty: ""
     spec:
-      serviceAccountName: metrics-cache
+      serviceAccountName: {{ include "rustik.fullname" . }}-metrics-cache
+      {{- with .Values.metricsCache.extraVolumes }}
       volumes:
-        - name: src
-          hostPath:
-            path: /src
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: metrics-cache
-          image: {{ .Values.metricsCache.image.repository }}:{{ default .Chart.AppVersion .Values.metricsCache.image.tag }}
+          image: {{ .Values.metricsCache.image.repository }}:{{ .Values.metricsCache.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.metricsCache.image.pullPolicy }}
           args:
             - --address=0.0.0.0
-            - --log-level=debug
-            - --reader-allowlist=checkmk-monitoring:metrics-cache
-            - --writer-allowlist=checkmk-monitoring:metrics-fetcher
-            - --cluster-name=kind
-            - --cluster-host-name=k8s
+            - --reader-allowlist={{ .Release.Namespace }}:{{ include "rustik.fullname" . }}-metrics-cache
+            - --writer-allowlist={{ .Release.Namespace }}:{{ include "rustik.fullname" . }}-metrics-fetcher
+            - --cluster-name={{ required "clusterName is required (there is no safe default: it names every generated host)" .Values.clusterName }}
+            - --cluster-host-name={{ required "clusterHostName is required (it must exactly match the Checkmk host representing this cluster)" .Values.clusterHostName }}
             - --import-all-annotations
           # args:
           #   - /bin/sleep
@@ -41,8 +38,11 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: RUST_LOG
+              value: {{ .Values.metricsCache.logLevel | default .Values.logLevel }}
           ports:
             - containerPort: 10050
+          {{- with .Values.metricsCache.extraVolumeMounts }}
           volumeMounts:
-            - name: src
-              mountPath: /src
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

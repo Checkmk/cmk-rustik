@@ -21,8 +21,8 @@ kind-load: dockerize kind-create
 
 # Load the helm chart into the kind cluster with devel/values.yaml
 kind-helm-install:
-    helm upgrade --install rustik ./charts/cmk-rustik -n checkmk-monitoring \
-      --create-namespace -f devel/values.yaml
+    helm upgrade --install cmk-rustik ./charts/cmk-rustik \
+      -n checkmk-monitoring --create-namespace -f devel/values.yaml
 
 # DEV ENV: Deploy rustik in Kind with source mounted at /src
 kind-dev: dockerize kind-create kind-load kind-helm-install
@@ -30,3 +30,9 @@ kind-dev: dockerize kind-create kind-load kind-helm-install
 # Remove the Kind dev cluster
 kind-dev-teardown:
     kind delete cluster --name rustik
+
+# Run kubeconform and ct lint over the helm chart
+lint-helm:
+    helm template ./charts/cmk-rustik/ -f charts/cmk-rustik/ci/ci-values.yaml \
+      | kubeconform
+    ct lint --all

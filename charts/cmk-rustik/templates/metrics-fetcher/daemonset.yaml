@@ -1,27 +1,26 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: metrics-fetcher
+  name: {{ include "rustik.fullname" . }}-metrics-fetcher
 spec:
   selector:
     matchLabels:
-      app: metrics-fetcher
+      app: {{ include "rustik.fullname" . }}-metrics-fetcher
   template:
     metadata:
       labels:
-        app: metrics-fetcher
+        app: {{ include "rustik.fullname" . }}-metrics-fetcher
     spec:
-      serviceAccountName: metrics-fetcher
+      serviceAccountName: {{ include "rustik.fullname" . }}-metrics-fetcher
       # hostNetwork: true
       # dnsPolicy: ClusterFirstWithHostNet
+      {{- with .Values.metricsFetcher.extraVolumes }}
       volumes:
-        # TODO: helm var
-        - name: src
-          hostPath:
-            path: /src
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: metrics-fetcher
-          image: {{ .Values.metricsFetcher.image.repository }}:{{ default .Chart.AppVersion .Values.metricsFetcher.image.tag }}
+          image: {{ .Values.metricsFetcher.image.repository }}:{{ .Values.metricsFetcher.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.metricsFetcher.image.pullPolicy }}
           env:
             - name: NODE_IP
@@ -33,7 +32,8 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
             - name: RUST_LOG
-              value: debug
+              value: {{ .Values.metricsFetcher.logLevel | default .Values.logLevel }}
+          {{- with .Values.metricsFetcher.extraVolumeMounts }}
           volumeMounts:
-            - name: src
-              mountPath: /src
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

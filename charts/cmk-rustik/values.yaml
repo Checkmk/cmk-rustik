@@ -1,11 +1,61 @@
+# clusterName is the name which is part of every piggyback host that gets
+# created in Checkmk as a result of monitoring this cluster. If migrating from
+# the legacy Kubernetes monitoring, it should _exactly_ match what was in your
+# old Kubernetes rule so that your monitored objects retain rules and historical
+# data. This value is required.
+clusterName: ""
+
+# clusterHostName is the name of the Checkmk host which represents the cluster
+# as a whole. It is almost always the host that has the special agent rule
+# attached to it in pull-mode, or that the agent is registered to for push-mode.
+# It must match *exactly* the name of the host in Checkmk. This value is
+# required.
+clusterHostName: ""
+
+# logLevel is the default log level for metrics-cache and metrics-fetcher.
+# It can be overridden per component via metricsCache.logLevel or
+# metricsFetcher.logLevel.
+logLevel: info
+
+# metricsFetcher defines settings that control the daemon running on each
+# node in the cluster, collecting (or "fetching") metrics about the node's
+# kubelet and running the Checkmk agent on the node.
 metricsFetcher:
+  # image allows you to override the metrics-fetcher container image properties.
   image:
+    # repository is the registry path and image name, without the tag.
     repository: ghcr.io/relrod/cmk-rustik-metrics-fetcher
-    tag: ""  # defaults to .Chart.AppVersion
+    # tag is the image tag or version to use. It defaults to the app version.
+    tag: ""
+    # pullPolicy defines when and if Kubernetes should repull.
     pullPolicy: IfNotPresent
 
+  # logLevel controls how verbose metrics-fetcher is when writing to stderr.
+  # Inherits top-level logLevel by default.
+  logLevel: ""
+
+  # extraVolumes is volume definitions to add to the Pod in the Deployment.
+  extraVolumes: []
+  # extraVolumeMounts is volume mounts to mount in the metrics-fetcher container.
+  extraVolumeMounts: []
+
+# metricsCache defines settings that control the daemon caching all information
+# about the cluster and serving that information to Checkmk for monitoring.
 metricsCache:
+  # image allows you to override the metrics-cache container image properties.
   image:
+    # repository is the registry path and image name, without the tag.
     repository: ghcr.io/relrod/cmk-rustik-metrics-cache
-    tag: ""  # defaults to .Chart.AppVersion
+    # tag is the image tag or version to use. It defaults to the app version.
+    tag: ""
+    # pullPolicy defines when and if Kubernetes should repull.
     pullPolicy: IfNotPresent
+
+  # logLevel controls how verbose metrics-cache is when writing to stderr.
+  # Inherits top-level logLevel by default.
+  logLevel: ""
+
+  # extraVolumes is volume definitions to add to the Pod in the Deployment.
+  extraVolumes: []
+  # extraVolumeMounts is volume mounts to mount in the metrics-cache container.
+  extraVolumeMounts: []

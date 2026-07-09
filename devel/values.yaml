@@ -1,11 +1,27 @@
 # values.yaml overrides for the dev env (`just kind-dev`)
+clusterName: kind
+clusterHostName: kind
 
 metricsFetcher:
   image:
     repository: cmk-rustik-metrics-fetcher
     tag: local
+  extraVolumes:
+    - name: src
+      hostPath:
+        path: /src
+  extraVolumeMounts:
+    - name: src
+      mountPath: /src
 
 metricsCache:
   image:
     repository: cmk-rustik-metrics-cache
     tag: local
+  extraVolumes:
+    - name: src
+      hostPath:
+        path: /src
+  extraVolumeMounts:
+    - name: src
+      mountPath: /src

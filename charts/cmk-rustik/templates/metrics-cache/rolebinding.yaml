@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: metrics-cache
+  name: {{ include "rustik.fullname" . }}-metrics-cache
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: metrics-cache
+  name: {{ include "rustik.fullname" . }}-metrics-cache
 subjects:
   - kind: ServiceAccount
-    name: metrics-cache
+    name: {{ include "rustik.fullname" . }}-metrics-cache
     namespace: {{ .Release.Namespace }}

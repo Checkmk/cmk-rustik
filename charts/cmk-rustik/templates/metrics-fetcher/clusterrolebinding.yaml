@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: metrics-fetcher
+  name: {{ include "rustik.fullname" . }}-metrics-fetcher
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: metrics-fetcher
+  name: {{ include "rustik.fullname" . }}-metrics-fetcher
 subjects:
   - kind: ServiceAccount
-    name: metrics-fetcher
+    name: {{ include "rustik.fullname" . }}-metrics-fetcher
     namespace: {{ .Release.Namespace }}
