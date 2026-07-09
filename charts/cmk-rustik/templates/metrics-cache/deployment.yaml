@@ -30,10 +30,24 @@ spec:
             - --cluster-name={{ required "clusterName is required (there is no safe default: it names every generated host)" .Values.clusterName }}
             - --cluster-host-name={{ required "clusterHostName is required (it must exactly match the Checkmk host representing this cluster)" .Values.clusterHostName }}
             - --import-all-annotations
+            {{- if .Values.push.enabled }}
+            - --push-receiver={{ required "push.url is required when push mode is enabled" .Values.push.url }}
+            {{- end }}
           # args:
           #   - /bin/sleep
           #   - 24h
           env:
+            # Do NOT gate this on registrationToken, we allow admins to manually
+            # create the secret outside of the chart's control, and the env var
+            # should still exist in this case.
+            {{- if .Values.push.enabled }}
+            - name: CMK_PUSH_AGENT_RECEIVER_OTT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rustik.fullname" . }}-push-registration
+                  key: token
+                  optional: true
+            {{- end }}
             - name: NODE_NAME
               valueFrom:
                 fieldRef:

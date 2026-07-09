@@ -59,3 +59,19 @@ metricsCache:
   extraVolumes: []
   # extraVolumeMounts is volume mounts to mount in the metrics-cache container.
   extraVolumeMounts: []
+
+# push allows you to enable, disable, and configure push mode; pushing data
+# *into* Checkmk from the cluster.
+push:
+  # enabled controls whether push mode is activated or not.
+  enabled: false
+  # registrationToken is a one-time token issued by Checkmk, normally set one
+  # time when you initially install the chart, by using --set on the helm CLI.
+  # You typically should not override this in your own values.yaml. It is only
+  # used once, to allow the agent to register itself with Checkmk's push-agent
+  # receiver. A temporary Secret will be created for internal use, when this is
+  # set.
+  registrationToken: ""
+  # url is the url of the push-agent receiver for your site. It *includes* the
+  # site name. Example: https://example.com:8000/production
+  url: ""

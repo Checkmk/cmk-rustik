@@ -4,6 +4,8 @@ fetcher_target := "metrics-fetcher-dev"
 cache_tag := "cmk-rustik-metrics-cache:local"
 cache_target := "metrics-cache-dev"
 
+push_ott := ""
+
 # Build an image for Kubernetes using Docker
 dockerize:
     docker build -t {{fetcher_tag}} --target {{fetcher_target}} -f docker/Dockerfile .
@@ -22,7 +24,8 @@ kind-load: dockerize kind-create
 # Load the helm chart into the kind cluster with devel/values.yaml
 kind-helm-install:
     helm upgrade --install cmk-rustik ./charts/cmk-rustik \
-      -n checkmk-monitoring --create-namespace -f devel/values.yaml
+      -n checkmk-monitoring --create-namespace -f devel/values.yaml \
+      --set push.registrationToken={{push_ott}}
 
 # DEV ENV: Deploy rustik in Kind with source mounted at /src
 kind-dev: dockerize kind-create kind-load kind-helm-install

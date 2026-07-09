@@ -25,3 +25,7 @@ metricsCache:
   extraVolumeMounts:
     - name: src
       mountPath: /src
+
+push:
+  enabled: true
+  url: https://172.18.0.1:8000/heute
