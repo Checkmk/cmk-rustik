@@ -89,3 +89,13 @@ push:
   # url is the url of the push-agent receiver for your site. It *includes* the
   # site name. Example: https://example.com:8000/production
   url: ""
+
+# hostLabels defines how annotations get imported as labels in Checkmk. By
+# default annotations do not become host labels.
+hostLabels:
+  # importAllAnnotations imports every annotation (whose value is a valid
+  # label value) as a host label. Must not be combined with importKeyPattern.
+  importAllAnnotations: false
+  # importKeyPattern imports only annotations whose key matches this regex.
+  # Empty means no annotations are imported.
+  importKeyPattern: ""
