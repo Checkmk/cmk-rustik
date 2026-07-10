@@ -1,7 +1,7 @@
 use reqwest::Client;
 use tokio::time;
 use tokio::time::Duration;
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::error::Result;
 use crate::payload::Payload;
@@ -19,12 +19,11 @@ pub(crate) trait Scraper {
         loop {
             interval.tick().await;
             match self.scrape().await {
-                Ok(payload) => {
-                    let _ = payload.push_to_metrics_cache(self.relay_client()).await;
-                }
-                Err(e) => {
-                    warn!(%e, "scrape failed");
-                }
+                Ok(payload) => match payload.push_to_metrics_cache(self.relay_client()).await {
+                    Ok(_) => {}
+                    Err(e) => error!(error = ?e, "failed to push to metrics-cache"),
+                },
+                Err(e) => warn!(error = ?e, "scrape failed"),
             }
         }
     }
