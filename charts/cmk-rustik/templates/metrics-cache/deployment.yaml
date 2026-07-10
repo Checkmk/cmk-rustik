@@ -25,6 +25,7 @@ spec:
           imagePullPolicy: {{ .Values.metricsCache.image.pullPolicy }}
           args:
             - --address=0.0.0.0
+            - --port={{ .Values.metricsCache.port }}
             - --reader-allowlist={{ .Release.Namespace }}:{{ include "rustik.fullname" . }}-metrics-cache
             - --writer-allowlist={{ .Release.Namespace }}:{{ include "rustik.fullname" . }}-metrics-fetcher
             - --cluster-name={{ required "clusterName is required (there is no safe default: it names every generated host)" .Values.clusterName }}
@@ -55,7 +56,7 @@ spec:
             - name: RUST_LOG
               value: {{ .Values.metricsCache.logLevel | default .Values.logLevel }}
           ports:
-            - containerPort: 10050
+            - containerPort: {{ .Values.metricsCache.port }}
           {{- with .Values.metricsCache.extraVolumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

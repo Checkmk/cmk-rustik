@@ -18,10 +18,16 @@ metricsCache:
   image:
     repository: cmk-rustik-metrics-cache
     tag: local
+
+  service:
+    type: NodePort
+    nodePort: 30050
+
   extraVolumes:
     - name: src
       hostPath:
         path: /src
+
   extraVolumeMounts:
     - name: src
       mountPath: /src

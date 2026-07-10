@@ -51,6 +51,20 @@ metricsCache:
     # pullPolicy defines when and if Kubernetes should repull.
     pullPolicy: IfNotPresent
 
+  # service lets you customize the Kubernetes Service controlling access to
+  # metrics-cache.
+  service:
+    type: ClusterIP
+    port: 10050
+    targetPort: 10050
+    # nodePort is required only if type is NodePort.
+    nodePort: null
+
+  # port is the port that the metrics-cache service binds to for serving HTTP.
+  # It is also used as the contoainer's containerPort as well as the service's
+  # targetPort.
+  port: 10050
+
   # logLevel controls how verbose metrics-cache is when writing to stderr.
   # Inherits top-level logLevel by default.
   logLevel: ""
