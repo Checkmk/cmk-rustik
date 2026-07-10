@@ -29,6 +29,10 @@ kind-helm-install:
       --set push.registrationToken={{push_ott}} \
       --set push.enabled={{push}}
 
+# Delete the helm deployment from the kind cluster
+kind-helm-delete:
+    helm delete cmk-rustik -n checkmk-monitoring
+
 # DEV ENV: Deploy rustik in Kind with source mounted at /src
 kind-dev: dockerize kind-create kind-load kind-helm-install
 
