@@ -30,6 +30,16 @@ metricsFetcher:
     # pullPolicy defines when and if Kubernetes should repull.
     pullPolicy: IfNotPresent
 
+  # resources lets you limit and request cluster resources for metrics-fetcher.
+  # see: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+  resources:
+    limits:
+      cpu: 100m
+      memory: 32Mi
+    requests:
+      cpu: 50m
+      memory: 16Mi
+
   # logLevel controls how verbose metrics-fetcher is when writing to stderr.
   # Inherits top-level logLevel by default.
   logLevel: ""
@@ -58,6 +68,16 @@ metricsCache:
     port: 10050
     # nodePort is required only if type is NodePort.
     nodePort: null
+
+  # resources lets you limit and request cluster resources for metrics-cache.
+  # see: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+  resources:
+    limits:
+      cpu: 500m
+      memory: 500Mi
+    requests:
+      cpu: 150m
+      memory: 200Mi
 
   # port is the port that the metrics-cache service binds to for serving HTTP.
   # It is also used as the container's containerPort as well as the service's

@@ -41,3 +41,7 @@ spec:
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- with .Values.metricsFetcher.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
