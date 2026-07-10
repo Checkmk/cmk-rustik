@@ -1597,6 +1597,7 @@ version = "2.0.0"
 dependencies = [
  "anyhow",
  "bytes",
+ "clap",
  "reqwest",
  "rustls",
  "thiserror",

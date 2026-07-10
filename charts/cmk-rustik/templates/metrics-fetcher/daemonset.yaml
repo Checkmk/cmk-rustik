@@ -22,6 +22,10 @@ spec:
         - name: metrics-fetcher
           image: {{ .Values.metricsFetcher.image.repository }}:{{ .Values.metricsFetcher.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.metricsFetcher.image.pullPolicy }}
+          args:
+            - --metrics-cache-namespace={{ .Release.Namespace }}
+            - --metrics-cache-service={{ include "rustik.fullname" . }}-metrics-cache
+            - --metrics-cache-port={{ .Values.metricsCache.port }}
           env:
             - name: NODE_IP
               valueFrom:

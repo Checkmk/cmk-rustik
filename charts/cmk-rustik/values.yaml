@@ -56,12 +56,11 @@ metricsCache:
   service:
     type: ClusterIP
     port: 10050
-    targetPort: 10050
     # nodePort is required only if type is NodePort.
     nodePort: null
 
   # port is the port that the metrics-cache service binds to for serving HTTP.
-  # It is also used as the contoainer's containerPort as well as the service's
+  # It is also used as the container's containerPort as well as the service's
   # targetPort.
   port: 10050
 

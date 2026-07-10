@@ -1,6 +1,8 @@
 use reqwest::Client;
+use std::sync::Arc;
 use tracing::{debug, error, trace};
 
+use crate::cli_args::CliArgs;
 use crate::error::{Error, Result};
 use crate::payload::Payload;
 use crate::scraper::Scraper;
@@ -8,17 +10,19 @@ use crate::scraper::Scraper;
 pub(crate) struct KubeletStatsSummaryScraper {
     scrape_client: Client,
     relay_client: Client,
+    args: Arc<CliArgs>,
 }
 
 impl KubeletStatsSummaryScraper {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(args: Arc<CliArgs>) -> KubeletStatsSummaryScraper {
         let scrape_client = Client::builder()
             .danger_accept_invalid_certs(true)
             .build()
             .expect("Could not build scrape client for kubelet stats summary");
-        Self {
+        KubeletStatsSummaryScraper {
             scrape_client,
             relay_client: Client::new(),
+            args,
         }
     }
 }
@@ -26,6 +30,10 @@ impl KubeletStatsSummaryScraper {
 impl Scraper for KubeletStatsSummaryScraper {
     fn relay_client(&self) -> Client {
         self.relay_client.clone()
+    }
+
+    fn args(&self) -> Arc<CliArgs> {
+        self.args.clone()
     }
 
     /// Query the Kubelet /stats/summary response and return the raw JSON payload.
