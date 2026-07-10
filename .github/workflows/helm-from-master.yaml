@@ -1,0 +1,26 @@
+name: helm chart
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  helm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5.0.1
+      - run: helm registry login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+      - name: Package and push
+        run: |
+          helm package charts/cmk-rustik \
+            --version 0.0.0-master \
+            --app-version "sha-${{ github.sha }}"
+          helm push cmk-rustik-0.0.0-master.tgz \
+            oci://ghcr.io/${{ github.repository_owner }}/charts
