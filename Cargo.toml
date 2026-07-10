@@ -33,3 +33,13 @@ unwrap_used = "deny"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.debugging]
+inherits = "dev"
+debug = true
