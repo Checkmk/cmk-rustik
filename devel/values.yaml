@@ -1,6 +1,7 @@
 # values.yaml overrides for the dev env (`just kind-dev`)
 clusterName: kind
 clusterHostName: kind
+logLevel: debug
 
 metricsFetcher:
   image:
