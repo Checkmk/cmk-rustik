@@ -2,6 +2,7 @@ use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use std::io;
 use std::net::SocketAddr;
+use tokio::task::JoinSet;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
@@ -51,7 +52,8 @@ async fn bind(args: &CliArgs, app: axum::Router) -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     let args = CliArgs::parse();
     init_tracing(&args);
-    let state = AppState::new(&args).await?;
+    let mut reflector_tasks = JoinSet::new();
+    let state = AppState::new(&args, &mut reflector_tasks).await?;
     let app = handlers::app(state.clone());
 
     let push_client = match &args.push_receiver {
@@ -80,6 +82,12 @@ async fn main() -> anyhow::Result<()> {
                 tracing::error!(error = %e, "Axum server exited with error");
             }
             anyhow::bail!("Axum server terminated unexpectedly");
+        }
+
+        // Reflector tasks
+        res = reflector_tasks.join_next() => {
+            tracing::error!(error = ?res, "Reflector task exited unexpectedly");
+            anyhow::bail!("Reflector task terminated unexpectedly");
         }
 
         // Push to Checkmk server

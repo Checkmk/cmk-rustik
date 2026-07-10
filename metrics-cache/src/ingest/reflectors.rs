@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
+use tokio::task::JoinSet;
 use tracing::{debug, error, trace};
 
 #[derive(Clone)]
@@ -38,20 +39,25 @@ pub struct FrozenStores {
 }
 
 impl Stores {
-    pub fn spawn(client: Client) -> Self {
+    pub fn spawn(client: Client, tasks: &mut JoinSet<()>) -> Self {
         Self {
-            pods: start_reflector(Api::all(client.clone()), WatchConfig::default()),
-            nodes: start_reflector(Api::all(client.clone()), WatchConfig::default()),
-            deployments: start_reflector(Api::all(client.clone()), WatchConfig::default()),
-            daemonsets: start_reflector(Api::all(client.clone()), WatchConfig::default()),
-            namespaces: start_reflector(Api::all(client.clone()), WatchConfig::default()),
-            replicasets: start_reflector(Api::all(client.clone()), WatchConfig::default()),
-            persistent_volumes: start_reflector(Api::all(client.clone()), WatchConfig::default()),
+            pods: start_reflector(Api::all(client.clone()), WatchConfig::default(), tasks),
+            nodes: start_reflector(Api::all(client.clone()), WatchConfig::default(), tasks),
+            deployments: start_reflector(Api::all(client.clone()), WatchConfig::default(), tasks),
+            daemonsets: start_reflector(Api::all(client.clone()), WatchConfig::default(), tasks),
+            namespaces: start_reflector(Api::all(client.clone()), WatchConfig::default(), tasks),
+            replicasets: start_reflector(Api::all(client.clone()), WatchConfig::default(), tasks),
+            persistent_volumes: start_reflector(
+                Api::all(client.clone()),
+                WatchConfig::default(),
+                tasks,
+            ),
             persistent_volume_claims: start_reflector(
                 Api::all(client.clone()),
                 WatchConfig::default(),
+                tasks,
             ),
-            statefulsets: start_reflector(Api::all(client), WatchConfig::default()),
+            statefulsets: start_reflector(Api::all(client), WatchConfig::default(), tasks),
         }
     }
 
@@ -85,7 +91,7 @@ impl Stores {
     }
 }
 
-pub fn start_reflector<K>(api: Api<K>, config: WatchConfig) -> Store<K>
+pub fn start_reflector<K>(api: Api<K>, config: WatchConfig, tasks: &mut JoinSet<()>) -> Store<K>
 where
     K: Resource + Clone + DeserializeOwned + Debug + Send + Sync + k8s_openapi::Resource + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
@@ -112,6 +118,6 @@ where
             }
             std::future::ready(())
         });
-    tokio::spawn(watch);
+    tasks.spawn(watch);
     reader
 }

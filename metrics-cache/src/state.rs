@@ -2,6 +2,7 @@ use kube::Client;
 use moka::future::Cache;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::task::JoinSet;
 
 use crate::auth::kubernetes::TokenValidator;
 use crate::cli_args::CliArgs;
@@ -24,7 +25,7 @@ pub struct AppState<V: TokenValidator> {
 }
 
 impl AppState<Client> {
-    pub async fn new(args: &CliArgs) -> Result<Self> {
+    pub async fn new(args: &CliArgs, tasks: &mut JoinSet<()>) -> Result<Self> {
         let client = Self::kube_client(args.connect_timeout, args.read_timeout).await?;
         let watcher_client = Self::kube_watcher_client(args.connect_timeout).await?;
         let host_settings = HostSettings {
@@ -38,7 +39,7 @@ impl AppState<Client> {
         };
         let state = Self {
             client,
-            stores: Stores::spawn(watcher_client),
+            stores: Stores::spawn(watcher_client, tasks),
             reader_allowlist: args.reader_allowlist.clone(),
             writer_allowlist: args.writer_allowlist.clone(),
             kubelet_stats_summary_cache: Cache::builder()
