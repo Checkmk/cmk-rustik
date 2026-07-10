@@ -4,8 +4,10 @@ fetcher_target := "metrics-fetcher-dev"
 cache_tag := "cmk-rustik-metrics-cache:local"
 cache_target := "metrics-cache-dev"
 
-push := "false"
+push := ""
 push_ott := ""
+push_url := ""
+cluster_host_name := ""
 
 # Build an image for Kubernetes using Docker
 dockerize:
@@ -26,8 +28,10 @@ kind-load: dockerize kind-create
 kind-helm-install:
     helm upgrade --install cmk-rustik ./charts/cmk-rustik \
       -n checkmk-monitoring --create-namespace -f devel/values.yaml \
-      --set push.registrationToken={{push_ott}} \
-      --set push.enabled={{push}}
+      {{ if push != "" { "--set push.enabled=" + push } else { "" } }} \
+      {{ if push_ott != "" { "--set push.registrationToken=" + push_ott } else { "" } }} \
+      {{ if push_url != "" { "--set push.url=" + push_url } else { "" } }} \
+      {{ if cluster_host_name != "" { "--set clusterHostName=" + cluster_host_name } else { "" } }}
 
 # Delete the helm deployment from the kind cluster
 kind-helm-delete:
