@@ -11,8 +11,6 @@ spec:
     metadata:
       labels:
         app: {{ include "rustik.fullname" . }}-metrics-cache
-      annotations:
-        checkmk.com/promote-to-host: "true"
     spec:
       serviceAccountName: {{ include "rustik.fullname" . }}-metrics-cache
       {{- with .Values.metricsCache.extraVolumes }}
@@ -41,9 +39,11 @@ spec:
             {{- if .Values.push.enabled }}
             - --push-receiver={{ required "push.url is required when push mode is enabled" .Values.push.url }}
             {{- end }}
-          # args:
-          #   - /bin/sleep
-          #   - 24h
+            {{- range $k, $v := .Values.emitAll }}
+            {{- if $v }}
+            - --all-{{ $k }}
+            {{- end }}
+            {{- end }}
           env:
             # Do NOT gate this on registrationToken, we allow admins to manually
             # create the secret outside of the chart's control, and the env var

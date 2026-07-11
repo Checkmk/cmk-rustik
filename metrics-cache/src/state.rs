@@ -7,7 +7,7 @@ use tokio::task::JoinSet;
 use crate::auth::kubernetes::TokenValidator;
 use crate::cli_args::CliArgs;
 use crate::error::Result;
-use crate::host_settings::{AnnotationKeyPattern, HostSettings};
+use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings};
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::Stores;
 
@@ -36,6 +36,7 @@ impl AppState<Client> {
                 args.annotation_key_pattern.clone(),
             ),
             excluded_node_role_patterns: args.excluded_node_role_patterns.clone(),
+            always_emitted: AlwaysEmitted::from_cli_args(args),
         };
         let state = Self {
             client,
@@ -123,6 +124,7 @@ pub mod tests {
                 cluster_host_name: "testclusterhost".to_string(),
                 annotation_key_pattern: AnnotationKeyPattern::ImportAll,
                 excluded_node_role_patterns: Vec::new(),
+                always_emitted: AlwaysEmitted::default(),
             }
             .into(),
         }

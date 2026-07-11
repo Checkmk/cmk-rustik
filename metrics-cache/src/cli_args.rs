@@ -124,6 +124,30 @@ pub struct CliArgs {
     /// Enable sending OTel metrics to the endpoint given
     #[arg(long = "otel-endpoint")]
     pub otel_endpoint: Option<String>,
+
+    /// Emit all Pod resources rather than only annotated ones
+    #[arg(long = "all-pods")]
+    pub all_pods: bool,
+
+    /// Emit all Namespace resources rather than only annotated ones
+    #[arg(long = "all-namespaces")]
+    pub all_namespaces: bool,
+
+    /// Emit all Node resources rather than only annotated ones
+    #[arg(long = "all-nodes")]
+    pub all_nodes: bool,
+
+    /// Emit all Deployment resources rather than only annotated ones
+    #[arg(long = "all-deployments")]
+    pub all_deployments: bool,
+
+    /// Emit all DaemonSet resources rather than only annotated ones
+    #[arg(long = "all-daemonsets")]
+    pub all_daemonsets: bool,
+
+    /// Emit all StatefulSet resources rather than only annotated ones
+    #[arg(long = "all-statefulsets")]
+    pub all_statefulsets: bool,
 }
 
 /// Convert a numeric argument given by the user as seconds into a Duration.

@@ -118,3 +118,15 @@ hostLabels:
   # importKeyPattern imports only annotations whose key matches this regex.
   # Empty means no annotations are imported.
   importKeyPattern: ""
+
+# emitAll allows you to set which kinds have ALL of their resources turned into
+# piggyback hosts in Checkmk. Resources not enabled here can be opted in via an
+# annotation (checkmk.com/promote-to-host: "true"). By default, pods are not
+# emitted by default, everything else is.
+emitAll:
+  pods: false
+  namespaces: true
+  nodes: true
+  deployments: true
+  daemonsets: true
+  statefulsets: true

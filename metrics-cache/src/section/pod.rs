@@ -187,6 +187,7 @@ mod tests {
             cluster_host_name: "test-host".to_string(),
             annotation_key_pattern: crate::host_settings::AnnotationKeyPattern::IgnoreAll,
             excluded_node_role_patterns: Vec::new(),
+            always_emitted: crate::host_settings::AlwaysEmitted::default(),
         };
         insta::assert_json_snapshot!(KubePodInfoV1::from_pod(&pod, &graph, &settings));
     }

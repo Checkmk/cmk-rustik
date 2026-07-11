@@ -79,14 +79,45 @@ impl<'a> Meta<'a> {
 pub(crate) trait PiggybackHost {
     fn metadata(&self) -> Option<&ObjectMeta>;
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>>;
+
+    /// Answers the question: Does an annotation request this resource become
+    /// a piggyback host?
+    ///
+    /// With an annotation like:
+    ///
+    /// ```yaml
+    /// annotations:
+    ///   checkmk.com/promote-to-host: "true"
+    /// ```
+    ///
+    /// in a resource's mewtadata, we will promote it to become a piggyback host
+    /// in Checkmk (assuming we support monitoring the resource).
+    ///
+    /// There are also CLI flags (set via helm chart variables) that control at
+    /// the kind-level which resources get promoted. We do not check that *here*
+    /// but rather in [`crate::piggyback::collect()`]. The two options
+    /// (annotation and CLI flag) are effectively ORed together to decide to
+    /// create a piggyback host or not.
+    fn annotation_wants_emission(&self) -> bool {
+        self.metadata()
+            .and_then(|m| m.annotations.as_ref())
+            .and_then(|bt| bt.get("checkmk.com/promote-to-host"))
+            .is_some_and(|s| s == "true")
+    }
+}
+
+fn should_emit<H: PiggybackHost>(resource: &H, always_emit: bool) -> bool {
+    always_emit || resource.annotation_wants_emission()
 }
 
 fn collect<A, H: PiggybackHost>(
     items: impl Iterator<Item = A>,
+    always_emit: bool,
     make: impl Fn(A) -> Option<H>,
 ) -> Vec<WriteableSection> {
     items
         .filter_map(make)
+        .filter(|host| should_emit(host, always_emit))
         .flat_map(|host| host.emit())
         .filter_map(|r| match r {
             Ok(section) => Some(section),
@@ -99,28 +130,37 @@ fn collect<A, H: PiggybackHost>(
 }
 
 pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSection> {
+    let always = &settings.always_emitted;
     let mut out = Vec::new();
-    out.extend(collect(snap.stores.pods.iter(), |p| {
+    out.extend(collect(snap.stores.pods.iter(), always.pods, |p| {
         Pod::new(p, snap, settings)
     }));
-    out.extend(collect(snap.stores.namespaces.iter(), |n| {
-        Namespace::new(n, snap, settings)
-    }));
-    out.extend(collect(snap.stores.nodes.iter(), |n| {
+    out.extend(collect(
+        snap.stores.namespaces.iter(),
+        always.namespaces,
+        |n| Namespace::new(n, snap, settings),
+    ));
+    out.extend(collect(snap.stores.nodes.iter(), always.nodes, |n| {
         Node::new(n, snap, settings)
     }));
-    out.extend(collect(snap.stores.deployments.iter(), |n| {
-        Deployment::new(n, snap, settings)
-    }));
-    out.extend(collect(snap.stores.daemonsets.iter(), |n| {
-        DaemonSet::new(n, snap, settings)
-    }));
-    out.extend(collect(snap.stores.statefulsets.iter(), |n| {
-        StatefulSet::new(n, snap, settings)
-    }));
+    out.extend(collect(
+        snap.stores.deployments.iter(),
+        always.deployments,
+        |n| Deployment::new(n, snap, settings),
+    ));
+    out.extend(collect(
+        snap.stores.daemonsets.iter(),
+        always.daemonsets,
+        |n| DaemonSet::new(n, snap, settings),
+    ));
+    out.extend(collect(
+        snap.stores.statefulsets.iter(),
+        always.statefulsets,
+        |n| StatefulSet::new(n, snap, settings),
+    ));
 
     // Cluster is a special snowflake, there aren't any reflectors to iterate
-    out.extend(collect(std::iter::once(()), |()| {
+    out.extend(collect(std::iter::once(()), true, |()| {
         Some(Cluster::new(snap, settings))
     }));
     out
@@ -129,10 +169,66 @@ pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSectio
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use serde::Serialize;
     use std::assert_matches;
 
+    use crate::section::Section;
     use crate::test_support::*;
+
+    #[derive(Serialize)]
+    struct FakeSection;
+    impl Section for FakeSection {
+        const NAME: &'static str = "fake_section_v42";
+    }
+
+    struct FakeHost(Option<ObjectMeta>);
+    impl PiggybackHost for FakeHost {
+        fn metadata(&self) -> Option<&ObjectMeta> {
+            self.0.as_ref()
+        }
+
+        fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
+            vec![WriteableSection::of("the-hostname", &FakeSection {})]
+        }
+    }
+
+    fn meta_with_annotation(value: &str) -> ObjectMeta {
+        ObjectMeta {
+            annotations: Some(
+                [("checkmk.com/promote-to-host".to_string(), value.to_string())].into(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    /// Piggyback hosts are created iff they are annotated appropriately *or*
+    /// their kind's "always emit" flag is set (via CLI arg -> HostSettings).
+    #[test]
+    fn collect_filtering() {
+        for (always, meta, emitted_count) in [
+            // always-emit is false and there is no annotation -> don't emit
+            (false, None, 0),
+            // always-emit is true and there is no annotation -> emit
+            (true, None, 1),
+            // always-emit is false and annotation is "true" -> emit
+            (false, Some(meta_with_annotation("true")), 1),
+            // always-emit is false and annotation is "True" -> do -not- emit
+            // (must be exactly "true").
+            (false, Some(meta_with_annotation("True")), 0),
+            // always-emit is true and annotation is "untrue" -> emit (global
+            // flag rules)
+            (true, Some(meta_with_annotation("untrue")), 1),
+        ] {
+            assert_eq!(
+                collect(std::iter::once(()), always, |()| Some(FakeHost(
+                    meta.clone()
+                )))
+                .len(),
+                emitted_count,
+                "always={always:?}, meta={meta:?}"
+            );
+        }
+    }
 
     /// Namespace-scoped resources with no namespace are rejected by our [`Meta`].
     #[test]

@@ -2,6 +2,8 @@ use k8s_openapi::api::core::v1::Node;
 use regex::Regex;
 use std::collections::BTreeMap;
 
+use crate::cli_args::CliArgs;
+
 #[derive(Clone)]
 pub enum AnnotationKeyPattern {
     IgnoreAll,
@@ -34,12 +36,39 @@ impl AnnotationKeyPattern {
     }
 }
 
+/// Holds information (based on CLI arguments) about which resources should
+/// always be emitted. The ones which are false here will only be emitted if
+/// explicitly promoted to piggyback host via an annotation.
+#[derive(Clone, Default)]
+pub struct AlwaysEmitted {
+    pub pods: bool,
+    pub namespaces: bool,
+    pub nodes: bool,
+    pub deployments: bool,
+    pub daemonsets: bool,
+    pub statefulsets: bool,
+}
+
+impl AlwaysEmitted {
+    pub fn from_cli_args(args: &CliArgs) -> Self {
+        Self {
+            pods: args.all_pods,
+            namespaces: args.all_namespaces,
+            nodes: args.all_nodes,
+            deployments: args.all_deployments,
+            daemonsets: args.all_daemonsets,
+            statefulsets: args.all_statefulsets,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct HostSettings {
     pub cluster_name: String,
     pub cluster_host_name: String,
     pub annotation_key_pattern: AnnotationKeyPattern,
     pub excluded_node_role_patterns: Vec<Regex>,
+    pub always_emitted: AlwaysEmitted,
 }
 
 impl HostSettings {
@@ -81,6 +110,7 @@ mod tests {
             cluster_host_name: "test-host".to_string(),
             annotation_key_pattern: AnnotationKeyPattern::IgnoreAll,
             excluded_node_role_patterns: patterns,
+            always_emitted: AlwaysEmitted::default(),
         }
     }
 
