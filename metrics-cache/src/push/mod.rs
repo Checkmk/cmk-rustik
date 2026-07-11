@@ -43,10 +43,7 @@ async fn push_cycle(
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
     frame(&mut encoder, sections).context("framing push data")?;
     let encoded = encoder.finish().context("finishing zlib encoding")?;
-    client
-        .push_section_data(encoded)
-        .await
-        .context("pushing to Checkmk")?;
+    client.push_section_data(encoded).await?;
     Ok(())
 }
 
@@ -68,7 +65,7 @@ pub async fn push_loop(
         interval.tick().await; // note: The very first tick() is no-op
         match push_cycle(&client, &state).await {
             Ok(_) => debug!("Successfully pushed metrics to Checkmk server"),
-            Err(e) => error!(error = %e, "Failed to push metrics to Checkmk server"),
+            Err(e) => error!(error = ?e, "Failed to push metrics to Checkmk server"),
         }
     }
 }
