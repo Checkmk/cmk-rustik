@@ -164,9 +164,30 @@ impl Section for KubePodLifecycleV1 {
 mod tests {
     use super::*;
 
+    use crate::test_support::{owner_graph, owner_ref, pod_prefilled};
+
     #[test]
     fn kube_pod_lifecycle_v1() {
         insta::assert_json_snapshot!(KubePodLifecycleV1::new("Pending"));
         insta::assert_json_snapshot!(KubePodLifecycleV1::new("Running"));
+    }
+
+    #[test]
+    fn kube_pod_info_v1() {
+        let pod = pod_prefilled("my-pod");
+        let graph = owner_graph(&[
+            (
+                pod.metadata.uid.as_ref().unwrap(),
+                owner_ref("ReplicaSet", "rs-1", "rs-uid"),
+            ),
+            ("rs-uid", owner_ref("Deployment", "deploy-1", "deploy-uid")),
+        ]);
+        let settings = HostSettings {
+            cluster_name: "test-cluster".to_string(),
+            cluster_host_name: "test-host".to_string(),
+            annotation_key_pattern: crate::host_settings::AnnotationKeyPattern::IgnoreAll,
+            excluded_node_role_patterns: Vec::new(),
+        };
+        insta::assert_json_snapshot!(KubePodInfoV1::from_pod(&pod, &graph, &settings));
     }
 }

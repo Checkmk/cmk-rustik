@@ -1,0 +1,36 @@
+---
+source: metrics-cache/src/section/pod.rs
+expression: "KubePodInfoV1::from_pod(&pod, &graph, &settings)"
+---
+{
+  "namespace": "the-namespace-of-all-namespaces",
+  "name": "my-pod",
+  "creation_timestamp": 1718824965.0,
+  "labels": {
+    "app": {
+      "name": "app",
+      "value": "nginx"
+    }
+  },
+  "annotations": {},
+  "node": "node01",
+  "host_network": null,
+  "dns_policy": null,
+  "host_ip": null,
+  "pod_ip": null,
+  "qos_class": "burstable",
+  "restart_policy": "Always",
+  "uid": "aaca3e54-7772-4af7-881f-c912008bc541",
+  "controllers": [
+    {
+      "type_": "ReplicaSet",
+      "name": "rs-1"
+    },
+    {
+      "type_": "Deployment",
+      "name": "deploy-1"
+    }
+  ],
+  "cluster": "test-cluster",
+  "kubernetes_cluster_hostname": "test-host"
+}
