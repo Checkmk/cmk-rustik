@@ -9,6 +9,7 @@ pub mod statefulset;
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use k8s_openapi::{ClusterResourceScope, NamespaceResourceScope};
+use tracing::warn;
 
 use crate::host_settings::HostSettings;
 pub(crate) use crate::piggyback::aggregation_host::AggregationHost;
@@ -78,6 +79,7 @@ impl<'a> Meta<'a> {
 /// Represents a piggyback host for which to emit/write a section data.
 pub(crate) trait PiggybackHost {
     fn metadata(&self) -> Option<&ObjectMeta>;
+    fn kind(&self) -> &str;
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>>;
 
     /// Answers the question: Does an annotation request this resource become
@@ -95,19 +97,46 @@ pub(crate) trait PiggybackHost {
     ///
     /// There are also CLI flags (set via helm chart variables) that control at
     /// the kind-level which resources get promoted. We do not check that *here*
-    /// but rather in [`crate::piggyback::collect()`]. The two options
-    /// (annotation and CLI flag) are effectively ORed together to decide to
-    /// create a piggyback host or not.
-    fn annotation_wants_emission(&self) -> bool {
-        self.metadata()
-            .and_then(|m| m.annotations.as_ref())
-            .and_then(|bt| bt.get("checkmk.com/promote-to-host"))
-            .is_some_and(|s| s == "true")
+    /// but rather in [`crate::piggyback::collect()`] /
+    /// [`crate::piggyback::should_emit()`]. A valid true/false annotation
+    /// overrides the global setting in all cases, otherwise the kind's global
+    /// flag decides.
+    ///
+    /// If the value is "true" or "false, we return the boolean of it, otherwise
+    /// we return None and log a warning with identifying info.
+    fn annotation_emit_override(&self) -> Option<bool> {
+        fn parse_value(val: &str) -> Result<bool, &str> {
+            match val {
+                "true" => Ok(true),
+                "false" => Ok(false),
+                other => Err(other),
+            }
+        }
+
+        let metadata = self.metadata()?;
+        let value = metadata
+            .annotations
+            .as_ref()?
+            .get("checkmk.com/promote-to-host")?;
+
+        match parse_value(value) {
+            Ok(b) => Some(b),
+            Err(orig) => {
+                warn!(
+                    value = orig,
+                    namespace = metadata.namespace,
+                    name = metadata.name,
+                    kind = self.kind(),
+                    "unknown promote-to-host value, should be 'true' or 'false'"
+                );
+                None
+            }
+        }
     }
 }
 
 fn should_emit<H: PiggybackHost>(resource: &H, always_emit: bool) -> bool {
-    always_emit || resource.annotation_wants_emission()
+    resource.annotation_emit_override().unwrap_or(always_emit)
 }
 
 fn collect<A, H: PiggybackHost>(
@@ -187,6 +216,10 @@ mod tests {
             self.0.as_ref()
         }
 
+        fn kind(&self) -> &str {
+            "fake"
+        }
+
         fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
             vec![WriteableSection::of("the-hostname", &FakeSection {})]
         }
@@ -218,6 +251,9 @@ mod tests {
             // always-emit is true and annotation is "untrue" -> emit (global
             // flag rules)
             (true, Some(meta_with_annotation("untrue")), 1),
+            // always-emit is true and annotation is "false" -> don't emit
+            // (opt out of global-enabled)
+            (true, Some(meta_with_annotation("false")), 0),
         ] {
             assert_eq!(
                 collect(std::iter::once(()), always, |()| Some(FakeHost(

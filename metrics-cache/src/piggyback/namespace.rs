@@ -96,6 +96,10 @@ impl PiggybackHost for Namespace<'_> {
         Some(&self.api.metadata)
     }
 
+    fn kind(&self) -> &str {
+        &self.meta.kind
+    }
+
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = vec![WriteableSection::of(&me, &self.info())];

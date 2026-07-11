@@ -86,6 +86,10 @@ impl PiggybackHost for Cluster<'_> {
         None
     }
 
+    fn kind(&self) -> &str {
+        "cluster"
+    }
+
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = "";
         let mut out = Vec::new();
