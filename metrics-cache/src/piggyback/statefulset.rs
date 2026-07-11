@@ -1,5 +1,6 @@
 use k8s_openapi::api::apps::v1;
 use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
@@ -8,7 +9,7 @@ use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
 pub struct StatefulSet<'a> {
-    _api: &'a v1::StatefulSet,
+    api: &'a v1::StatefulSet,
     meta: Meta<'a>,
     snapshot: &'a Snapshot,
     settings: &'a HostSettings,
@@ -24,7 +25,7 @@ impl StatefulSet<'_> {
         let meta = Meta::from_resource(api)?;
         let uid = api.metadata.uid.as_deref()?;
         Some(StatefulSet {
-            _api: api,
+            api,
             meta,
             snapshot,
             settings,
@@ -47,6 +48,10 @@ impl AggregationHost for StatefulSet<'_> {
 }
 
 impl PiggybackHost for StatefulSet<'_> {
+    fn metadata(&self) -> Option<&ObjectMeta> {
+        Some(&self.api.metadata)
+    }
+
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();

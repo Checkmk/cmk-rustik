@@ -77,6 +77,7 @@ impl<'a> Meta<'a> {
 
 /// Represents a piggyback host for which to emit/write a section data.
 pub(crate) trait PiggybackHost {
+    fn metadata(&self) -> Option<&ObjectMeta>;
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>>;
 }
 

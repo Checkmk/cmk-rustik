@@ -1,4 +1,5 @@
 use k8s_openapi::api::core::v1;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
@@ -70,6 +71,10 @@ impl AggregationHost for Pod<'_> {
 }
 
 impl PiggybackHost for Pod<'_> {
+    fn metadata(&self) -> Option<&ObjectMeta> {
+        Some(&self.api.metadata)
+    }
+
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();

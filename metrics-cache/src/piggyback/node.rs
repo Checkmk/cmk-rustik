@@ -1,4 +1,5 @@
 use k8s_openapi::api::core::v1;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
@@ -7,7 +8,7 @@ use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
 pub struct Node<'a> {
-    _api: &'a v1::Node,
+    api: &'a v1::Node,
     meta: Meta<'a>,
     snapshot: &'a Snapshot,
     settings: &'a HostSettings,
@@ -21,7 +22,7 @@ impl Node<'_> {
     ) -> Option<Node<'a>> {
         let meta = Meta::from_resource(api)?;
         Some(Node {
-            _api: api,
+            api,
             meta,
             snapshot,
             settings,
@@ -40,6 +41,10 @@ impl AggregationHost for Node<'_> {
 }
 
 impl PiggybackHost for Node<'_> {
+    fn metadata(&self) -> Option<&ObjectMeta> {
+        Some(&self.api.metadata)
+    }
+
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();

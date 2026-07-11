@@ -1,4 +1,5 @@
 use k8s_openapi::api::core::v1::{Node, Pod};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -81,6 +82,10 @@ impl AggregationHost for Cluster<'_> {
 }
 
 impl PiggybackHost for Cluster<'_> {
+    fn metadata(&self) -> Option<&ObjectMeta> {
+        None
+    }
+
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = "";
         let mut out = Vec::new();
