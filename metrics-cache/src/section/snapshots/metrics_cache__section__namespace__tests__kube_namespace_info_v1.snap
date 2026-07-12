@@ -1,0 +1,20 @@
+---
+source: metrics-cache/src/section/namespace.rs
+expression: "KubeNamespaceInfoV1::from_namespace(&namespace, &settings)"
+---
+{
+  "name": "my-ns",
+  "creation_timestamp": 1718824965.0,
+  "labels": {
+    "kubernetes.io/metadata.name": {
+      "name": "kubernetes.io/metadata.name",
+      "value": "my-ns"
+    }
+  },
+  "annotations": {
+    "checkmk.com/promote-to-host": "true",
+    "example.com/cool-animal": "monkeys"
+  },
+  "cluster": "the-cluster",
+  "kubernetes_cluster_hostname": "cluster.host.tld"
+}

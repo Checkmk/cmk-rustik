@@ -5,7 +5,6 @@ use std::sync::Arc;
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
 use crate::section::{
-    common::LabelRef,
     namespace::KubeNamespaceInfoV1,
     writeable::{SectionError, WriteableSection},
 };
@@ -47,35 +46,6 @@ impl Namespace<'_> {
             None
         }
     }
-
-    /// Generate the section `kube_namespace_info_v1` from a snapshot.
-    fn info<'a>(&'a self) -> KubeNamespaceInfoV1<'a> {
-        KubeNamespaceInfoV1 {
-            name: self.meta.name,
-            creation_timestamp: self
-                .api
-                .metadata
-                .creation_timestamp
-                .as_ref()
-                .map(|t| t.0.as_millisecond() as f64 / 1000.0),
-            labels: self
-                .api
-                .metadata
-                .labels
-                .as_ref()
-                .map(LabelRef::from_map)
-                .unwrap_or_default(),
-            annotations: self
-                .api
-                .metadata
-                .annotations
-                .as_ref()
-                .map(|m| self.settings.annotation_key_pattern.filter(m))
-                .unwrap_or_default(),
-            cluster: &self.settings.cluster_name,
-            kubernetes_cluster_hostname: &self.settings.cluster_host_name,
-        }
-    }
 }
 
 impl AggregationHost for Namespace<'_> {
@@ -102,7 +72,12 @@ impl PiggybackHost for Namespace<'_> {
 
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
-        let mut out = vec![WriteableSection::of(&me, &self.info())];
+        let mut out = Vec::new();
+        if let Some(kube_namespace_info_v1) =
+            KubeNamespaceInfoV1::from_namespace(self.api, self.settings)
+        {
+            out.push(WriteableSection::of(&me, &kube_namespace_info_v1));
+        }
         out.extend(self.aggregation_sections(&me));
         out
     }

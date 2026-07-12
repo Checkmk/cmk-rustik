@@ -1,12 +1,17 @@
 #![cfg(test)]
 
-use k8s_openapi::api::core::v1::{Node, Pod, PodSpec};
+use k8s_openapi::api::core::v1::{Namespace, Node, Pod, PodSpec};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference, Time};
 use k8s_openapi::jiff::Timestamp;
+use std::collections::{BTreeMap, HashMap};
 
-use std::collections::HashMap;
-
+use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings};
 use crate::snapshot::owner_graph::OwnerGraph;
+
+#[inline(always)]
+pub fn s(str: &str) -> String {
+    str.to_string()
+}
 
 pub fn pod(name: &str, node: Option<&str>) -> Pod {
     Pod {
@@ -28,12 +33,12 @@ pub fn pod(name: &str, node: Option<&str>) -> Pod {
 /// Fields might be added in the future.
 pub fn pod_prefilled(name: &str) -> Pod {
     let mut pod = pod(name, Some("node01"));
-    pod.metadata.uid = Some("aaca3e54-7772-4af7-881f-c912008bc541".to_string());
-    pod.metadata.namespace = Some("the-namespace-of-all-namespaces".to_string());
-    pod.metadata.labels = Some([("app".to_string(), "nginx".to_string())].into());
+    pod.metadata.uid = Some(s("aaca3e54-7772-4af7-881f-c912008bc541"));
+    pod.metadata.namespace = Some(s("the-namespace-of-all-namespaces"));
+    pod.metadata.labels = Some([(s("app"), s("nginx"))].into());
     let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
     pod.metadata.creation_timestamp = Some(Time(timestamp));
-    pod.status.get_or_insert_with(Default::default).qos_class = Some("Burstable".to_string());
+    pod.status.get_or_insert_with(Default::default).qos_class = Some(s("Burstable"));
     pod
 }
 
@@ -64,5 +69,34 @@ pub fn owner_graph(edges: &[(&str, OwnerReference)]) -> OwnerGraph {
             .map(|(uid, owner)| ((*uid).into(), owner.clone()))
             .collect(),
         pods_by_controller: HashMap::new(),
+    }
+}
+
+pub fn namespace(name: &str) -> Namespace {
+    let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
+    let annotations = BTreeMap::from([
+        (s("example.com/cool-animal"), s("monkeys")),
+        (s("checkmk.com/promote-to-host"), s("true")),
+    ]);
+    let labels = BTreeMap::from([(s("kubernetes.io/metadata.name"), name.to_string())]);
+    Namespace {
+        metadata: ObjectMeta {
+            name: Some(name.to_string()),
+            creation_timestamp: Some(Time(timestamp)),
+            annotations: Some(annotations),
+            labels: Some(labels),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+pub fn host_settings() -> HostSettings {
+    HostSettings {
+        cluster_name: s("the-cluster"),
+        cluster_host_name: s("cluster.host.tld"),
+        annotation_key_pattern: AnnotationKeyPattern::ImportAll,
+        excluded_node_role_patterns: Vec::new(),
+        always_emitted: AlwaysEmitted::default(),
     }
 }
