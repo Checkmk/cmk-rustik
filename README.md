@@ -106,4 +106,4 @@ useful ones are the ones mentioned above.
 
 ## License
 
-GPLv2
+GPL-2.0-only
