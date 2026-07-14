@@ -23,6 +23,11 @@ pub enum Error {
     Rcgen(#[from] rcgen::Error),
     #[error("push-mode error: {0}")]
     PushMode(String),
+    #[error(
+        "push mode is enabled but no registration token was given; set push.registrationToken in \
+         helm values or create the identity secret manually"
+    )]
+    MissingRegistrationToken,
 }
 
 /// Generate, compress, and push sections from the current state.

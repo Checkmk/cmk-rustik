@@ -116,6 +116,10 @@ pub struct CliArgs {
     #[arg(long = "push-receiver")]
     pub push_receiver: Option<String>,
 
+    /// Token to register with the Checkmk push-agent receiver for push mode
+    #[arg(long, env = "CMK_PUSH_AGENT_RECEIVER_OTT", hide_env_values = true)]
+    pub push_registration_ott: Option<String>,
+
     /// Excluded node role (infix) patterns for cluster-level aggregations,
     /// comma-separated
     #[arg(long = "excluded-node-role-patterns", value_delimiter = ',')]

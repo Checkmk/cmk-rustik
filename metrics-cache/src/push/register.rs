@@ -32,7 +32,7 @@ use tracing::{error, info, trace};
 use uuid::Uuid;
 
 use crate::cli_args::CliArgs;
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::push;
 
 const CERT_SECRET: &str = "metrics-cache-cmk-push-cert";
@@ -117,6 +117,7 @@ impl<'a> CheckmkPushRegistration<'a> {
         &self,
         csr: String,
         uuid: &Uuid,
+        token: &Option<String>,
     ) -> Result<PushAgentRegistrationResponse> {
         let Some(base_url) = &self.cli_args.push_receiver else {
             error!("Push receiver URL not provided, cannot register");
@@ -127,15 +128,15 @@ impl<'a> CheckmkPushRegistration<'a> {
             base_url.trim_end_matches('/')
         );
         tracing::Span::current().record("url", url.as_str());
-        let ott = match std::env::var("CMK_PUSH_AGENT_RECEIVER_OTT") {
-            Ok(token) => token,
-            Err(e) => {
-                error!("CMK_PUSH_AGENT_RECEIVER_OTT not set, cannot register push agent");
-                return Err(Error::EnvVar {
-                    name: "CMK_PUSH_AGENT_RECEIVER_OTT".to_string(),
-                    source: e,
-                });
-            }
+        let Some(ott) = token else {
+            return Err(push::Error::PushMode(
+                "Push mode was enabled but the agent is not yet registered (no stored \
+                 certificate secret found) and no registration token was supplied. If you are \
+                 trying to configure push mode, set your registration token in your helm \
+                 push.registrationToken or create the token secret manually."
+                    .to_string(),
+            )
+            .into());
         };
         let client = reqwest::ClientBuilder::new()
             .danger_accept_invalid_certs(true) // TOFU for register
@@ -195,7 +196,9 @@ impl<'a> CheckmkPushRegistration<'a> {
                 let uuid = Uuid::new_v4();
                 tracing::Span::current().record("uuid", uuid.to_string().as_str());
                 let (csr, private_key) = self.generate_registration_csr(&uuid)?;
-                let response = self.send_registration_request(csr, &uuid).await?;
+                let response = self
+                    .send_registration_request(csr, &uuid, &self.cli_args.push_registration_ott)
+                    .await?;
                 // Create the Secret with the received certificates and private key
                 let secrets: Api<Secret> = Api::default_namespaced(self.kube_client.clone());
                 let secret = Secret {
