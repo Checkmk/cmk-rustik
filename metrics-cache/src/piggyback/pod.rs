@@ -42,21 +42,25 @@ impl<'a> Pod<'a> {
     /// to the pod which has a corresponding PVC in the snapshot.
     fn pvcs(&'a self) -> Option<KubePvcV1<'a>> {
         let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
-        KubePvcV1::from_claim_names(self.snapshot, self.meta.namespace?, claim_names)
+        KubePvcV1::from_claim_names(&self.snapshot.indexes, self.meta.namespace?, claim_names)
     }
 
     /// Generate the section `kube_pvc_volumes_v1` which extends PVC information
     /// with live usage metrics (capacity/free space).
     fn pvc_volumes(&'a self) -> Option<KubePvcVolumesV1<'a>> {
         let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
-        KubePvcVolumesV1::from_claim_names(self.snapshot, self.meta.namespace?, claim_names)
+        KubePvcVolumesV1::from_claim_names(
+            &self.snapshot.metrics,
+            self.meta.namespace?,
+            claim_names,
+        )
     }
 
     /// Generate the section `kube_pvc_pvs_v1` which extends PVC information
     /// with PV information.
     fn pvs(&'a self) -> Option<KubePvcPvsV1<'a>> {
         let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
-        KubePvcPvsV1::from_claim_names(self.snapshot, self.meta.namespace?, claim_names)
+        KubePvcPvsV1::from_claim_names(&self.snapshot.indexes, self.meta.namespace?, claim_names)
     }
 }
 

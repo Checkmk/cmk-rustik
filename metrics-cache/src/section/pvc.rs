@@ -5,7 +5,8 @@ use std::sync::Arc;
 
 use crate::section::Section;
 use crate::section::common::parse_quantity;
-use crate::snapshot::Snapshot;
+use crate::snapshot::indexes::Indexes;
+use crate::snapshot::metric_tables::MetricTables;
 
 #[derive(Debug, Serialize)]
 enum Phase {
@@ -88,21 +89,21 @@ impl<'a> KubePvcV1<'a> {
     ///
     /// In several cases, we might not "be able" to generate PVC information.
     ///
-    /// For example, if a claim name is provided which does not exist in the
-    /// [`Snapshot`] (and therefore was not known by the Kubernetes API at the
+    /// For example, if a claim name is provided which does not exist in
+    /// `indexes` (and therefore was not known by the Kubernetes API at the
     /// time of snapshot capture), that claim name is skipped.
     ///
     /// If we get to the end and would not produce information for _any_ claim
     /// name, we return `None` so that the section-emit call site can omit the
     /// section entirely.
     pub fn from_claim_names(
-        snap: &'a Snapshot,
+        indexes: &'a Indexes,
         namespace: &'a str,
         claim_names: impl IntoIterator<Item = &'a str>,
     ) -> Option<KubePvcV1<'a>> {
         let mut out = Self::default();
         for claim_name in claim_names {
-            let Some(pvc) = snap.indexes.pvc(namespace, claim_name) else {
+            let Some(pvc) = indexes.pvc(namespace, claim_name) else {
                 continue;
             };
             let Some(name) = pvc.metadata.name.as_deref() else {
@@ -188,20 +189,19 @@ pub(crate) struct KubePvcVolumesV1<'a> {
 }
 
 impl<'a> KubePvcVolumesV1<'a> {
-    /// Uses data from the [`crate::snapshot::metric_tables::MetricTables`] of
-    /// the given [`Snapshot`] to provide real-time usage data for PVC volumes,
-    /// in contrast to [`KubePvcV1::from_claim_names()`] which uses only API
-    /// data and does not provide usage data.
+    /// Uses data from the given [`MetricTables`] to provide real-time usage
+    /// data for PVC volumes, in contrast to [`KubePvcV1::from_claim_names()`]
+    /// which uses only API data and does not provide usage data.
     ///
     /// Returns None if no claim has volume stats.
     pub fn from_claim_names(
-        snap: &'a Snapshot,
+        metric_tables: &'a MetricTables,
         namespace: &'a str,
         claim_names: impl IntoIterator<Item = &'a str>,
     ) -> Option<KubePvcVolumesV1<'a>> {
         let mut out = Self::default();
         for claim_name in claim_names {
-            let Some(sample) = snap.metrics.pvc_volume(namespace, claim_name) else {
+            let Some(sample) = metric_tables.pvc_volume(namespace, claim_name) else {
                 continue;
             };
             let volume = AttachedVolume {
@@ -252,13 +252,13 @@ impl<'a> KubePvcPvsV1<'a> {
     ///
     /// Returns None if no claims have a backing PV.
     pub fn from_claim_names(
-        snap: &'a Snapshot,
+        indexes: &'a Indexes,
         namespace: &'a str,
         claim_names: impl IntoIterator<Item = &'a str>,
     ) -> Option<KubePvcPvsV1<'a>> {
         let mut out = Self::default();
         for claim_name in claim_names {
-            let Some(pvc) = snap.indexes.pvc(namespace, claim_name) else {
+            let Some(pvc) = indexes.pvc(namespace, claim_name) else {
                 continue;
             };
 
@@ -266,7 +266,7 @@ impl<'a> KubePvcPvsV1<'a> {
                 continue;
             };
 
-            let Some(pv) = snap.indexes.pv(volume_name) else {
+            let Some(pv) = indexes.pv(volume_name) else {
                 continue;
             };
 
