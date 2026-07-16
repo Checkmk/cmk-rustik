@@ -106,9 +106,6 @@ impl<'a> KubePvcV1<'a> {
             let Some(pvc) = indexes.pvc(namespace, claim_name) else {
                 continue;
             };
-            let Some(name) = pvc.metadata.name.as_deref() else {
-                continue;
-            };
             let capacity = pvc
                 .status
                 .as_ref()
@@ -117,7 +114,10 @@ impl<'a> KubePvcV1<'a> {
                 .and_then(|q| parse_quantity(&q.0))
                 .map(|v| StorageRequirement { storage: v as u64 });
             let claim = Claim {
-                metadata: Metadata { name, namespace },
+                metadata: Metadata {
+                    name: claim_name,
+                    namespace,
+                },
                 status: Status {
                     phase: pvc
                         .status
@@ -312,4 +312,67 @@ impl<'a> KubePvcPvsV1<'a> {
 
 impl Section for KubePvcPvsV1<'_> {
     const NAME: &'static str = "kube_pvc_pvs_v1";
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::*;
+    use std::assert_matches;
+
+    fn pvc_indexes() -> Indexes {
+        let pvc1 = pvc("pvc-1");
+        let pvc2 = pvc("pvc-2");
+        let mut indexes = Indexes::default();
+        for pvc in [pvc1, pvc2] {
+            indexes
+                .pvcs
+                .entry(pvc.metadata.namespace.clone().unwrap())
+                .or_default()
+                .insert(pvc.metadata.name.clone().unwrap(), pvc.into());
+        }
+        indexes
+    }
+
+    #[test]
+    fn kube_pvc_v1() {
+        let indexes = pvc_indexes();
+
+        // All claim names match, section render
+        insta::assert_json_snapshot!(KubePvcV1::from_claim_names(
+            &indexes,
+            "really-cool-namespace",
+            ["pvc-1", "pvc-2"]
+        ));
+
+        // If no claim names match, do not produce a section at all
+        assert_matches!(
+            KubePvcV1::from_claim_names(&indexes, "really-cool-namespace", ["bad", "worse"]),
+            None
+        );
+
+        // But if one does, then do produce a section
+        assert_eq!(
+            KubePvcV1::from_claim_names(&indexes, "really-cool-namespace", ["bad", "pvc-1"])
+                .unwrap()
+                .claims
+                .len(),
+            1
+        );
+
+        // Order of claim names does not matter
+        assert_eq!(
+            KubePvcV1::from_claim_names(&indexes, "really-cool-namespace", ["pvc-1", "bad"])
+                .unwrap()
+                .claims
+                .len(),
+            1
+        );
+
+        // If everything is in another namespace, do not produce a section
+        assert_matches!(
+            KubePvcV1::from_claim_names(&indexes, "ANOTHER-namespace", ["pvc-1", "pvc-2"]),
+            None
+        );
+    }
 }

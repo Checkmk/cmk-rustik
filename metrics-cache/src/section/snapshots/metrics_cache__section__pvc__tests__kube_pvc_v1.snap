@@ -1,0 +1,36 @@
+---
+source: metrics-cache/src/section/pvc.rs
+expression: "KubePvcV1::from_claim_names(&indexes, \"really-cool-namespace\",\n[\"pvc-1\", \"pvc-2\"])"
+---
+{
+  "claims": {
+    "pvc-1": {
+      "metadata": {
+        "name": "pvc-1",
+        "namespace": "really-cool-namespace"
+      },
+      "status": {
+        "phase": "Bound",
+        "capacity": {
+          "storage": 1073741824
+        },
+        "current_volume_attributes_class_name": "silver"
+      },
+      "volume_name": "test-local-pv"
+    },
+    "pvc-2": {
+      "metadata": {
+        "name": "pvc-2",
+        "namespace": "really-cool-namespace"
+      },
+      "status": {
+        "phase": "Bound",
+        "capacity": {
+          "storage": 1073741824
+        },
+        "current_volume_attributes_class_name": "silver"
+      },
+      "volume_name": "test-local-pv"
+    }
+  }
+}

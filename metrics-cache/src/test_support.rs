@@ -1,6 +1,10 @@
 #![cfg(test)]
 
-use k8s_openapi::api::core::v1::{Namespace, Node, Pod, PodSpec};
+use k8s_openapi::api::core::v1::{
+    Namespace, Node, PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimStatus,
+    Pod, PodSpec, VolumeResourceRequirements,
+};
+use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference, Time};
 use k8s_openapi::jiff::Timestamp;
 use std::collections::{BTreeMap, HashMap};
@@ -98,5 +102,36 @@ pub fn host_settings() -> HostSettings {
         annotation_key_pattern: AnnotationKeyPattern::ImportAll,
         excluded_node_role_patterns: Vec::new(),
         always_emitted: AlwaysEmitted::default(),
+    }
+}
+
+pub fn pvc(name: &str) -> PersistentVolumeClaim {
+    let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
+    PersistentVolumeClaim {
+        metadata: ObjectMeta {
+            creation_timestamp: Some(Time(timestamp)),
+            name: Some(name.to_string()),
+            namespace: Some(s("really-cool-namespace")),
+            ..Default::default()
+        },
+        spec: Some(PersistentVolumeClaimSpec {
+            access_modes: Some(vec![s("ReadWriteOnce")]),
+            resources: Some(VolumeResourceRequirements {
+                requests: Some(BTreeMap::from([(s("storage"), Quantity(s("1Gi")))])),
+                ..Default::default()
+            }),
+            storage_class_name: Some(s("manual")),
+            volume_attributes_class_name: Some(s("silver")),
+            volume_mode: Some(s("Filesystem")),
+            volume_name: Some(s("test-local-pv")),
+            ..Default::default()
+        }),
+        status: Some(PersistentVolumeClaimStatus {
+            access_modes: Some(vec![s("ReadWriteOnce")]),
+            capacity: Some(BTreeMap::from([(s("storage"), Quantity(s("1Gi")))])),
+            current_volume_attributes_class_name: Some(s("silver")),
+            phase: Some(s("Bound")),
+            ..Default::default()
+        }),
     }
 }

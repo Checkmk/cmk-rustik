@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::ingest::reflectors::FrozenStores;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Indexes {
     /// Map namespace names to all the pods within that namespace.
     pub pods_by_namespace: HashMap<String, Vec<Arc<Pod>>>,
