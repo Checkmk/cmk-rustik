@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use k8s_openapi::api::apps::v1::ReplicaSet;
 use k8s_openapi::api::core::v1::{
     Container, Namespace, Node, PersistentVolumeClaim, PersistentVolumeClaimSpec,
     PersistentVolumeClaimStatus, Pod, PodSpec, VolumeResourceRequirements,
@@ -44,6 +45,27 @@ pub fn pod_prefilled(name: &str) -> Pod {
     pod.metadata.creation_timestamp = Some(Time(timestamp));
     pod.status.get_or_insert_with(Default::default).qos_class = Some(s("Burstable"));
     pod
+}
+
+/// A Pod owned by a particular [`OwnerReference`].
+pub fn pod_owned_by(name: &str, uid: &str, owner: OwnerReference) -> Pod {
+    let mut pod = pod(name, Some("node"));
+    pod.metadata.uid = Some(uid.to_string());
+    pod.metadata.owner_references = Some(vec![owner]);
+    pod
+}
+
+/// A ReplicaSet owned by a particular [`OwnerReference`].
+pub fn replicaset_owned_by(name: &str, uid: &str, owner: OwnerReference) -> ReplicaSet {
+    ReplicaSet {
+        metadata: ObjectMeta {
+            name: Some(name.to_string()),
+            uid: Some(uid.to_string()),
+            owner_references: Some(vec![owner]),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
 }
 
 /// A container, used in a Pod spec
