@@ -49,3 +49,10 @@ lint-helm:
     helm template ./charts/cmk-rustik/ -f charts/cmk-rustik/ci/ci-values.yaml \
       | kubeconform
     ct lint --all
+
+# Run a rough subset of what runs in CI
+sanity: lint-helm
+    cargo doc --workspace --no-deps --document-private-items
+    cargo test
+    cargo clippy
+    cargo fmt --check

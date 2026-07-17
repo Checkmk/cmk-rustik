@@ -80,7 +80,11 @@ slightly faster, consider installing the linker `mold` and setting this in your
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 ```
 
-Spin up the dev environment with `just kind-dev`. This will:
+### Starting the dev environment
+
+(Do this _after_ you have a successful build with `cargo build`)
+
+Spin up the dev environment with **`just kind-dev`**. This will:
 * Build a dev image (does _not_ compile rustik in Docker like the images from CI
   do - it's too slow in the dev env)
 * Spin up a kind cluster with a specific config (`devel/kind-config.yaml` + a
@@ -100,6 +104,11 @@ overrides, such as
 See the variables at the top of the `justfile` for options.
 
 `just kind-dev-teardown` will tear down the kind cluster and everything in it.
+
+`just sanity` will run a rough subset of what the CI workflows run. It is not a
+completely replication of CI, but in many cases it will find issues before you
+have to wait for the full CI run. If you use pre-commit hooks, this could be a
+good command to consider running from it.
 
 `just -l` gives you a list of all available recipies. But the most common and
 useful ones are the ones mentioned above.
