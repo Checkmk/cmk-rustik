@@ -69,9 +69,10 @@ struct Claim<'a> {
 ///
 /// We _could_ do that lookup on the fly, but since multiple pods likely exist
 /// in the same namespace, we avoid needing to loop over the PVCs multiple times
-/// by instead caching a mapping in the [`Snapshot`]. In particular, we build a
-/// `HashMap` that is indexed by the PVC's name, which is what a pod's claim
-/// name resolves to, like this: `map[namespace][claim_name] -> PVC`.
+/// by instead caching a mapping in the [`crate::snapshot::Snapshot`]. In
+/// particular, we build a `HashMap` that is indexed by the PVC's name, which is
+/// what a pod's claim name resolves to, like this:
+/// `map[namespace][claim_name] -> PVC`.
 ///
 /// Then in the implementation below, we simply take `namespace` and the list
 /// of claim names we care about (determined by [`Self::pod_pvc_claim_names()`]
