@@ -1,9 +1,10 @@
-name: images
+---
+name: Reusable image build workflow
 
+# Builds and pushes the component images. Called by ci.yml for branch
+# pushes and eventually release.yml tag/release builds.
 on:
-  push:
-    branches: ['**']
-    tags: ['*']
+  workflow_call:
 
 permissions:
   contents: read

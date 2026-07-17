@@ -3,7 +3,7 @@ name: helm chart
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: [images]
+    workflows: [CI]
     types: [completed]
     branches: [master]
 
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   helm:
-    # Only publish the chart if the image builds it references succeeded.
+    # Only publish the chart if CI and the image builds it references succeeded.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
