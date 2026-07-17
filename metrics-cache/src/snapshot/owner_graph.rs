@@ -1,3 +1,4 @@
+use k8s_openapi::api::apps::v1::ReplicaSet;
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::ResourceExt;
@@ -38,8 +39,9 @@ impl OwnerGraph {
     /// Outside of testing, this normally only gets called by
     /// [`crate::snapshot::Snapshot::new()`].
     pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
-        let owner_ref_by_uid = Self::map_object_uids_to_owner_ref(stores);
-        let pods_by_controller = Self::get_pods_by_controller(stores, &owner_ref_by_uid);
+        let owner_ref_by_uid =
+            Self::map_object_uids_to_owner_ref(&stores.pods, &stores.replicasets);
+        let pods_by_controller = Self::get_pods_by_controller(&stores.pods, &owner_ref_by_uid);
         OwnerGraph {
             owner_ref_by_uid,
             pods_by_controller,
@@ -53,12 +55,12 @@ impl OwnerGraph {
     /// Theory says there should only be at most one per object anyway.
     /// If one is found, the object's [`Uid`] is used as the key in the map
     /// and the [`OwnerReference`] is taken as the value.
-    ///
-    /// Not everything in the `Stores` is iterated; only things actually
-    /// likely to have a controller owner (e.g. Pods, ReplicaSets, ...).
-    fn map_object_uids_to_owner_ref(stores: &FrozenStores) -> HashMap<Uid, OwnerReference> {
+    fn map_object_uids_to_owner_ref(
+        pods: &[Arc<Pod>],
+        replicasets: &[Arc<ReplicaSet>],
+    ) -> HashMap<Uid, OwnerReference> {
         let mut map = HashMap::new();
-        for pod in &stores.pods {
+        for pod in pods {
             if let Some(owner_controller) = pod
                 .owner_references()
                 .iter()
@@ -68,7 +70,7 @@ impl OwnerGraph {
                 map.insert(Uid(uid.into()), owner_controller.to_owned());
             }
         }
-        for rs in &stores.replicasets {
+        for rs in replicasets {
             if let Some(owner_controller) = rs
                 .owner_references()
                 .iter()
@@ -86,11 +88,11 @@ impl OwnerGraph {
     /// chain, so, for example, a Deployment entry includes pods owned via its
     /// ReplicaSets.
     fn get_pods_by_controller(
-        stores: &FrozenStores,
+        pods: &[Arc<Pod>],
         owner_ref_by_uid: &HashMap<Uid, OwnerReference>,
     ) -> HashMap<Uid, Vec<Arc<Pod>>> {
         let mut out: HashMap<Uid, Vec<Arc<Pod>>> = HashMap::new();
-        for pod in &stores.pods {
+        for pod in pods {
             let Some(pod_uid) = pod.metadata.uid.as_deref() else {
                 continue;
             };
