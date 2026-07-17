@@ -8,6 +8,7 @@ use crate::auth::kubernetes::TokenValidator;
 use crate::cli_args::CliArgs;
 use crate::error::Result;
 use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings};
+use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::Stores;
 
@@ -20,7 +21,7 @@ pub struct AppState<V: TokenValidator> {
     pub stores: Stores,
     pub reader_allowlist: Vec<String>,
     pub writer_allowlist: Vec<String>,
-    pub kubelet_stats_summary_cache: Cache<String, Arc<StatsSummary>>,
+    pub kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
     pub host_settings: Arc<HostSettings>,
 }
 

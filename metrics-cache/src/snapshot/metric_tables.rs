@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::ops::{Add, AddAssign};
 use std::sync::Arc;
 
+use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::kubelet_stats::StatsSummary;
 
 /// One point-in-time performance sample for a container (or a sum of such
@@ -82,13 +83,15 @@ impl MetricTables {
     ///
     /// We iterate each Kubelet stats summary (one per node) once, and iterate its
     /// pods once.
-    pub fn from_cache(kubelet_stats_summary_cache: Cache<String, Arc<StatsSummary>>) -> Self {
+    pub fn from_cache(
+        kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
+    ) -> Self {
         let mut containers: HashMap<String, HashMap<String, HashMap<String, Sample>>> =
             HashMap::new();
         let mut pvc_volumes: HashMap<String, HashMap<String, VolumeSample>> = HashMap::new();
 
         for (_, stats_summary) in kubelet_stats_summary_cache.iter() {
-            for pod in &stats_summary.pods {
+            for pod in &stats_summary.payload.pods {
                 // Containers
                 let pod_map = containers
                     .entry(pod.pod_ref.namespace.clone())

@@ -6,6 +6,7 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::kubelet_stats::{Container, Pod, StatsSummary};
 use crate::otel::wire::{Attribute, KubeEntity, KubeGauge, Value};
 
@@ -52,15 +53,15 @@ fn epoch_nanos() -> u64 {
 /// the gauge is simply omitted, and an entity with no gauges at all is not
 /// emitted (this mirrors the kubeletstats receiver's behavior).
 pub(super) fn collect_entities(
-    stat_summaries: impl IntoIterator<Item = Arc<StatsSummary>>,
+    stat_summaries: impl IntoIterator<Item = Arc<MetricsFetcherIngestion<StatsSummary>>>,
     cluster_name: &str,
 ) -> Vec<KubeEntity> {
     let mut out: Vec<KubeEntity> = Vec::new();
     let now = epoch_nanos();
     for summary in stat_summaries {
-        for pod in &summary.pods {
+        for pod in &summary.payload.pods {
             // Attributes for the pod *and* its containers
-            let p_attributes = pod_attributes(cluster_name, &summary.node.node_name, pod);
+            let p_attributes = pod_attributes(cluster_name, &summary.payload.node.node_name, pod);
 
             // Pod aggregations. `None` until some container reports a sample.
             let mut p_working_set_bytes: Option<i64> = None;

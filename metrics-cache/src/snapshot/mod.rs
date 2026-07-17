@@ -6,6 +6,7 @@ use moka::future::Cache;
 use std::borrow::Borrow;
 use std::sync::Arc;
 
+use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::{FrozenStores, Stores};
 use crate::snapshot::indexes::Indexes;
@@ -39,7 +40,7 @@ impl Snapshot {
     /// [`kube::runtime::reflector::Store`]s and all stat summaries scraped from the Kubelet.
     pub fn new(
         stores: Stores,
-        kubelet_stats_summary_cache: Cache<String, Arc<StatsSummary>>,
+        kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
     ) -> Self {
         let stores = stores.freeze();
         let owner_graph = OwnerGraph::from_frozen_stores(&stores);
