@@ -1,8 +1,8 @@
 #![cfg(test)]
 
 use k8s_openapi::api::core::v1::{
-    Namespace, Node, PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimStatus,
-    Pod, PodSpec, VolumeResourceRequirements,
+    Container, Namespace, Node, PersistentVolumeClaim, PersistentVolumeClaimSpec,
+    PersistentVolumeClaimStatus, Pod, PodSpec, VolumeResourceRequirements,
 };
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference, Time};
@@ -44,6 +44,17 @@ pub fn pod_prefilled(name: &str) -> Pod {
     pod.metadata.creation_timestamp = Some(Time(timestamp));
     pod.status.get_or_insert_with(Default::default).qos_class = Some(s("Burstable"));
     pod
+}
+
+/// A container, used in a Pod spec
+pub fn container(name: &str) -> Container {
+    Container {
+        name: name.to_string(),
+        image: Some(s("debian:latest")),
+        command: Some(vec![s("/bin/sleep")]),
+        args: Some(vec![s("1h")]),
+        ..Default::default()
+    }
 }
 
 pub fn node(name: &str) -> Node {
