@@ -40,10 +40,10 @@ Ultimate or higher.
 
 ## Building / Dev Environment
 
-A quick list of dependencies you will likely need, to build rustik:
+A quick list of dependencies you will likely need to build rustik:
 
-* A musl toolchain, since target Alpine (`musl-tools` on Debian-ish)
-* A rust toolchain (we target stable, not nightly). Also helpful to have a few
+* A musl toolchain, since we target Alpine (`musl-tools` on Debian-ish)
+* A Rust toolchain (we target stable, not nightly). Also helpful to have a few
   components like `clippy` and `rustfmt`. Also `rust-analyzer` if you want
   LSP/IDE integration
 * [just](https://github.com/casey/just) as our command runner of choice
@@ -53,7 +53,7 @@ A quick list of dependencies you will likely need, to build rustik:
   `kc` to `kubectl -n checkmk-monitoring` and then use
   [complete-alias](https://github.com/cykerway/complete-alias) to get completion
   on the alias)
-* [helm](https://helm.sh/) for the helm chart (the dev env assumes it)
+* [helm](https://helm.sh/) for the Helm chart (the dev env assumes it)
 * (optional) [kubeconform](https://github.com/yannh/kubeconform)
   (`just lint-helm` assumes it)
 * (optional) [chart-testing](https://github.com/helm/chart-testing)
@@ -71,7 +71,7 @@ Run the tests with `cargo test`. We make heavy use of
 section output, run `cargo insta review` to look at and accept the new
 snapshots.
 
-As as another optional dependency to make `cargo build` link our own binaries
+As another optional dependency to make `cargo build` link our own binaries
 slightly faster, consider installing the linker `mold` and setting this in your
 `~/.cargo/config.toml`:
 
@@ -89,15 +89,15 @@ Spin up the dev environment with **`just kind-dev`**. This will:
   do - it's too slow in the dev env)
 * Spin up a kind cluster with a specific config (`devel/kind-config.yaml` + a
   `sed` to point it to the source directory).
-* Kind will mount your source directory into the docker container running
+* Kind will mount your source directory into the Docker container running
   Kubernetes, and then these can be mounted into the containers that Kubernetes
   spawns.
-* Install the helm chart from a set of development defaults
-  (`devel/values.yaml`), which do the source mount mentioned in the previous
-  point.
+* Install the Helm chart from a set of development defaults
+  (`devel/values.yaml`), which configure the source mount mentioned in the
+  previous point.
 
 If you are iterating on the Helm chart, you can `just kind-helm-delete` and
-`just kind-helm-install`. For the actions which install the helm chart
+`just kind-helm-install`. For the targets which install the Helm chart
 (such as `kind-helm-install` but also `kind-dev`), you can pass in several
 overrides, such as
 `just push=true push_ott=0:e07f1760-d9de-4bb0-a55e-a0fcc4e8355f kind-dev`.
@@ -106,11 +106,11 @@ See the variables at the top of the `justfile` for options.
 `just kind-dev-teardown` will tear down the kind cluster and everything in it.
 
 `just sanity` will run a rough subset of what the CI workflows run. It is not a
-completely replication of CI, but in many cases it will find issues before you
+complete replication of CI, but in many cases it will find issues before you
 have to wait for the full CI run. If you use pre-commit hooks, this could be a
-good command to consider running from it.
+good command to consider running from one of them.
 
-`just -l` gives you a list of all available recipies. But the most common and
+`just -l` gives you a list of all available recipes. But the most common and
 useful ones are the ones mentioned above.
 
 ## License
