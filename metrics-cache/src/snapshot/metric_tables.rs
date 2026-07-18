@@ -84,7 +84,7 @@ impl MetricTables {
     /// We iterate each Kubelet stats summary (one per node) once, and iterate its
     /// pods once.
     pub fn from_cache(
-        kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
+        kubelet_stats_summary_cache: &Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
     ) -> Self {
         let mut containers: HashMap<String, HashMap<String, HashMap<String, Sample>>> =
             HashMap::new();

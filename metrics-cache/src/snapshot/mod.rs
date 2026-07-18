@@ -1,10 +1,12 @@
 pub mod indexes;
 pub mod metric_tables;
 pub mod owner_graph;
+pub mod self_health;
 
 use moka::future::Cache;
 use std::borrow::Borrow;
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::kubelet_stats::StatsSummary;
@@ -12,6 +14,7 @@ use crate::ingest::reflectors::{FrozenStores, Stores};
 use crate::snapshot::indexes::Indexes;
 use crate::snapshot::metric_tables::MetricTables;
 use crate::snapshot::owner_graph::OwnerGraph;
+use crate::snapshot::self_health::SelfHealth;
 
 /// Represents a single, static snapshot of the state of the cluster as it
 /// pertains to Checkmk monitoring.
@@ -29,10 +32,12 @@ use crate::snapshot::owner_graph::OwnerGraph;
 /// indexes useful for looking up resources by particular keys.
 #[derive(Debug)]
 pub struct Snapshot {
+    pub instant: Instant,
     pub stores: FrozenStores,
     pub owner_graph: OwnerGraph,
     pub metrics: MetricTables,
     pub indexes: Indexes,
+    pub self_health: SelfHealth,
 }
 
 impl Snapshot {
@@ -42,15 +47,19 @@ impl Snapshot {
         stores: Stores,
         kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
     ) -> Self {
+        let instant = Instant::now();
         let stores = stores.freeze();
         let owner_graph = OwnerGraph::from_frozen_stores(&stores);
-        let metrics = MetricTables::from_cache(kubelet_stats_summary_cache);
+        let metrics = MetricTables::from_cache(&kubelet_stats_summary_cache);
         let indexes = Indexes::from_frozen_stores(&stores);
+        let self_health = SelfHealth::new(instant, &stores.nodes, &kubelet_stats_summary_cache);
         Snapshot {
+            instant,
             stores,
             owner_graph,
             metrics,
             indexes,
+            self_health,
         }
     }
 }
