@@ -4,6 +4,7 @@ pub mod performance;
 pub mod pod;
 pub mod pvc;
 pub mod resource;
+pub mod self_health;
 pub mod writeable;
 
 use serde::Serialize;

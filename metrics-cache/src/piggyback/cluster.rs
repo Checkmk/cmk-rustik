@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, PiggybackHost};
+use crate::section::self_health::KubeRustikHealthV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
@@ -94,6 +95,10 @@ impl PiggybackHost for Cluster<'_> {
         let me = "";
         let mut out = Vec::new();
         out.extend(self.aggregation_sections(me));
+        out.push(WriteableSection::of(
+            me,
+            &KubeRustikHealthV1::from_self_health(&self.snapshot.self_health),
+        ));
         out
     }
 }

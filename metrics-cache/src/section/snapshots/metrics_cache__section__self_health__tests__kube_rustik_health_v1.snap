@@ -1,0 +1,12 @@
+---
+source: metrics-cache/src/section/self_health.rs
+expression: section
+---
+{
+  "node_kubelet_stats_last_heard_secs": {
+    "node01": 26,
+    "node02": 240,
+    "node03": 120,
+    "offline01": null
+  }
+}
