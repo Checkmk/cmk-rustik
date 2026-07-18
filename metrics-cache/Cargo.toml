@@ -23,6 +23,7 @@ kube = { version = "4.0", features = ["ring", "runtime"] }
 moka = { version = "0.12.15", features = ["future"] }
 opentelemetry-proto = { version = "0.32", default-features = false, features = ["gen-tonic-messages", "metrics"] }
 os-release = { workspace = true }
+parking_lot = "0.12.5"
 prost = "0.14"
 rcgen = "0.14.8"
 regex = "1.12.4"

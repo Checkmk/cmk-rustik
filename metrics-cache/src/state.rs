@@ -113,6 +113,7 @@ pub mod tests {
                 persistent_volumes: persistent_volume_store,
                 persistent_volume_claims: persistent_volume_claim_store,
                 statefulsets: statefulset_store,
+                healths: Default::default(),
             },
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],

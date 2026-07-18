@@ -1575,6 +1575,7 @@ dependencies = [
  "moka",
  "opentelemetry-proto",
  "os-release",
+ "parking_lot",
  "prost",
  "rcgen",
  "regex",
