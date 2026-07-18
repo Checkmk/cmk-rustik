@@ -318,8 +318,9 @@ impl Section for KubePvcPvsV1<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::*;
     use std::assert_matches;
+
+    use crate::test_support::*;
 
     fn pvc_indexes() -> Indexes {
         let pvc1 = pvc("pvc-1");
