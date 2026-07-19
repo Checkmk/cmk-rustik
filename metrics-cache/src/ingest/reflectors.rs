@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::iter::IntoIterator;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::task::JoinSet;
@@ -257,6 +258,30 @@ pub(crate) struct FrozenReflectorHealths {
     pub(crate) persistent_volumes: ReflectorHealth,
     pub(crate) persistent_volume_claims: ReflectorHealth,
     pub(crate) statefulsets: ReflectorHealth,
+}
+
+const REFLECTOR_COUNT: usize = 9;
+
+// Pardon the "cute" IntoIter here; it avoids having to edit
+// crate::snapshot::self_health every time a new reflector is added here.
+impl IntoIterator for FrozenReflectorHealths {
+    type Item = (&'static str, ReflectorHealth);
+    type IntoIter = std::array::IntoIter<Self::Item, REFLECTOR_COUNT>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [
+            ("pods", self.pods),
+            ("nodes", self.nodes),
+            ("deployments", self.deployments),
+            ("daemonsets", self.daemonsets),
+            ("namespaces", self.namespaces),
+            ("replicasets", self.replicasets),
+            ("persistent_volumes", self.persistent_volumes),
+            ("persistent_volume_claims", self.persistent_volume_claims),
+            ("statefulsets", self.statefulsets),
+        ]
+        .into_iter()
+    }
 }
 
 fn start_reflector<K>(
