@@ -1,11 +1,13 @@
 use k8s_openapi::api::core::v1::Node;
 use moka::future::Cache;
+use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::kubelet_stats::StatsSummary;
+use crate::ingest::reflectors::{self, FrozenReflectorHealths};
 
 /// A point-in-time view of the health of cmk-rustik and its components:
 /// metrics-cache and metrics-fetcher.
@@ -27,21 +29,55 @@ use crate::ingest::kubelet_stats::StatsSummary;
 /// as the source of truth. Then in the monitoring/Checkmk side, we can alert on
 /// "Kubernetes said the node should be there, it's missing from the cache data,
 /// that means it stopped reporting at some point, CRIT!"
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SelfHealth {
     /// Maps node names to the age of the last kubelet stats push from the node.
     pub kubelet_stats_summary_age: BTreeMap<String, Option<Duration>>,
+    /// Maps kind names to reflector states.
+    pub reflector_healths: BTreeMap<String, ReflectorHealth>,
+}
+
+#[derive(Debug, Default, Serialize)]
+pub struct ReflectorHealth {
+    has_been_initialized: bool,
+    relist_started_age: Option<Duration>,
+    relist_completed_age: Option<Duration>,
+    relist_duration: Option<Duration>,
+    last_error_age: Option<Duration>,
+    errors_total: u64,
+}
+
+impl ReflectorHealth {
+    fn from_reflector_health(health: reflectors::ReflectorHealth, now: Instant) -> Self {
+        Self {
+            has_been_initialized: health.has_been_initialized,
+            relist_started_age: health
+                .relist_started_at
+                .map(|i| now.saturating_duration_since(i)),
+            relist_completed_age: health
+                .relist_completed_at
+                .map(|i| now.saturating_duration_since(i)),
+            relist_duration: health.relist_duration,
+            last_error_age: health
+                .last_error_at
+                .map(|i| now.saturating_duration_since(i)),
+            errors_total: health.errors_total,
+        }
+    }
 }
 
 impl SelfHealth {
-    pub fn new(
+    pub(crate) fn new(
         now: Instant,
         nodes: &[Arc<Node>],
+        reflector_healths: FrozenReflectorHealths,
         kubelet_stats_summary_cache: &Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
     ) -> SelfHealth {
         let kubelet_stats_summary_age = Self::cache_age(now, nodes, kubelet_stats_summary_cache);
+        let reflector_healths = Self::reflector_healths_from_frozen(now, reflector_healths);
         SelfHealth {
             kubelet_stats_summary_age,
+            reflector_healths,
         }
     }
 
@@ -74,6 +110,26 @@ impl SelfHealth {
             map.insert(node_name, since_update);
         }
         map
+    }
+
+    /// Given an `Instant` representing _the moment the `Snapshot` is being
+    /// taken_, and a [`crate::ingest::reflectors::FrozenReflectorHealths`],
+    /// generate a `BTreeMap` using the `IntoIterator` instance of the
+    /// `FrozenReflectorHealths`, converting each reflector health into a
+    /// [`crate::snapshot::self_health::ReflectorHealth`].
+    fn reflector_healths_from_frozen(
+        now: Instant,
+        healths: FrozenReflectorHealths,
+    ) -> BTreeMap<String, ReflectorHealth> {
+        healths
+            .into_iter()
+            .map(|(kind, health)| {
+                (
+                    kind.to_string(),
+                    ReflectorHealth::from_reflector_health(health, now),
+                )
+            })
+            .collect()
     }
 }
 
@@ -130,5 +186,61 @@ mod tests {
 
         // A node in the cache but not in the nodes store is not added
         assert!(!ages.contains_key("decommissioned01"));
+    }
+
+    #[test]
+    fn from_reflector_health() {
+        let now = Instant::now();
+        let health = reflectors::ReflectorHealth {
+            has_been_initialized: true,
+            relist_started_at: Some(now - Duration::from_secs(10)),
+            relist_completed_at: Some(now - Duration::from_secs(20)),
+            relist_duration: Some(Duration::from_secs(3)),
+            last_error_at: Some(now - Duration::from_secs(30)),
+            errors_total: 7,
+        };
+        let converted = ReflectorHealth::from_reflector_health(health, now);
+        assert!(converted.has_been_initialized);
+        assert_eq!(converted.relist_started_age, Some(Duration::from_secs(10)));
+        assert_eq!(
+            converted.relist_completed_age,
+            Some(Duration::from_secs(20))
+        );
+        assert_eq!(converted.relist_duration, Some(Duration::from_secs(3)));
+        assert_eq!(converted.last_error_age, Some(Duration::from_secs(30)));
+        assert_eq!(converted.errors_total, 7);
+    }
+
+    #[test]
+    fn from_reflector_health_defaults() {
+        let now = Instant::now();
+        let health = reflectors::ReflectorHealth::default();
+        let converted = ReflectorHealth::from_reflector_health(health, now);
+        assert!(!converted.has_been_initialized);
+        assert!(converted.relist_started_age.is_none());
+        assert!(converted.relist_completed_age.is_none());
+        assert!(converted.relist_duration.is_none());
+        assert!(converted.last_error_age.is_none());
+        assert_eq!(converted.errors_total, 0);
+    }
+
+    #[test]
+    fn from_reflector_health_future_time_does_not_panic() {
+        let now = Instant::now();
+        let health = reflectors::ReflectorHealth {
+            last_error_at: Some(now + Duration::from_secs(1)),
+            ..Default::default()
+        };
+        let converted = ReflectorHealth::from_reflector_health(health, now);
+        assert_eq!(converted.last_error_age, Some(Duration::ZERO));
+        assert_eq!(converted.errors_total, 0);
+    }
+
+    #[test]
+    fn reflector_healths_from_frozen_sanity() {
+        let now = Instant::now();
+        let frozen_healths = FrozenReflectorHealths::default();
+        let map = SelfHealth::reflector_healths_from_frozen(now, frozen_healths);
+        assert!(map.contains_key("ReplicaSet"));
     }
 }

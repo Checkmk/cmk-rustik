@@ -48,11 +48,17 @@ impl Snapshot {
         kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
     ) -> Self {
         let instant = Instant::now();
+        let reflector_healths = stores.freeze_healths();
         let stores = stores.freeze();
         let owner_graph = OwnerGraph::from_frozen_stores(&stores);
         let metrics = MetricTables::from_cache(&kubelet_stats_summary_cache);
         let indexes = Indexes::from_frozen_stores(&stores);
-        let self_health = SelfHealth::new(instant, &stores.nodes, &kubelet_stats_summary_cache);
+        let self_health = SelfHealth::new(
+            instant,
+            &stores.nodes,
+            reflector_healths,
+            &kubelet_stats_summary_cache,
+        );
         Snapshot {
             instant,
             stores,

@@ -57,6 +57,7 @@ mod tests {
         ]);
         let self_health = SelfHealth {
             kubelet_stats_summary_age,
+            ..Default::default()
         };
         let section = KubeRustikHealthV1::from_self_health(&self_health);
         insta::assert_json_snapshot!(section);

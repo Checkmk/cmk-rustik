@@ -18,7 +18,7 @@ use tracing::{debug, error, trace};
 macro_rules! define_reflectors {
     (
         $(
-            $field:ident : $resource:ty
+            $field:ident : $resource:ty => $kind:literal
         ),* $(,)?
     ) => {
         /// The [`Store`]s where all of the watched Kubernetes kinds that rustik
@@ -109,7 +109,7 @@ macro_rules! define_reflectors {
             }
         }
 
-        #[derive(Clone, Debug)]
+        #[derive(Clone, Debug, Default)]
         pub(crate) struct FrozenReflectorHealths {
             $(
                 pub(crate) $field: ReflectorHealth,
@@ -127,7 +127,7 @@ macro_rules! define_reflectors {
             fn into_iter(self) -> Self::IntoIter {
                 [
                     $(
-                        (stringify!($field), self.$field),
+                        ($kind, self.$field),
                     )*
                 ]
                     .into_iter()
@@ -137,16 +137,17 @@ macro_rules! define_reflectors {
     }
 }
 
+// field name: type from k8s_openapi => "KindName"
 define_reflectors! {
-    pods: Pod,
-    nodes: Node,
-    deployments: Deployment,
-    daemonsets: DaemonSet,
-    namespaces: Namespace,
-    replicasets: ReplicaSet,
-    persistent_volumes: PersistentVolume,
-    persistent_volume_claims: PersistentVolumeClaim,
-    statefulsets: StatefulSet,
+    pods: Pod => "Pod",
+    nodes: Node => "Node",
+    deployments: Deployment => "Deployment",
+    daemonsets: DaemonSet => "DaemonSet",
+    namespaces: Namespace => "Namespace",
+    replicasets: ReplicaSet => "ReplicaSet",
+    persistent_volumes: PersistentVolume => "PersistentVolume",
+    persistent_volume_claims: PersistentVolumeClaim => "PersistentVolumeClaim",
+    statefulsets: StatefulSet => "StatefulSet",
 }
 
 /// The inner-state of a reflector. This gets updated by the reflector's
