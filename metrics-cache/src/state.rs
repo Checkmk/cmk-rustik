@@ -92,29 +92,9 @@ pub mod tests {
     }
 
     pub fn test_app_state_with_validator(client: MockValidator) -> AppState<MockValidator> {
-        let (pod_store, _) = kube::runtime::reflector::store();
-        let (node_store, _) = kube::runtime::reflector::store();
-        let (deployment_store, _) = kube::runtime::reflector::store();
-        let (daemonset_store, _) = kube::runtime::reflector::store();
-        let (namespace_store, _) = kube::runtime::reflector::store();
-        let (replicaset_store, _) = kube::runtime::reflector::store();
-        let (persistent_volume_store, _) = kube::runtime::reflector::store();
-        let (persistent_volume_claim_store, _) = kube::runtime::reflector::store();
-        let (statefulset_store, _) = kube::runtime::reflector::store();
         AppState {
             client,
-            stores: Stores {
-                pods: pod_store,
-                nodes: node_store,
-                deployments: deployment_store,
-                daemonsets: daemonset_store,
-                namespaces: namespace_store,
-                replicasets: replicaset_store,
-                persistent_volumes: persistent_volume_store,
-                persistent_volume_claims: persistent_volume_claim_store,
-                statefulsets: statefulset_store,
-                healths: Default::default(),
-            },
+            stores: Default::default(),
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
             kubelet_stats_summary_cache: Cache::builder()

@@ -70,6 +70,17 @@ macro_rules! define_reflectors {
             }
         }
 
+        impl Default for Stores {
+            fn default() -> Self {
+                Self {
+                    healths: Default::default(),
+                    $(
+                        $field: kube::runtime::reflector::store().0,
+                    )*
+                }
+            }
+        }
+
         #[derive(Debug)]
         pub struct FrozenStores {
             $(
