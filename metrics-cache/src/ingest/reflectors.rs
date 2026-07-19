@@ -15,131 +15,127 @@ use std::time::{Duration, Instant};
 use tokio::task::JoinSet;
 use tracing::{debug, error, trace};
 
-/// The [`Store`]s where all of the watched Kubernetes kinds that rustik
-/// monitors end up. The stores here are not frozen and might update in the
-/// background at any time.
-#[derive(Clone)]
-pub struct Stores {
-    pub pods: Store<Pod>,
-    pub nodes: Store<Node>,
-    pub deployments: Store<Deployment>,
-    pub daemonsets: Store<DaemonSet>,
-    pub namespaces: Store<Namespace>,
-    pub replicasets: Store<ReplicaSet>,
-    pub persistent_volumes: Store<PersistentVolume>,
-    pub persistent_volume_claims: Store<PersistentVolumeClaim>,
-    pub statefulsets: Store<StatefulSet>,
-    pub(crate) healths: ReflectorHealthHandles,
+macro_rules! define_reflectors {
+    (
+        $(
+            $field:ident : $resource:ty
+        ),* $(,)?
+    ) => {
+        /// The [`Store`]s where all of the watched Kubernetes kinds that rustik
+        /// monitors end up. The stores here are not frozen and might update in
+        /// the background at any time.
+        #[derive(Clone)]
+        pub struct Stores {
+            pub(crate) healths: ReflectorHealthHandles,
+            $(
+                pub $field: Store<$resource>,
+            )*
+        }
+
+        impl Stores {
+            pub(crate) fn spawn(client: Client, tasks: &mut JoinSet<()>) -> Self {
+                let healths = ReflectorHealthHandles::default();
+                Self {
+                    $(
+                        $field: start_reflector(
+                            Api::all(client.clone()),
+                            WatchConfig::default(),
+                            tasks,
+                            healths.$field.clone(),
+                        ),
+                    )*
+                    healths
+                }
+            }
+
+            pub(crate) fn freeze(&self) -> FrozenStores {
+                FrozenStores {
+                    $(
+                        $field: self.$field.state(),
+                    )*
+                }
+            }
+
+            pub(crate) fn freeze_healths(&self) -> FrozenReflectorHealths {
+                self.healths.freeze()
+            }
+
+            pub(crate) async fn wait_until_all_ready(&self) -> Result<(), WriterDropped> {
+                tokio::try_join!(
+                    $(
+                        self.$field.wait_until_ready(),
+                    )*
+                )?;
+                Ok(())
+            }
+        }
+
+        #[derive(Debug)]
+        pub struct FrozenStores {
+            $(
+                pub $field: Vec<Arc<$resource>>,
+            )*
+        }
+
+        /// The collection of [`ReflectorHealthHandle`]s which are constantly
+        /// being changed by the reflector as events happen. Thus, we _can not_
+        /// rely on this for a snapshot; at snapshot-time, it is only used to
+        /// generate a [`FrozenReflectorHealths`] via [`Self::freeze()`].
+        #[derive(Clone, Debug, Default)]
+        pub(crate) struct ReflectorHealthHandles {
+            $(
+                $field: ReflectorHealthHandle,
+            )*
+        }
+
+        impl ReflectorHealthHandles {
+            fn freeze(&self) -> FrozenReflectorHealths {
+                FrozenReflectorHealths {
+                    $(
+                        $field: self.$field.freeze(),
+                    )*
+                }
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        pub(crate) struct FrozenReflectorHealths {
+            $(
+                pub(crate) $field: ReflectorHealth,
+            )*
+        }
+
+        const REFLECTOR_COUNT: usize = [$( stringify!($field), )*].len();
+
+        // Pardon the "cute" IntoIter here; it avoids having to edit
+        // crate::snapshot::self_health every time a new reflector is added here.
+        impl IntoIterator for FrozenReflectorHealths {
+            type Item = (&'static str, ReflectorHealth);
+            type IntoIter = std::array::IntoIter<Self::Item, REFLECTOR_COUNT>;
+
+            fn into_iter(self) -> Self::IntoIter {
+                [
+                    $(
+                        (stringify!($field), self.$field),
+                    )*
+                ]
+                    .into_iter()
+            }
+        }
+
+    }
 }
 
-#[derive(Debug)]
-pub struct FrozenStores {
-    pub pods: Vec<Arc<Pod>>,
-    pub nodes: Vec<Arc<Node>>,
-    pub deployments: Vec<Arc<Deployment>>,
-    pub daemonsets: Vec<Arc<DaemonSet>>,
-    pub namespaces: Vec<Arc<Namespace>>,
-    pub replicasets: Vec<Arc<ReplicaSet>>,
-    pub persistent_volumes: Vec<Arc<PersistentVolume>>,
-    pub persistent_volume_claims: Vec<Arc<PersistentVolumeClaim>>,
-    pub statefulsets: Vec<Arc<StatefulSet>>,
-}
-
-impl Stores {
-    pub(crate) fn spawn(client: Client, tasks: &mut JoinSet<()>) -> Self {
-        let healths = ReflectorHealthHandles::default();
-
-        Self {
-            pods: start_reflector(
-                Api::all(client.clone()),
-                WatchConfig::default(),
-                tasks,
-                healths.pods.clone(),
-            ),
-            nodes: start_reflector(
-                Api::all(client.clone()),
-                WatchConfig::default(),
-                tasks,
-                healths.nodes.clone(),
-            ),
-            deployments: start_reflector(
-                Api::all(client.clone()),
-                WatchConfig::default(),
-                tasks,
-                healths.deployments.clone(),
-            ),
-            daemonsets: start_reflector(
-                Api::all(client.clone()),
-                WatchConfig::default(),
-                tasks,
-                healths.daemonsets.clone(),
-            ),
-            namespaces: start_reflector(
-                Api::all(client.clone()),
-                WatchConfig::default(),
-                tasks,
-                healths.namespaces.clone(),
-            ),
-            replicasets: start_reflector(
-                Api::all(client.clone()),
-                WatchConfig::default(),
-                tasks,
-                healths.replicasets.clone(),
-            ),
-            persistent_volumes: start_reflector(
-                Api::all(client.clone()),
-                WatchConfig::default(),
-                tasks,
-                healths.persistent_volumes.clone(),
-            ),
-            persistent_volume_claims: start_reflector(
-                Api::all(client.clone()),
-                WatchConfig::default(),
-                tasks,
-                healths.persistent_volume_claims.clone(),
-            ),
-            statefulsets: start_reflector(
-                Api::all(client),
-                WatchConfig::default(),
-                tasks,
-                healths.statefulsets.clone(),
-            ),
-            healths,
-        }
-    }
-
-    pub(crate) fn freeze(&self) -> FrozenStores {
-        FrozenStores {
-            pods: self.pods.state(),
-            nodes: self.nodes.state(),
-            deployments: self.deployments.state(),
-            daemonsets: self.daemonsets.state(),
-            namespaces: self.namespaces.state(),
-            replicasets: self.replicasets.state(),
-            persistent_volumes: self.persistent_volumes.state(),
-            persistent_volume_claims: self.persistent_volume_claims.state(),
-            statefulsets: self.statefulsets.state(),
-        }
-    }
-
-    pub(crate) fn freeze_healths(&self) -> FrozenReflectorHealths {
-        self.healths.freeze()
-    }
-
-    pub(crate) async fn wait_until_all_ready(&self) -> Result<(), WriterDropped> {
-        tokio::try_join!(
-            self.pods.wait_until_ready(),
-            self.nodes.wait_until_ready(),
-            self.deployments.wait_until_ready(),
-            self.daemonsets.wait_until_ready(),
-            self.namespaces.wait_until_ready(),
-            self.replicasets.wait_until_ready(),
-            self.persistent_volumes.wait_until_ready(),
-            self.persistent_volume_claims.wait_until_ready(),
-            self.statefulsets.wait_until_ready(),
-        )?;
-        Ok(())
-    }
+define_reflectors! {
+    pods: Pod,
+    nodes: Node,
+    deployments: Deployment,
+    daemonsets: DaemonSet,
+    namespaces: Namespace,
+    replicasets: ReplicaSet,
+    persistent_volumes: PersistentVolume,
+    persistent_volume_claims: PersistentVolumeClaim,
+    statefulsets: StatefulSet,
 }
 
 /// The inner-state of a reflector. This gets updated by the reflector's
@@ -211,76 +207,6 @@ impl ReflectorHealthHandle {
 
     fn freeze(&self) -> ReflectorHealth {
         *self.0.lock()
-    }
-}
-
-/// The collection of [`ReflectorHealthHandle`]s which are constantly being
-/// changed by the reflector as events happen. Thus, we _can not_ rely on this
-/// for a snapshot; at snapshot-time, it is only used to generate a
-/// [`FrozenReflectorHealths`] via [`Self::freeze()`].
-#[derive(Clone, Debug, Default)]
-pub(crate) struct ReflectorHealthHandles {
-    pods: ReflectorHealthHandle,
-    nodes: ReflectorHealthHandle,
-    deployments: ReflectorHealthHandle,
-    daemonsets: ReflectorHealthHandle,
-    namespaces: ReflectorHealthHandle,
-    replicasets: ReflectorHealthHandle,
-    persistent_volumes: ReflectorHealthHandle,
-    persistent_volume_claims: ReflectorHealthHandle,
-    statefulsets: ReflectorHealthHandle,
-}
-
-impl ReflectorHealthHandles {
-    fn freeze(&self) -> FrozenReflectorHealths {
-        FrozenReflectorHealths {
-            pods: self.pods.freeze(),
-            nodes: self.nodes.freeze(),
-            deployments: self.deployments.freeze(),
-            daemonsets: self.daemonsets.freeze(),
-            namespaces: self.namespaces.freeze(),
-            replicasets: self.replicasets.freeze(),
-            persistent_volumes: self.persistent_volumes.freeze(),
-            persistent_volume_claims: self.persistent_volume_claims.freeze(),
-            statefulsets: self.statefulsets.freeze(),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct FrozenReflectorHealths {
-    pub(crate) pods: ReflectorHealth,
-    pub(crate) nodes: ReflectorHealth,
-    pub(crate) deployments: ReflectorHealth,
-    pub(crate) daemonsets: ReflectorHealth,
-    pub(crate) namespaces: ReflectorHealth,
-    pub(crate) replicasets: ReflectorHealth,
-    pub(crate) persistent_volumes: ReflectorHealth,
-    pub(crate) persistent_volume_claims: ReflectorHealth,
-    pub(crate) statefulsets: ReflectorHealth,
-}
-
-const REFLECTOR_COUNT: usize = 9;
-
-// Pardon the "cute" IntoIter here; it avoids having to edit
-// crate::snapshot::self_health every time a new reflector is added here.
-impl IntoIterator for FrozenReflectorHealths {
-    type Item = (&'static str, ReflectorHealth);
-    type IntoIter = std::array::IntoIter<Self::Item, REFLECTOR_COUNT>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        [
-            ("pods", self.pods),
-            ("nodes", self.nodes),
-            ("deployments", self.deployments),
-            ("daemonsets", self.daemonsets),
-            ("namespaces", self.namespaces),
-            ("replicasets", self.replicasets),
-            ("persistent_volumes", self.persistent_volumes),
-            ("persistent_volume_claims", self.persistent_volume_claims),
-            ("statefulsets", self.statefulsets),
-        ]
-        .into_iter()
     }
 }
 
