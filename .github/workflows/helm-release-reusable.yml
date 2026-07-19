@@ -1,0 +1,31 @@
+---
+name: Reusable helm chart release workflow
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  helm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: azure/setup-helm@v5.0.1
+      - run: helm registry login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+      - name: Package and push
+        run: |
+          helm package charts/cmk-rustik \
+            --version ${{ inputs.version }} \
+            --app-version "sha-${{ github.sha }}"
+          helm push cmk-rustik-${{ inputs.version }}.tgz \
+            oci://ghcr.io/${{ github.repository_owner }}/charts

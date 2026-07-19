@@ -24,3 +24,13 @@ jobs:
       contents: read
       id-token: write
       packages: write
+  helm:
+    # Only release the helm chart once images have been successfully pushed
+    needs: images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/helm-release-reusable.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      version: 0.0.0-master
