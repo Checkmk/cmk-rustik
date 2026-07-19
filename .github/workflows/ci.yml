@@ -18,7 +18,7 @@ jobs:
     # Only publish images once CI is green, and never for pull requests
     # (fork PRs must not get registry credentials anyway).
     needs: ci
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     uses: ./.github/workflows/images-reusable.yml
     permissions:
       contents: read
