@@ -1,6 +1,5 @@
 use k8s_openapi::api::core::v1::Node;
 use moka::future::Cache;
-use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -34,17 +33,17 @@ pub struct SelfHealth {
     /// Maps node names to the age of the last kubelet stats push from the node.
     pub kubelet_stats_summary_age: BTreeMap<String, Option<Duration>>,
     /// Maps kind names to reflector states.
-    pub reflector_healths: BTreeMap<String, ReflectorHealth>,
+    pub(crate) reflector_healths: BTreeMap<&'static str, ReflectorHealth>,
 }
 
-#[derive(Debug, Default, Serialize)]
-pub struct ReflectorHealth {
-    has_been_initialized: bool,
-    relist_started_age: Option<Duration>,
-    relist_completed_age: Option<Duration>,
-    relist_duration: Option<Duration>,
-    last_error_age: Option<Duration>,
-    errors_total: u64,
+#[derive(Debug, Default)]
+pub(crate) struct ReflectorHealth {
+    pub(crate) has_been_initialized: bool,
+    pub(crate) relist_started_age: Option<Duration>,
+    pub(crate) relist_completed_age: Option<Duration>,
+    pub(crate) relist_duration: Option<Duration>,
+    pub(crate) last_error_age: Option<Duration>,
+    pub(crate) errors_total: u64,
 }
 
 impl ReflectorHealth {
@@ -120,15 +119,10 @@ impl SelfHealth {
     fn reflector_healths_from_frozen(
         now: Instant,
         healths: FrozenReflectorHealths,
-    ) -> BTreeMap<String, ReflectorHealth> {
+    ) -> BTreeMap<&'static str, ReflectorHealth> {
         healths
             .into_iter()
-            .map(|(kind, health)| {
-                (
-                    kind.to_string(),
-                    ReflectorHealth::from_reflector_health(health, now),
-                )
-            })
+            .map(|(kind, health)| (kind, ReflectorHealth::from_reflector_health(health, now)))
             .collect()
     }
 }

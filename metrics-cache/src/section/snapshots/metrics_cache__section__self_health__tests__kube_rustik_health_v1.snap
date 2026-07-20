@@ -4,9 +4,35 @@ expression: section
 ---
 {
   "node_kubelet_stats_last_heard_secs": {
-    "node01": 26,
-    "node02": 240,
-    "node03": 120,
+    "node01": 26.0,
+    "node02": 240.0,
+    "node03": 120.0,
     "offline01": null
+  },
+  "reflector_healths": {
+    "DaemonSet": {
+      "has_been_initialized": false,
+      "relist_started_age_secs": null,
+      "relist_completed_age_secs": null,
+      "relist_duration_secs": null,
+      "last_error_age_secs": null,
+      "errors_total": 0
+    },
+    "Pod": {
+      "has_been_initialized": false,
+      "relist_started_age_secs": null,
+      "relist_completed_age_secs": null,
+      "relist_duration_secs": null,
+      "last_error_age_secs": null,
+      "errors_total": 0
+    },
+    "ReplicaSet": {
+      "has_been_initialized": false,
+      "relist_started_age_secs": null,
+      "relist_completed_age_secs": null,
+      "relist_duration_secs": null,
+      "last_error_age_secs": null,
+      "errors_total": 0
+    }
   }
 }
