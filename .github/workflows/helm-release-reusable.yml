@@ -28,4 +28,4 @@ jobs:
             --version ${{ inputs.version }} \
             --app-version "sha-${{ github.sha }}"
           helm push cmk-rustik-${{ inputs.version }}.tgz \
-            oci://ghcr.io/${{ github.repository_owner }}/charts
+            oci://ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts
