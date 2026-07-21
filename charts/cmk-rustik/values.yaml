@@ -24,7 +24,7 @@ metricsFetcher:
   # image allows you to override the metrics-fetcher container image properties.
   image:
     # repository is the registry path and image name, without the tag.
-    repository: ghcr.io/relrod/cmk-rustik-metrics-fetcher
+    repository: ghcr.io/checkmk/cmk-rustik-metrics-fetcher
     # tag is the image tag or version to use. It defaults to the app version.
     tag: ""
     # pullPolicy defines when and if Kubernetes should repull.
@@ -55,7 +55,7 @@ metricsCache:
   # image allows you to override the metrics-cache container image properties.
   image:
     # repository is the registry path and image name, without the tag.
-    repository: ghcr.io/relrod/cmk-rustik-metrics-cache
+    repository: ghcr.io/checkmk/cmk-rustik-metrics-cache
     # tag is the image tag or version to use. It defaults to the app version.
     tag: ""
     # pullPolicy defines when and if Kubernetes should repull.

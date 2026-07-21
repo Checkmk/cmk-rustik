@@ -17,7 +17,7 @@ actually rely on it for anything important yet!
 Interested in what we are doing? Grab a
 [daily build](https://checkmk.com/download/archive#checkmk-dailies) of Checkmk
 and a copy of this repo and
-[try rustik in your cluster](https://github.com/relrod/cmk-rustik/wiki/Testing-on-an-unmodified-Checkmk).
+[try rustik in your cluster](https://github.com/checkmk/cmk-rustik/wiki/Testing-on-an-unmodified-Checkmk).
 Later in this `README.md`, you will find a list of dependencies to get the
 development environment spun up.
 
@@ -25,7 +25,7 @@ Alternatively, we build images on each push to `master` and have a rolling
 `0.0.0-master` release of our Helm chart. You can give it a try with:
 
 ```bash
-helm install rustik oci://ghcr.io/relrod/charts/cmk-rustik --version 0.0.0-master \
+helm install rustik oci://ghcr.io/checkmk/charts/cmk-rustik --version 0.0.0-master \
     --set clusterName=mycluster \
     --set clusterHostName=my-cmk-host \
     --set push.enabled=true \
