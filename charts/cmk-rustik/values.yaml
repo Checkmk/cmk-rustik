@@ -130,3 +130,4 @@ emitAll:
   deployments: true
   daemonsets: true
   statefulsets: true
+  cronjobs: true

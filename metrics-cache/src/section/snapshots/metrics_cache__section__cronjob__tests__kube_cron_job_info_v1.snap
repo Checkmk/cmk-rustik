@@ -1,0 +1,21 @@
+---
+source: metrics-cache/src/section/cronjob.rs
+expression: "KubeCronJobInfoV1::from_cron_job(&cron_job, &settings)"
+---
+{
+  "name": "important-job",
+  "namespace": "the-actual-coolest-namespace-of-all-time",
+  "creation_timestamp": 1718824965.0,
+  "labels": {},
+  "annotations": {
+    "checkmk.com/promote-to-host": "true",
+    "example.com/cool-animal": "monkeys"
+  },
+  "schedule": "30 0,8,16 * * *",
+  "concurrency_policy": "Allow",
+  "failed_jobs_history_limit": 10,
+  "successful_jobs_history_limit": 5,
+  "suspend": false,
+  "cluster": "the-cluster",
+  "kubernetes_cluster_hostname": "cluster.host.tld"
+}

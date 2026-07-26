@@ -1,4 +1,5 @@
 use k8s_openapi::api::apps::v1::ReplicaSet;
+use k8s_openapi::api::batch::v1::Job;
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::ResourceExt;
@@ -40,7 +41,7 @@ impl OwnerGraph {
     /// [`crate::snapshot::Snapshot::new()`].
     pub fn from_frozen_stores(stores: &FrozenStores) -> Self {
         let owner_ref_by_uid =
-            Self::map_object_uids_to_owner_ref(&stores.pods, &stores.replicasets);
+            Self::map_object_uids_to_owner_ref(&stores.pods, &stores.replicasets, &stores.jobs);
         let pods_by_controller = Self::get_pods_by_controller(&stores.pods, &owner_ref_by_uid);
         OwnerGraph {
             owner_ref_by_uid,
@@ -58,6 +59,7 @@ impl OwnerGraph {
     fn map_object_uids_to_owner_ref(
         pods: &[Arc<Pod>],
         replicasets: &[Arc<ReplicaSet>],
+        jobs: &[Arc<Job>],
     ) -> HashMap<Uid, OwnerReference> {
         let mut map = HashMap::new();
         for pod in pods {
@@ -76,6 +78,16 @@ impl OwnerGraph {
                 .iter()
                 .find(|r| r.controller == Some(true))
                 && let Some(uid) = rs.metadata.uid.clone()
+            {
+                map.insert(Uid(uid.into()), owner_controller.to_owned());
+            }
+        }
+        for job in jobs {
+            if let Some(owner_controller) = job
+                .owner_references()
+                .iter()
+                .find(|r| r.controller == Some(true))
+                && let Some(uid) = job.metadata.uid.clone()
             {
                 map.insert(Uid(uid.into()), owner_controller.to_owned());
             }
@@ -201,6 +213,7 @@ mod tests {
     fn map_object_uids_to_owner_ref() {
         let pod1 = pod_owned_by("pod1", "pod1-uid", owner_ref("ReplicaSet", "rs", "rs-uid"));
         let rs = replicaset_owned_by("rs", "rs-uid", owner_ref("Deployment", "dep", "dep-uid"));
+        let job = job_owned_by("job1", "job1-uid", owner_ref("CronJob", "cj", "cj-uid"));
 
         // Non-controller owner references are skipped
         let mut non_controller = owner_ref("ReplicaSet", "rs", "rs-uid");
@@ -210,11 +223,13 @@ mod tests {
         let map = OwnerGraph::map_object_uids_to_owner_ref(
             &[pod1.into(), pod_owned_by_non_controller.into()],
             &[rs.into()],
+            &[job.into()],
         );
 
-        assert_eq!(map.len(), 2); // the pod with no controller is dropped
+        assert_eq!(map.len(), 3); // the pod with no controller is dropped
         assert_eq!(map["pod1-uid"].uid, "rs-uid");
         assert_eq!(map["rs-uid"].uid, "dep-uid");
+        assert_eq!(map["job1-uid"].uid, "cj-uid");
     }
 
     #[test]
@@ -228,7 +243,8 @@ mod tests {
                 replicaset_owned_by("rs", "rs-uid", owner_ref("Deployment", "dep", "dep-uid"))
                     .into(),
             ];
-        let owner_ref_by_uid = OwnerGraph::map_object_uids_to_owner_ref(&pods, &replicasets);
+        let jobs = [job_owned_by("job1", "job1-uid", owner_ref("CronJob", "cj", "cj-uid")).into()];
+        let owner_ref_by_uid = OwnerGraph::map_object_uids_to_owner_ref(&pods, &replicasets, &jobs);
         let pods_owned_by_rs = OwnerGraph::get_pods_by_controller(&pods, &owner_ref_by_uid);
 
         assert_eq!(pods_owned_by_rs.len(), 2); // two controllers: rs-uid and dep-uid

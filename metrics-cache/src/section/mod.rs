@@ -1,4 +1,5 @@
 pub mod common;
+pub mod cronjob;
 pub mod namespace;
 pub mod performance;
 pub mod pod;

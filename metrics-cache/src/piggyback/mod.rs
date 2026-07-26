@@ -1,5 +1,6 @@
 pub mod aggregation_host;
 pub mod cluster;
+pub mod cronjob;
 pub mod daemonset;
 pub mod deployment;
 pub mod namespace;
@@ -14,6 +15,7 @@ use tracing::warn;
 use crate::host_settings::HostSettings;
 pub(crate) use crate::piggyback::aggregation_host::AggregationHost;
 use crate::piggyback::cluster::Cluster;
+use crate::piggyback::cronjob::CronJob;
 use crate::piggyback::daemonset::DaemonSet;
 use crate::piggyback::deployment::Deployment;
 use crate::piggyback::namespace::Namespace;
@@ -187,6 +189,9 @@ pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSectio
         always.statefulsets,
         |n| StatefulSet::new(n, snap, settings),
     ));
+    out.extend(collect(snap.stores.cronjobs.iter(), always.cronjobs, |n| {
+        CronJob::new(n, snap, settings)
+    }));
 
     // Cluster is a special snowflake, there aren't any reflectors to iterate
     out.extend(collect(std::iter::once(()), true, |()| {

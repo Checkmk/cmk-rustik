@@ -47,6 +47,7 @@ pub struct AlwaysEmitted {
     pub deployments: bool,
     pub daemonsets: bool,
     pub statefulsets: bool,
+    pub cronjobs: bool,
 }
 
 impl AlwaysEmitted {
@@ -58,6 +59,7 @@ impl AlwaysEmitted {
             deployments: args.all_deployments,
             daemonsets: args.all_daemonsets,
             statefulsets: args.all_statefulsets,
+            cronjobs: args.all_cronjobs,
         }
     }
 }

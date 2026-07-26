@@ -152,6 +152,10 @@ pub struct CliArgs {
     /// Emit all StatefulSet resources rather than only annotated ones
     #[arg(long = "all-statefulsets")]
     pub all_statefulsets: bool,
+
+    /// Emit all CronJob resources rather than only annotated ones
+    #[arg(long = "all-cronjobs")]
+    pub all_cronjobs: bool,
 }
 
 /// Convert a numeric argument given by the user as seconds into a Duration.

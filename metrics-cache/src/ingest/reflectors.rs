@@ -1,5 +1,6 @@
 use futures_util::StreamExt;
 use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
+use k8s_openapi::api::batch::v1::{CronJob, Job};
 use k8s_openapi::api::core::v1::{Namespace, Node, PersistentVolume, PersistentVolumeClaim, Pod};
 use kube::runtime::reflector::store::WriterDropped;
 use kube::runtime::watcher::Config as WatchConfig;
@@ -148,6 +149,8 @@ define_reflectors! {
     persistent_volumes: PersistentVolume => "PersistentVolume",
     persistent_volume_claims: PersistentVolumeClaim => "PersistentVolumeClaim",
     statefulsets: StatefulSet => "StatefulSet",
+    cronjobs: CronJob => "CronJob",
+    jobs: Job => "Job",
 }
 
 /// The inner-state of a reflector. This gets updated by the reflector's
