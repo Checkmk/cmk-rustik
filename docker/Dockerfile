@@ -13,14 +13,14 @@ RUN cargo chef cook --release --recipe-path recipe.json --target "$(uname -m)-un
 COPY . .
 RUN cargo build --release --target "$(uname -m)-unknown-linux-musl"
 
-FROM --platform=linux/amd64 docker.io/checkmk/check-mk-community:2.5.0-daily AS checkmk
-
 FROM alpine:3.23 AS metrics-fetcher
+ARG CMK_AGENT_SOURCE_TAG="v2.5.0p9"
 ARG CHECKMK_AGENT_DIR="/opt/omd/versions/default/share/check_mk/agents"
 ARG CHECKMK_AGENT_PLUGIN_DIR="${CHECKMK_AGENT_DIR}/plugins"
-COPY --from=checkmk "${CHECKMK_AGENT_DIR}/check_mk_agent.openwrt" /install/bin/check_mk_agent.openwrt
-COPY --from=checkmk "${CHECKMK_AGENT_PLUGIN_DIR}/mk_inventory.linux" /install/bin/mk_inventory.linux
-COPY --from=checkmk "${CHECKMK_AGENT_PLUGIN_DIR}/lnx_container_host_if.linux" /install/bin/lnx_container_host_if.linux
+RUN wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/check_mk_agent.openwrt &&\
+    wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/plugins/mk_inventory.linux &&\
+    wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/plugins/lnx_container_host_if.linux &&\
+    install -m 0755 check_mk_agent.openwrt mk_inventory.linux lnx_container_host_if.linux /usr/local/bin/
 COPY --from=builder /src/target/*/release/metrics-fetcher /usr/local/bin/
 COPY docker/check_mk_agent /usr/local/bin/check_mk_agent
 RUN addgroup appgroup -g 10001 && adduser -HD appuser -G appgroup -u 10001
@@ -39,11 +39,13 @@ ENTRYPOINT ["metrics-cache"]
 # in to /src in the respective pods.
 
 FROM alpine:3.23 AS metrics-fetcher-dev
+ARG CMK_AGENT_SOURCE_TAG="v2.5.0p9"
 ARG CHECKMK_AGENT_DIR="/opt/omd/versions/default/share/check_mk/agents"
 ARG CHECKMK_AGENT_PLUGIN_DIR="${CHECKMK_AGENT_DIR}/plugins"
-COPY --from=checkmk "${CHECKMK_AGENT_DIR}/check_mk_agent.openwrt" /install/bin/check_mk_agent.openwrt
-COPY --from=checkmk "${CHECKMK_AGENT_PLUGIN_DIR}/mk_inventory.linux" /install/bin/mk_inventory.linux
-COPY --from=checkmk "${CHECKMK_AGENT_PLUGIN_DIR}/lnx_container_host_if.linux" /install/bin/lnx_container_host_if.linux
+RUN wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/check_mk_agent.openwrt &&\
+    wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/plugins/mk_inventory.linux &&\
+    wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/plugins/lnx_container_host_if.linux &&\
+    install -m 0755 check_mk_agent.openwrt mk_inventory.linux lnx_container_host_if.linux /usr/local/bin/
 COPY docker/check_mk_agent /usr/local/bin/check_mk_agent
 RUN addgroup appgroup -g 10001 && adduser -HD appuser -G appgroup -u 10001
 USER appuser
