@@ -28,7 +28,7 @@ use kube::api::Api;
 use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use tracing::{error, info, trace};
+use tracing::{error, info, trace, warn};
 use uuid::Uuid;
 
 use crate::cli_args::CliArgs;
@@ -138,10 +138,64 @@ impl<'a> CheckmkPushRegistration<'a> {
             )
             .into());
         };
-        let client = reqwest::ClientBuilder::new()
-            .danger_accept_invalid_certs(true) // TOFU for register
-            .build()?;
 
+        // Check whether someone has activated the escape hatch.
+        let accept_invalid_certs = self
+            .cli_args
+            .push_registration_insecure_skip_site_ca_verification;
+
+        // Registration must never send the token over an unverified connection
+        // unless the user explicitly opted out, which they should never do in
+        // production.
+        let builder = match (accept_invalid_certs, &self.cli_args.push_registration_pem) {
+            (false, None) => {
+                // Case 1: Not accepting invalid certs, but not given a cert
+                // Intentionally do not reference the unsafe option.
+                return Err(push::Error::PushMode(
+                    "Push mode was enabled but the agent is not yet registered and \
+                     no Checkmk site CA certificate was provided. The agent needs \
+                     this to know that it is registering to the correct server and \
+                     to prevent man-in-the-middle attacks. If you are trying to \
+                     configure push mode, set the site CA certificate in your helm \
+                     push.siteCaCertificate (on the CLI, --set-file might prove \
+                     useful). The certificate can be downloaded from your Checkmk \
+                     instance under Setup > Certificate overview with description \
+                     \"Signing the site certificate\" and path ending \
+                     \"/ssl/ca.pem\"."
+                        .to_string(),
+                )
+                .into());
+            }
+            (true, Some(_)) => {
+                // Case 2: Accepting invalid certs, and also given a cert
+                return Err(push::Error::PushMode(
+                    "Push mode was enabled with the INSECURE option \
+                     push.insecureSkipSiteCaVerification in your helm values \
+                     but a Checkmk site CA certificate was also supplied with \
+                     push.siteCaCertificate. Exiting because we do not know \
+                     which configuration is intended."
+                        .to_string(),
+                )
+                .into());
+            }
+            (true, None) => {
+                // Case 3: Accepting invalid certs
+                warn!(
+                    "INSECURE option push.insecureSkipSiteCaVerification is enabled, not \
+                     validating push-agent receiver identity while registering. This \
+                     configuration is NOT RECOMMENDED in production."
+                );
+                reqwest::ClientBuilder::new().danger_accept_invalid_certs(true)
+            }
+            (false, Some(pem)) => {
+                // Case 4: Pinning the cert
+                reqwest::ClientBuilder::new()
+                    .tls_certs_only([reqwest::Certificate::from_pem(pem.as_bytes())?])
+                    .danger_accept_invalid_hostnames(true)
+            }
+        };
+
+        let client = builder.build()?;
         let response = client
             .post(&url)
             .header("Authorization", format!("CMK-TOKEN {}", ott))

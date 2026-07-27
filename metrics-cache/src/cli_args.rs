@@ -120,6 +120,20 @@ pub struct CliArgs {
     #[arg(long, env = "CMK_PUSH_AGENT_RECEIVER_OTT", hide_env_values = true)]
     pub push_registration_ott: Option<String>,
 
+    /// CA certificate (PEM) of the Checkmk site, used to verify we are about to
+    /// register with the correct push-agent receiver.
+    #[arg(
+        long,
+        env = "CMK_PUSH_AGENT_RECEIVER_SITE_CA_PEM",
+        hide_env_values = true
+    )]
+    pub push_registration_pem: Option<String>,
+
+    /// Avoid verifying the identity of the configured push-agent receiver
+    /// during initial registration. Do NOT use in production.
+    #[arg(long, default_value_t = false)]
+    pub push_registration_insecure_skip_site_ca_verification: bool,
+
     /// Excluded node role (infix) patterns for cluster-level aggregations,
     /// comma-separated
     #[arg(long = "excluded-node-role-patterns", value_delimiter = ',')]
