@@ -38,6 +38,9 @@ spec:
             {{- end }}
             {{- if .Values.push.enabled }}
             - --push-receiver={{ required "push.url is required when push mode is enabled" .Values.push.url }}
+            {{- if .Values.push.insecureSkipSiteCaVerification }}
+            - --push-registration-insecure-skip-site-ca-verification
+            {{- end }}
             {{- end }}
             {{- range $k, $v := .Values.emitAll }}
             {{- if $v }}
@@ -54,6 +57,12 @@ spec:
                 secretKeyRef:
                   name: {{ include "rustik.fullname" . }}-push-registration
                   key: token
+                  optional: true
+            - name: CMK_PUSH_AGENT_RECEIVER_SITE_CA_PEM
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rustik.fullname" . }}-push-registration
+                  key: site-ca-pem
                   optional: true
             {{- end }}
             - name: NODE_NAME

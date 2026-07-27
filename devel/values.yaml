@@ -36,3 +36,7 @@ metricsCache:
 push:
   enabled: false
   url: https://172.18.0.1:8000/heute
+  # In devel we default this to true so that it's easier to set up against a dev
+  # site. If you want to test validation, override this in custom_values.yaml
+  # or set the `just` variable site_ca to a site CA file path.
+  insecureSkipSiteCaVerification: true

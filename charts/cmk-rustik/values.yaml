@@ -108,6 +108,21 @@ push:
   # url is the url of the push-agent receiver for your site. It *includes* the
   # site name. Example: https://example.com:8000/production
   url: ""
+  # siteCaCertificate is the PEM-encoded certificate of the Checkmk site CA.
+  # Used for registering to the Checkmk site's push-agent receiver service.
+  # It can be found in Setup > Certificate overview, with description
+  # "Signing the site certificate" and path ending "/ssl/ca.pem". If using helm
+  # directly from the command line, you can pass this in with:
+  # --set-file push.siteCaCertificate
+  siteCaCertificate: ""
+  # insecureSkipSiteCaVerification *should NOT* ever be set to `true` in
+  # production. It provides an escape hatch primarily for development of the
+  # agent itself or for environments that do not care about potential
+  # man-in-the-middle attacks (which could expose your one-time registration
+  # token to an attacker who could then register as your cluster). You have
+  # been warned. When set to true, will trust whatever push-agent receiver
+  # answers at the configured URL, without verifying its identity.
+  insecureSkipSiteCaVerification: false
 
 # hostLabels defines how annotations get imported as labels in Checkmk. By
 # default annotations do not become host labels.
