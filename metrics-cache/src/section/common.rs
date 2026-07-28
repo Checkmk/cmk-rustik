@@ -41,6 +41,8 @@ pub fn parse_quantity(quantity: &str) -> Option<f64> {
         ("P", 1e15),
         ("E", 1e18),
         ("m", 1e-3),
+        ("u", 1e-6),
+        ("n", 1e-9),
     ] {
         if let Some(value_str) = quantity.strip_suffix(unit)
             && let Ok(value) = value_str.parse::<f64>()
