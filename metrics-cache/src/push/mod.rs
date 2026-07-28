@@ -28,6 +28,8 @@ pub enum Error {
          helm values or create the identity secret manually"
     )]
     MissingRegistrationToken,
+    #[error("Failed to parse push-mode URL: {0}")]
+    UrlParseError(#[from] url::ParseError),
 }
 
 /// Generate, compress, and push sections from the current state.

@@ -123,11 +123,23 @@ impl<'a> CheckmkPushRegistration<'a> {
             error!("Push receiver URL not provided, cannot register");
             return Err(push::Error::PushMode("Push receiver URL not provided".to_string()).into());
         };
-        let url = format!(
+        let raw_url = format!(
             "{}/agent-receiver/register_existing_token",
             base_url.trim_end_matches('/')
         );
-        tracing::Span::current().record("url", url.as_str());
+        tracing::Span::current().record("url", &raw_url);
+        let url = match reqwest::Url::parse(raw_url.as_str()) {
+            Ok(url) if url.scheme() == "https" => url,
+            Ok(url) => {
+                return Err(push::Error::PushMode(format!(
+                    "Push mode requires an 'https' URL scheme, not '{}'",
+                    url.scheme()
+                ))
+                .into());
+            }
+            Err(e) => return Err(push::Error::from(e).into()),
+        };
+
         let Some(ott) = token else {
             return Err(push::Error::PushMode(
                 "Push mode was enabled but the agent is not yet registered (no stored \
@@ -197,7 +209,7 @@ impl<'a> CheckmkPushRegistration<'a> {
 
         let client = builder.build()?;
         let response = client
-            .post(&url)
+            .post(url)
             .header("Authorization", format!("CMK-TOKEN {}", ott))
             .json(&PushAgentRegistrationRequest {
                 uuid: uuid.to_string(),
