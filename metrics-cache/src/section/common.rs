@@ -58,3 +58,42 @@ pub fn parse_quantity(quantity: &str) -> Option<f64> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_quantity_binary_units() {
+        assert_eq!(parse_quantity("1Ki"), Some(1024.0));
+        assert_eq!(parse_quantity("2Mi"), Some(2.0 * 1024.0 * 1024.0));
+    }
+
+    #[test]
+    fn parse_quantity_small_si_units() {
+        assert_eq!(parse_quantity("3G"), Some(3.0 * 1e9));
+        assert_eq!(parse_quantity("62e3"), Some(62.0 * 1e3));
+        assert_eq!(parse_quantity("3u"), Some(3.0 * 1e-6));
+        assert_eq!(parse_quantity("4n"), Some(4.0 * 1e-9));
+        assert_eq!(
+            parse_quantity("42.e3Ti"),
+            Some(42.0 * 1e3 * f64::powi(1024.0, 4))
+        );
+    }
+
+    #[test]
+    fn parse_quantity_bare_numbers() {
+        assert_eq!(parse_quantity("1"), Some(1.0));
+        assert_eq!(parse_quantity("2.2"), Some(2.2));
+    }
+
+    #[test]
+    fn parse_quantity_invalid_is_none() {
+        assert!(parse_quantity("hello").is_none());
+        assert!(parse_quantity("").is_none());
+        assert!(parse_quantity(" 45").is_none());
+        assert!(parse_quantity("Ki").is_none());
+        assert!(parse_quantity("1 Ki").is_none());
+        assert!(parse_quantity("1fb").is_none());
+    }
+}
