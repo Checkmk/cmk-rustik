@@ -29,3 +29,22 @@ Create chart name and version as used by the chart label.
 {{- define "rustik.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
+
+{{- define "rustik.pullSharedSecretName" -}}
+{{- if .Values.pull.authentication.existingSecret.name -}}
+{{- .Values.pull.authentication.existingSecret.name -}}
+{{- else -}}
+{{- printf "%s-pull-agent-secret" (include "rustik.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "rustik.pullSharedSecretKey" -}}
+{{- if and
+  .Values.pull.authentication.existingSecret.name
+  .Values.pull.authentication.existingSecret.key
+-}}
+{{- .Values.pull.authentication.existingSecret.key -}}
+{{- else -}}
+secret
+{{- end -}}
+{{- end -}}

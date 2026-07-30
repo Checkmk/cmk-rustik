@@ -124,6 +124,37 @@ push:
   # answers at the configured URL, without verifying its identity.
   insecureSkipSiteCaVerification: false
 
+# pull allows you to configure pull mode, so that Checkmk's special agent can
+# query the agent directly.
+pull:
+  # enabled controls whether pull mode is activated or not. If false, all
+  # requests to the pull endpoint(s) will return HTTP 401.
+  enabled: false
+  # authentication controls the shared secret used by the Checkmk special agent.
+  authentication:
+    # enabled allows you to control if authentication is required for accessing
+    # the pull-mode endpoints at all. For production, you should generally keep
+    # this enabled as otherwise cluster-monitoring could publicly expose
+    # information about your environment.
+    enabled: true
+
+    # existingSecret references a Kubernetes secret (and the key within it)
+    # holding the shared secret. The secret must already exist; the chart does
+    # not create it for you in this case.
+    existingSecret:
+      name: ""
+      key: secret
+
+    # insecureRawSecretString *should NOT* be used in production.
+    # It allows for setting the shared secret directly from the Helm variables,
+    # which can be useful for development or debugging, but ends up storing the
+    # shared secret in plain text (obtainable easily via `helm get values` for
+    # example). When this is set, a secret containing the value is created for
+    # you.
+    # Set exactly one of existingSecret.name or insecureRawSecretString;
+    # setting both (or neither) while authentication is enabled is an error.
+    # insecureRawSecretString: "very_s3cret!!!"
+
 # hostLabels defines how annotations get imported as labels in Checkmk. By
 # default annotations do not become host labels.
 hostLabels:

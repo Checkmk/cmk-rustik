@@ -40,3 +40,8 @@ push:
   # site. If you want to test validation, override this in custom_values.yaml
   # or set the `just` variable site_ca to a site CA file path.
   insecureSkipSiteCaVerification: true
+
+pull:
+  enabled: true
+  authentication:
+    enabled: false

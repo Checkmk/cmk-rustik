@@ -111,6 +111,16 @@ pub struct CliArgs {
     )]
     pub annotation_key_pattern: Option<Regex>,
 
+    /// Make the pull-based endpoints publicly accessible
+    #[arg(long, default_value_t = false)]
+    pub disable_pull_authentication: bool,
+
+    /// For pull mode, the shared secret that is also stored in Checkmk's
+    /// password store. If not set, pull mode is disabled and requests will give
+    /// a 401. To disable auth, use --disable-pull-authentication
+    #[arg(long, env = "CMK_PULL_SHARED_SECRET", hide_env_values = true)]
+    pub pull_shared_secret: Option<String>,
+
     /// Enable push mode and send sections to the specified server (including
     /// port)
     #[arg(long = "push-receiver")]
@@ -121,7 +131,7 @@ pub struct CliArgs {
     pub push_registration_ott: Option<String>,
 
     /// CA certificate (PEM) of the Checkmk site, used to verify we are about to
-    /// register with the correct push-agent receiver.
+    /// register with the correct push-agent receiver
     #[arg(
         long,
         env = "CMK_PUSH_AGENT_RECEIVER_SITE_CA_PEM",

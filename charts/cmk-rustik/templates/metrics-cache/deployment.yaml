@@ -47,10 +47,20 @@ spec:
             - --all-{{ $k }}
             {{- end }}
             {{- end }}
+            {{- /*
+            Gated on pull.enabled too: with pull disabled, no flag and no
+            shared secret env var reach the app, so it rejects all pull
+            requests regardless of the authentication settings below.
+            */}}
+            {{- if and .Values.pull.enabled (not .Values.pull.authentication.enabled) }}
+            - --disable-pull-authentication
+            {{- end }}
           env:
-            # Do NOT gate this on registrationToken, we allow admins to manually
-            # create the secret outside of the chart's control, and the env var
-            # should still exist in this case.
+            {{- /*
+            Do NOT gate this on registrationToken, we allow admins to manually
+            create the secret outside of the chart's control, and the env var
+            should still exist in this case.
+            */}}
             {{- if .Values.push.enabled }}
             - name: CMK_PUSH_AGENT_RECEIVER_OTT
               valueFrom:
@@ -64,6 +74,18 @@ spec:
                   name: {{ include "rustik.fullname" . }}-push-registration
                   key: site-ca-pem
                   optional: true
+            {{- end }}
+            {{- /*
+            If the env var isn't set, the app will block all pull-related
+            requests. Thus we gate the env binding based on pull.enabled
+            which has the effect of gating pull functionality.
+            */}}
+            {{- if and .Values.pull.enabled .Values.pull.authentication.enabled }}
+            - name: CMK_PULL_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rustik.pullSharedSecretName" . }}
+                  key: {{ include "rustik.pullSharedSecretKey" . }}
             {{- end }}
             - name: NODE_NAME
               valueFrom:

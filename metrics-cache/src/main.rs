@@ -3,9 +3,10 @@ use clap::Parser;
 use std::io;
 use std::net::SocketAddr;
 use tokio::task::JoinSet;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use tracing_subscriber::EnvFilter;
 
+use metrics_cache::auth::pull_agent::PullAgentMiddlewareConfig;
 use metrics_cache::cli_args::CliArgs;
 use metrics_cache::handlers;
 use metrics_cache::otel::client::OtelClient;
@@ -48,13 +49,40 @@ async fn bind(args: &CliArgs, app: axum::Router) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn pull_agent_middleware(args: &CliArgs) -> anyhow::Result<PullAgentMiddlewareConfig> {
+    match (
+        args.disable_pull_authentication,
+        args.pull_shared_secret.as_deref(),
+    ) {
+        // A shared secret is configured but authentication is disabled. Which
+        // is meant?
+        (true, Some(_)) => anyhow::bail!(
+            "--disable-pull-authentication is set, but a pull shared secret is also \
+             configured. These contradict each other; set exactly one of them."
+        ),
+        // Deliberately public pull-mode endpoints.
+        (true, None) => {}
+        // Auth is desired, but secret is empty, default closed.
+        (false, Some("")) => warn!(
+            "The pull shared secret is set but empty; all pull requests will be \
+             rejected. Check the Kubernetes secret (and key) the chart references."
+        ),
+        // Normal: secret configured or pull mode unconfigured.
+        (false, _) => {}
+    }
+    Ok(PullAgentMiddlewareConfig {
+        auth_enabled: !args.disable_pull_authentication,
+        shared_secret: args.pull_shared_secret.clone(),
+    })
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = CliArgs::parse();
     init_tracing(&args);
     let mut reflector_tasks = JoinSet::new();
     let state = AppState::new(&args, &mut reflector_tasks).await?;
-    let app = handlers::app(state.clone());
+    let app = handlers::app(state.clone(), pull_agent_middleware(&args)?);
 
     let push_client = match &args.push_receiver {
         Some(base_url) => {
