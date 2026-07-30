@@ -19,7 +19,7 @@ pub fn app<V: TokenValidator>(state: AppState<V>) -> Router {
         // vvv Routes above this will REQUIRE AUTHENTICATION vvv
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
-            auth::middleware::authenticate,
+            auth::kubernetes::authenticate,
         ))
         // ^^^ Routes below this will be PUBLIC ^^^
         .route("/health", get(health))
