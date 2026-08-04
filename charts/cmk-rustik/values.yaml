@@ -61,12 +61,16 @@ metricsCache:
     # pullPolicy defines when and if Kubernetes should repull.
     pullPolicy: IfNotPresent
 
-  # service lets you customize the Kubernetes Service controlling access to
-  # metrics-cache.
+  # service configures the ports exposed by the Kubernetes Services in front
+  # of metrics-cache. The pull Service may be exposed as a NodePort; the
+  # intra-cluster ingestion Service is always a ClusterIP.
   service:
     type: ClusterIP
-    port: 10050
-    # nodePort is required only if type is NodePort.
+    # pullPort is the port exposed by the pull Service.
+    pullPort: 10050
+    # intraClusterPort is the port exposed by the ingestion Service.
+    intraClusterPort: 10049
+    # nodePort is the external pull port and is required when type is NodePort.
     nodePort: null
 
   # resources lets you limit and request cluster resources for metrics-cache.
@@ -79,10 +83,13 @@ metricsCache:
       cpu: 150m
       memory: 200Mi
 
-  # port is the port that the metrics-cache service binds to for serving HTTP.
-  # It is also used as the container's containerPort as well as the service's
-  # targetPort.
-  port: 10050
+  # pullPort is the container port on which metrics-cache serves pull requests.
+  # The pull Service targets this port.
+  pullPort: 10050
+
+  # intraClusterPort is the container port on which metrics-cache accepts data
+  # from metrics-fetcher. The ingestion Service targets this port.
+  intraClusterPort: 10049
 
   # logLevel controls how verbose metrics-cache is when writing to stderr.
   # Inherits top-level logLevel by default.
@@ -155,6 +162,19 @@ pull:
     # setting both (or neither) while authentication is enabled is an error.
     # insecureRawSecretString: "very_s3cret!!!"
 
+  # encryption configures TLS for the pull listener. If existingSecret is
+  # empty, metrics-cache creates and reuses a Secret containing a CA and server
+  # certificate. If existingSecret is set, it must already exist and contain
+  # tls.crt and tls.key; metrics-cache will not generate or replace it.
+  # When the pull Service is a NodePort, existingSecret is required because the
+  # generated certificate only contains cluster-internal DNS names.
+  encryption:
+    enabled: false
+    existingSecret: ""
+    # longevity is the validity of an automatically generated CA and server
+    # certificate, in days. It is ignored when existingSecret is set.
+    longevity: 3650
+
 # hostLabels defines how annotations get imported as labels in Checkmk. By
 # default annotations do not become host labels.
 hostLabels:
@@ -177,3 +197,17 @@ emitAll:
   daemonsets: true
   statefulsets: true
   cronjobs: true
+
+# intraClusterCommunication configures communication between metrics-fetcher
+# and metrics-cache. Encryption is enabled by default.
+intraClusterCommunication:
+  # encryption configures TLS for the ingestion listener. If existingSecret is
+  # empty, metrics-cache creates and reuses a Secret containing a CA and server
+  # certificate. If existingSecret is set, it must already exist and contain
+  # tls.crt, tls.key, and ca.crt; metrics-cache will not generate or replace it.
+  encryption:
+    enabled: true
+    existingSecret: ""
+    # longevity is the validity of an automatically generated CA and server
+    # certificate, in days. It is ignored when existingSecret is set.
+    longevity: 3650

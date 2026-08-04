@@ -103,6 +103,7 @@ pub mod piggyback;
 pub mod push;
 pub mod section;
 pub mod snapshot;
+pub mod startup;
 pub mod state;
 #[cfg(test)]
 mod test_support;

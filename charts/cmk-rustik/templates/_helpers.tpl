@@ -48,3 +48,19 @@ Create chart name and version as used by the chart label.
 secret
 {{- end -}}
 {{- end -}}
+
+{{- define "rustik.intraClusterTLSSecretName" -}}
+{{- if .Values.intraClusterCommunication.encryption.existingSecret -}}
+{{- .Values.intraClusterCommunication.encryption.existingSecret -}}
+{{- else -}}
+{{- printf "%s-intra-cluster-ca" (include "rustik.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "rustik.pullTLSSecretName" -}}
+{{- if .Values.pull.encryption.existingSecret -}}
+{{- .Values.pull.encryption.existingSecret -}}
+{{- else -}}
+{{- printf "%s-pull-ca" (include "rustik.fullname" .) -}}
+{{- end -}}
+{{- end -}}

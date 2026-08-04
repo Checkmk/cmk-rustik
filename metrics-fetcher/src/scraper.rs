@@ -29,6 +29,7 @@ pub(crate) trait Scraper {
                         .push_to_metrics_cache(
                             &args.metrics_cache_namespace,
                             &args.metrics_cache_service,
+                            &args.metrics_cache_ca_cert_file,
                             args.metrics_cache_port,
                             self.relay_client(),
                         )

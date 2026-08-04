@@ -28,6 +28,7 @@ impl Payload {
         &self,
         namespace: &str,
         service: &str,
+        ca_cert_file: &Option<String>,
         port: u16,
         client: Client,
     ) -> Result<reqwest::Response> {
@@ -36,7 +37,12 @@ impl Payload {
             tokio::fs::read_to_string("/var/run/secrets/kubernetes.io/serviceaccount/token")
                 .await?;
         let url = format!(
-            "http://{service}.{namespace}.svc.cluster.local:{port}/ingest{}",
+            "{}://{service}.{namespace}.svc:{port}/ingest{}",
+            if ca_cert_file.is_some() {
+                "https"
+            } else {
+                "http"
+            },
             self.metrics_cache_endpoint()
         );
         debug!(url = %url, "relaying payload to metrics-cache");

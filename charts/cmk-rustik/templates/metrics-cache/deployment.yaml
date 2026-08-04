@@ -1,3 +1,10 @@
+{{- if and
+  .Values.pull.encryption.enabled
+  (eq .Values.metricsCache.service.type "NodePort")
+  (not .Values.pull.encryption.existingSecret)
+}}
+{{- fail "pull.encryption.existingSecret is required when pull encryption is enabled and metricsCache.service.type is NodePort (the generated certificate only covers cluster-internal DNS names)" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -23,7 +30,25 @@ spec:
           imagePullPolicy: {{ .Values.metricsCache.image.pullPolicy }}
           args:
             - --pull-address=0.0.0.0
-            - --pull-port={{ .Values.metricsCache.port }}
+            - --pull-port={{ .Values.metricsCache.pullPort }}
+            {{- if .Values.pull.encryption.enabled }}
+            - --pull-tls-secret={{ include "rustik.pullTLSSecretName" . }}
+            {{- if not .Values.pull.encryption.existingSecret }}
+            - --pull-tls-secret-generate-if-missing
+            - --pull-tls-secret-generation-validity={{ .Values.pull.encryption.longevity }}
+            - --pull-service-name={{ include "rustik.fullname" . }}-metrics-cache-pull
+            {{- end }}
+            {{- end }}
+            - --ingest-address=0.0.0.0
+            - --ingest-port={{ .Values.metricsCache.intraClusterPort }}
+            {{- if .Values.intraClusterCommunication.encryption.enabled }}
+            - --ingest-tls-secret={{ include "rustik.intraClusterTLSSecretName" . }}
+            {{- if not .Values.intraClusterCommunication.encryption.existingSecret }}
+            - --ingest-tls-secret-generate-if-missing
+            - --ingest-tls-secret-generation-validity={{ .Values.intraClusterCommunication.encryption.longevity }}
+            - --ingest-service-name={{ include "rustik.fullname" . }}-metrics-cache-ingest
+            {{- end }}
+            {{- end }}
             - --reader-allowlist={{ .Release.Namespace }}:{{ include "rustik.fullname" . }}-metrics-cache
             - --writer-allowlist={{ .Release.Namespace }}:{{ include "rustik.fullname" . }}-metrics-fetcher
             - --cluster-name={{ required "clusterName is required (there is no safe default: it names every generated host)" .Values.clusterName }}
@@ -91,10 +116,17 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: RUST_LOG
               value: {{ .Values.metricsCache.logLevel | default .Values.logLevel }}
           ports:
-            - containerPort: {{ .Values.metricsCache.port }}
+            - containerPort: {{ .Values.metricsCache.pullPort }}
+              name: pull
+            - containerPort: {{ .Values.metricsCache.intraClusterPort }}
+              name: intra-cluster
           {{- with .Values.metricsCache.extraVolumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

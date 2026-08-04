@@ -1,14 +1,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "rustik.fullname" . }}-metrics-cache
+  name: {{ include "rustik.fullname" . }}-metrics-cache-pull
 spec:
   type: {{ .Values.metricsCache.service.type }}
   selector:
     app: {{ include "rustik.fullname" . }}-metrics-cache
   ports:
-    - port: {{ .Values.metricsCache.service.port }}
-      targetPort: {{ .Values.metricsCache.port }}
+    - name: pull
+      port: {{ .Values.metricsCache.service.pullPort }}
+      targetPort: pull
       {{- if eq .Values.metricsCache.service.type "NodePort" }}
       nodePort: {{ required "nodePort is required if service type is NodePort" .Values.metricsCache.service.nodePort }}
       {{- end }}

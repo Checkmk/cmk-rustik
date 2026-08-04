@@ -14,14 +14,17 @@ pub(crate) struct KubeletStatsSummaryScraper {
 }
 
 impl KubeletStatsSummaryScraper {
-    pub(crate) fn new(args: Arc<CliArgs>) -> KubeletStatsSummaryScraper {
+    pub(crate) fn new(
+        args: Arc<CliArgs>,
+        metrics_cache_client: Client,
+    ) -> KubeletStatsSummaryScraper {
         let scrape_client = Client::builder()
             .danger_accept_invalid_certs(true)
             .build()
             .expect("Could not build scrape client for kubelet stats summary");
         KubeletStatsSummaryScraper {
             scrape_client,
-            relay_client: Client::new(),
+            relay_client: metrics_cache_client,
             args,
         }
     }

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rustik.fullname" . }}-metrics-cache-ingest
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ include "rustik.fullname" . }}-metrics-cache
+  ports:
+    - name: intra-cluster
+      port: {{ .Values.metricsCache.service.intraClusterPort }}
+      targetPort: intra-cluster
+      protocol: TCP

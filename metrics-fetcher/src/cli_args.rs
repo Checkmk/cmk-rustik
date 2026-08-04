@@ -24,4 +24,8 @@ pub struct CliArgs {
     /// via --metrics-cache-service).
     #[arg(long = "metrics-cache-port", default_value_t = 10050)]
     pub metrics_cache_port: u16,
+
+    /// CA Certificate for connecting to metrics-cache. When not specified, HTTP is used.
+    #[arg(long)]
+    pub metrics_cache_ca_cert_file: Option<String>,
 }

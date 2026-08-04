@@ -14,9 +14,19 @@ spec:
       serviceAccountName: {{ include "rustik.fullname" . }}-metrics-fetcher
       # hostNetwork: true
       # dnsPolicy: ClusterFirstWithHostNet
-      {{- with .Values.metricsFetcher.extraVolumes }}
+      {{- if or .Values.metricsFetcher.extraVolumes .Values.intraClusterCommunication.encryption.enabled }}
       volumes:
+        {{- with .Values.metricsFetcher.extraVolumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.intraClusterCommunication.encryption.enabled }}
+        - name: intra-cluster-ca
+          secret:
+            secretName: {{ include "rustik.intraClusterTLSSecretName" . }}
+            items:
+              - key: ca.crt
+                path: intra-cluster-ca.crt
+        {{- end }}
       {{- end }}
       containers:
         - name: metrics-fetcher
@@ -24,8 +34,11 @@ spec:
           imagePullPolicy: {{ .Values.metricsFetcher.image.pullPolicy }}
           args:
             - --metrics-cache-namespace={{ .Release.Namespace }}
-            - --metrics-cache-service={{ include "rustik.fullname" . }}-metrics-cache
-            - --metrics-cache-port={{ .Values.metricsCache.port }}
+            - --metrics-cache-service={{ include "rustik.fullname" . }}-metrics-cache-ingest
+            - --metrics-cache-port={{ .Values.metricsCache.intraClusterPort }}
+            {{- if .Values.intraClusterCommunication.encryption.enabled }}
+            - --metrics-cache-ca-cert-file=/etc/ssl/certs/intra-cluster-ca.crt
+            {{- end }}
           env:
             - name: NODE_IP
               valueFrom:
@@ -37,9 +50,17 @@ spec:
                   fieldPath: spec.nodeName
             - name: RUST_LOG
               value: {{ .Values.metricsFetcher.logLevel | default .Values.logLevel }}
-          {{- with .Values.metricsFetcher.extraVolumeMounts }}
+          {{- if or .Values.metricsFetcher.extraVolumeMounts .Values.intraClusterCommunication.encryption.enabled }}
           volumeMounts:
+            {{- with .Values.metricsFetcher.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if .Values.intraClusterCommunication.encryption.enabled }}
+            - name: intra-cluster-ca
+              readOnly: true
+              mountPath: /etc/ssl/certs/intra-cluster-ca.crt
+              subPath: intra-cluster-ca.crt
+            {{- end }}
           {{- end }}
           {{- with .Values.metricsFetcher.resources }}
           resources:

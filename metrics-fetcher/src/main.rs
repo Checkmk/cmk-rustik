@@ -6,6 +6,7 @@ mod scraper;
 
 use anyhow::Result;
 use clap::Parser;
+use reqwest::ClientBuilder;
 use std::io;
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
@@ -29,7 +30,18 @@ async fn main() -> Result<()> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    let kubelet_stats_summary_scraper = KubeletStatsSummaryScraper::new(Arc::new(args));
+    // Client to communicate with metrics cache; we allocate it just once, up front.
+    let metrics_cache_client = match args.metrics_cache_ca_cert_file.as_deref() {
+        Some(file) => {
+            let pem = tokio::fs::read(file).await?;
+            let ca = reqwest::Certificate::from_pem(&pem)?;
+            ClientBuilder::new().tls_certs_only([ca])
+        }
+        None => ClientBuilder::new(),
+    };
+
+    let kubelet_stats_summary_scraper =
+        KubeletStatsSummaryScraper::new(Arc::new(args), metrics_cache_client.build()?);
     let kubelet_scrape = tokio::spawn(kubelet_stats_summary_scraper.loop_push_scrape());
     let _ = tokio::try_join!(kubelet_scrape);
     Ok(())
