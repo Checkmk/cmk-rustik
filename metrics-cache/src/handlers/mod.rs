@@ -16,6 +16,7 @@ pub fn app<V: TokenValidator>(state: AppState<V>, pull: PullAgentMiddlewareConfi
             "/kubelet_stats_summary",
             post(ingest::kubelet_stats_summary),
         )
+        .route("/linux_agent/{node_name}", post(ingest::linux_agent))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::kubernetes::authenticate,
