@@ -27,13 +27,8 @@ fn init_tracing(args: &CliArgs) {
 }
 
 async fn bind(args: &CliArgs, app: axum::Router) -> anyhow::Result<()> {
-    let addr = SocketAddr::new(args.address.parse()?, args.port);
-    if args.secure_protocol {
-        let (Some(keyfile), Some(certfile)) = (&args.ssl_keyfile, &args.ssl_certfile) else {
-            anyhow::bail!(
-                "Both --keyfile and --certfile must be provided when --secure-protocol is enabled"
-            );
-        };
+    let addr = SocketAddr::new(args.pull_address.parse()?, args.pull_port);
+    if let (Some(keyfile), Some(certfile)) = (&args.pull_ssl_keyfile, &args.pull_ssl_certfile) {
         debug!("Reading key {} and cert {}", keyfile, certfile);
         let config = RustlsConfig::from_pem_file(keyfile, certfile).await?;
         info!("metrics-cache binding to {} (TLS)", addr);

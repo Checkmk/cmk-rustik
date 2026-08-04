@@ -22,8 +22,8 @@ spec:
           image: {{ .Values.metricsCache.image.repository }}:{{ .Values.metricsCache.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.metricsCache.image.pullPolicy }}
           args:
-            - --address=0.0.0.0
-            - --port={{ .Values.metricsCache.port }}
+            - --pull-address=0.0.0.0
+            - --pull-port={{ .Values.metricsCache.port }}
             - --reader-allowlist={{ .Release.Namespace }}:{{ include "rustik.fullname" . }}-metrics-cache
             - --writer-allowlist={{ .Release.Namespace }}:{{ include "rustik.fullname" . }}-metrics-fetcher
             - --cluster-name={{ required "clusterName is required (there is no safe default: it names every generated host)" .Values.clusterName }}
