@@ -1,5 +1,6 @@
 pub mod client;
 pub mod register;
+pub mod server_cert_verifier;
 
 use anyhow::Context;
 use flate2::Compression;
@@ -23,6 +24,8 @@ pub enum Error {
     Rcgen(#[from] rcgen::Error),
     #[error("push-mode error: {0}")]
     PushMode(String),
+    #[error("failed to configure push-mode TLS")]
+    TlsClientConfig(#[source] server_cert_verifier::ClientConfigError),
     #[error(
         "push mode is enabled but no registration token was given; set push.registrationToken in \
          helm values or create the identity secret manually"

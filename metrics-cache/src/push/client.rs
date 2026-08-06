@@ -7,6 +7,7 @@ use tracing::{error, trace};
 
 use crate::error::Result;
 use crate::push::Error;
+use crate::push::server_cert_verifier;
 
 /// A client to push section data into a Checkmk server.
 ///
@@ -56,22 +57,13 @@ impl CheckmkPushClient {
                 error!("uuid missing from secret");
                 Error::PushMode("uuid missing from secret".to_string())
             })?;
-        let cert_and_key = format!("{}\n{}", agent_cert, key);
+        let tls_config = server_cert_verifier::client_config(&root_cert, &agent_cert, &key)
+            .map_err(|error| {
+                error!(error = ?error, "failed to configure push-mode TLS");
+                Error::TlsClientConfig(error)
+            })?;
         let client = reqwest::Client::builder()
-            // TODO: We have to copy CnIsNoUuidAcceptAnyHostname from cmk-agent-ctl
-            .danger_accept_invalid_hostnames(true)
-            .tls_certs_only([
-                reqwest::Certificate::from_pem(root_cert.as_bytes()).map_err(|e| {
-                    error!(error = ?e, "failed to parse root certificate");
-                    Error::PushMode("failed to parse root certificate".to_string())
-                })?,
-            ])
-            .identity(
-                reqwest::Identity::from_pem(cert_and_key.as_bytes()).map_err(|e| {
-                    error!(error = ?e, "failed to parse agent certificate and key");
-                    Error::PushMode("failed to parse agent certificate and key".to_string())
-                })?,
-            )
+            .use_preconfigured_tls(tls_config)
             .build()
             .map_err(|e| {
                 error!(error = ?e, "failed to build push-mode client");
