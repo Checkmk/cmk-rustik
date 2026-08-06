@@ -1,7 +1,9 @@
 use futures_util::StreamExt;
 use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet};
 use k8s_openapi::api::batch::v1::{CronJob, Job};
-use k8s_openapi::api::core::v1::{Namespace, Node, PersistentVolume, PersistentVolumeClaim, Pod};
+use k8s_openapi::api::core::v1::{
+    Namespace, Node, PersistentVolume, PersistentVolumeClaim, Pod, ResourceQuota,
+};
 use kube::runtime::reflector::store::WriterDropped;
 use kube::runtime::watcher::Config as WatchConfig;
 use kube::runtime::{WatchStreamExt, reflector, reflector::Store, watcher};
@@ -151,6 +153,7 @@ define_reflectors! {
     statefulsets: StatefulSet => "StatefulSet",
     cronjobs: CronJob => "CronJob",
     jobs: Job => "Job",
+    resourcequotas: ResourceQuota => "ResourceQuota",
 }
 
 /// The inner-state of a reflector. This gets updated by the reflector's

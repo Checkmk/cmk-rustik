@@ -4,10 +4,11 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
-use crate::section::{
-    namespace::KubeNamespaceInfoV1,
-    writeable::{SectionError, WriteableSection},
+use crate::section::namespace::KubeNamespaceInfoV1;
+use crate::section::resource_quota::{
+    KubeResourceQuotaCpuResourcesV1, KubeResourceQuotaMemoryResourcesV1,
 };
+use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
 pub struct Namespace<'a> {
@@ -73,11 +74,31 @@ impl PiggybackHost for Namespace<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();
+
         if let Some(kube_namespace_info_v1) =
             KubeNamespaceInfoV1::from_namespace(self.api, self.settings)
         {
             out.push(WriteableSection::of(&me, &kube_namespace_info_v1));
         }
+
+        if let Some(kube_resource_quota_memory_resources_v1) =
+            KubeResourceQuotaMemoryResourcesV1::from_namespace(self.api, &self.snapshot.indexes)
+        {
+            out.push(WriteableSection::of(
+                &me,
+                &kube_resource_quota_memory_resources_v1,
+            ));
+        }
+
+        if let Some(kube_resource_quota_cpu_resources_v1) =
+            KubeResourceQuotaCpuResourcesV1::from_namespace(self.api, &self.snapshot.indexes)
+        {
+            out.push(WriteableSection::of(
+                &me,
+                &kube_resource_quota_cpu_resources_v1,
+            ));
+        }
+
         out.extend(self.aggregation_sections(&me));
         out
     }

@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::{PersistentVolume, PersistentVolumeClaim, Pod};
+use k8s_openapi::api::core::v1::{PersistentVolume, PersistentVolumeClaim, Pod, ResourceQuota};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -19,6 +19,10 @@ pub struct Indexes {
 
     /// Persistent volumes, by name.
     pub pvs: HashMap<String, Arc<PersistentVolume>>,
+
+    /// ResourceQuotas by namespace. We intentionally do not support multiple
+    /// quotas per namespace currently.
+    pub resource_quota_by_namespace: HashMap<String, Arc<ResourceQuota>>,
 }
 
 impl Indexes {
@@ -28,6 +32,7 @@ impl Indexes {
             pods_by_node: Self::get_pods_by_node(stores),
             pvcs: Self::pvcs_by_ns_and_name(stores),
             pvs: Self::get_pvs_by_name(stores),
+            resource_quota_by_namespace: Self::get_resource_quota_by_namespace(stores),
         }
     }
 
@@ -109,5 +114,30 @@ impl Indexes {
     /// Get a (cluster-global) PV by name. O(1).
     pub fn pv(&self, name: &str) -> Option<&PersistentVolume> {
         self.pvs.get(name).map(Arc::as_ref)
+    }
+
+    /// Index all ResourceQuotas by namespace.
+    fn get_resource_quota_by_namespace(
+        stores: &FrozenStores,
+    ) -> HashMap<String, Arc<ResourceQuota>> {
+        let mut out: HashMap<String, Arc<ResourceQuota>> = HashMap::new();
+        for quota in &stores.resourcequotas {
+            let Some(namespace) = &quota.metadata.namespace else {
+                continue;
+            };
+            // Support only one quota.
+            if out.contains_key(namespace) {
+                continue;
+            }
+            out.insert(namespace.clone(), quota.clone());
+        }
+        out
+    }
+
+    /// Get a Namespace's ResourceQuota if it exists. O(1).
+    pub fn resource_quota(&self, namespace: &str) -> Option<&ResourceQuota> {
+        self.resource_quota_by_namespace
+            .get(namespace)
+            .map(Arc::as_ref)
     }
 }

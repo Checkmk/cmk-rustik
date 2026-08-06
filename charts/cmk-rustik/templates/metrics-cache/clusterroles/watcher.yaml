@@ -4,7 +4,13 @@ metadata:
   name: {{ include "rustik.fullname" . }}-metrics-cache-watcher
 rules:
   - apiGroups: [""]
-    resources: ["pods", "nodes", "namespaces", "persistentvolumes", "persistentvolumeclaims"]
+    resources:
+      - pods
+      - nodes
+      - namespaces
+      - persistentvolumes
+      - persistentvolumeclaims
+      - resourcequotas
     verbs: ["get", "list", "watch"]
   - apiGroups: ["apps"]
     resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]

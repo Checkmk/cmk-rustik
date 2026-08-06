@@ -1,0 +1,8 @@
+---
+source: metrics-cache/src/section/resource_quota.rs
+expression: "KubeResourceQuotaMemoryResourcesV1::from_namespace(&namespace, &indexes)"
+---
+{
+  "limit": 6442450944.0,
+  "request": 545259520.0
+}
