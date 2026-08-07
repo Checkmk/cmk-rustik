@@ -130,6 +130,9 @@ push:
   # been warned. When set to true, will trust whatever push-agent receiver
   # answers at the configured URL, without verifying its identity.
   insecureSkipSiteCaVerification: false
+  # interval is how often, in seconds, sections are generated and pushed to
+  # the Checkmk site. Must be greater than zero.
+  interval: 60
 
 # pull allows you to configure pull mode, so that Checkmk's special agent can
 # query the agent directly.
