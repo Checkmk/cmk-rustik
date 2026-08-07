@@ -1,6 +1,7 @@
 pub mod common;
 pub mod cronjob;
 pub mod namespace;
+pub mod node;
 pub mod performance;
 pub mod pod;
 pub mod pvc;
