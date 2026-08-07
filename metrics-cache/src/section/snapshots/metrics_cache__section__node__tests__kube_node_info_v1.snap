@@ -1,0 +1,39 @@
+---
+source: metrics-cache/src/section/node.rs
+expression: "KubeNodeInfoV1::from_node(&node, &settings)"
+---
+{
+  "architecture": "amd64",
+  "kernel_version": "6.8.0-51-generic",
+  "os_image": "Ubuntu 22.04.5 LTS",
+  "operating_system": "linux",
+  "container_runtime_version": "containerd://1.7.24",
+  "name": "worker-1",
+  "creation_timestamp": 1786130565.0,
+  "labels": {
+    "kubernetes.io/arch": {
+      "name": "kubernetes.io/arch",
+      "value": "amd64"
+    },
+    "kubernetes.io/hostname": {
+      "name": "kubernetes.io/hostname",
+      "value": "worker-1"
+    }
+  },
+  "annotations": {
+    "checkmk.com/promote-to-host": "true",
+    "example.com/cool-animal": "monkeys"
+  },
+  "addresses": [
+    {
+      "address": "10.0.0.5",
+      "type_": "InternalIP"
+    },
+    {
+      "address": "worker-1",
+      "type_": "Hostname"
+    }
+  ],
+  "cluster": "the-cluster",
+  "kubernetes_cluster_hostname": "cluster.host.tld"
+}
