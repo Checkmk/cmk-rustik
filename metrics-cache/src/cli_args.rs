@@ -1,6 +1,7 @@
 use clap::Parser;
 use regex::Regex;
 use std::time::Duration;
+use thiserror::Error;
 
 pub struct TlsConfig {
     pub secret_name: Option<String>,
@@ -85,6 +86,14 @@ pub struct CliArgs {
         default_value = "120"
     )]
     pub cache_ttl: Duration,
+
+    /// Push interval in seconds for push mode. Ignored if push mode is not enabled.
+    #[arg(
+        long = "push-interval",
+        value_parser = parse_push_interval,
+        default_value = "60"
+    )]
+    pub push_interval: Duration,
 
     /// How verbose to log
     #[arg(
@@ -278,6 +287,23 @@ fn parse_duration_days(arg: &str) -> Result<Duration, std::num::ParseIntError> {
     Ok(Duration::from_secs(60 * 60 * 24 * days))
 }
 
+#[derive(Error, Debug)]
+enum PushIntervalError {
+    #[error("must be a whole number of seconds")]
+    NotANumber(#[from] std::num::ParseIntError),
+    #[error("must be greater than zero")]
+    Zero,
+}
+
+fn parse_push_interval(arg: &str) -> Result<Duration, PushIntervalError> {
+    let interval = parse_duration_secs(arg)?;
+    // if 0, tokio panics
+    match interval.is_zero() {
+        true => Err(PushIntervalError::Zero),
+        false => Ok(interval),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -370,5 +396,22 @@ mod tests {
                 ErrorKind::MissingRequiredArgument
             );
         }
+    }
+
+    #[test]
+    fn push_interval_parse_correctly() {
+        for interval in ["1", "80"] {
+            assert!(parse(&["--push-interval", interval]).is_ok());
+        }
+    }
+
+    #[test]
+    fn push_interval_cannot_be_zero() {
+        assert_eq!(
+            parse(&["--push-interval", "0"])
+                .expect_err("push interval of zero should fail")
+                .kind(),
+            ErrorKind::ValueValidation
+        );
     }
 }
