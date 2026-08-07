@@ -68,9 +68,10 @@ async fn push_cycle(
 pub async fn push_loop(
     client: CheckmkPushClient,
     state: AppState<impl TokenValidator>,
+    push_interval: Duration,
 ) -> Result<(), WriterDropped> {
     state.stores.wait_until_all_ready().await?;
-    let mut interval = time::interval(Duration::from_secs(60)); // TODO: Unhardcode
+    let mut interval = time::interval(push_interval);
     loop {
         interval.tick().await; // note: The very first tick() is no-op
         match push_cycle(&client, &state).await {

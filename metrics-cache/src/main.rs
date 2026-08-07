@@ -152,7 +152,7 @@ async fn main() -> anyhow::Result<()> {
         // Push to Checkmk server
         res = async {
             match push_client {
-                Some(client) => push_loop(client, state.clone()).await,
+                Some(client) => push_loop(client, state.clone(), args.push_interval).await,
                 None => std::future::pending().await,
             }
         } => {
