@@ -86,3 +86,57 @@ impl<'a> KubeNodeInfoV1<'a> {
 impl Section for KubeNodeInfoV1<'_> {
     const NAME: &'static str = "kube_node_info_v1";
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use regex::Regex;
+
+    use crate::host_settings::AnnotationKeyPattern;
+    use crate::test_support::{host_settings, node, node_prefilled};
+
+    #[test]
+    fn kube_node_info_v1() {
+        let node = node_prefilled("worker-1");
+        let mut settings = host_settings();
+        insta::assert_json_snapshot!(KubeNodeInfoV1::from_node(&node, &settings));
+
+        // This pattern should only match one annotation
+        settings.annotation_key_pattern =
+            AnnotationKeyPattern::Pattern(Regex::new("^example").unwrap());
+        assert_eq!(
+            KubeNodeInfoV1::from_node(&node, &settings)
+                .unwrap()
+                .annotations
+                .len(),
+            1
+        );
+
+        // Ignore all annotations, emit 0 of them
+        settings.annotation_key_pattern = AnnotationKeyPattern::IgnoreAll;
+        assert_eq!(
+            KubeNodeInfoV1::from_node(&node, &settings)
+                .unwrap()
+                .annotations
+                .len(),
+            0
+        );
+
+        // Import all annotations (fixture default, captured by insta above, but let's be explicit)
+        settings.annotation_key_pattern = AnnotationKeyPattern::ImportAll;
+        assert_eq!(
+            KubeNodeInfoV1::from_node(&node, &settings)
+                .unwrap()
+                .annotations
+                .len(),
+            2
+        );
+    }
+
+    /// A Node without `status.nodeInfo` cannot fill the five mandatory fields
+    /// of the section, so we emit nothing rather than something unparseable.
+    #[test]
+    fn kube_node_info_v1_without_node_info() {
+        assert!(KubeNodeInfoV1::from_node(&node("worker-1"), &host_settings()).is_none());
+    }
+}
