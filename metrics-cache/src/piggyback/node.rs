@@ -4,7 +4,10 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
-use crate::section::writeable::{SectionError, WriteableSection};
+use crate::section::{
+    node::KubeNodeInfoV1,
+    writeable::{SectionError, WriteableSection},
+};
 use crate::snapshot::Snapshot;
 
 pub struct Node<'a> {
@@ -52,6 +55,9 @@ impl PiggybackHost for Node<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();
+        if let Some(kube_node_info_v1) = KubeNodeInfoV1::from_node(self.api, self.settings) {
+            out.push(WriteableSection::of(&me, &kube_node_info_v1));
+        };
         out.extend(self.aggregation_sections(&me));
         out
     }
