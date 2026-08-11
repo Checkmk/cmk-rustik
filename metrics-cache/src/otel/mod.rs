@@ -66,8 +66,12 @@ use crate::state::AppState;
 ///
 /// Depends entirely on the kubelet stats cache in `state` and does effectively
 /// nothing if it is not yet populated.
-pub async fn otel_loop(client: OtelClient, state: AppState<impl TokenValidator>) {
-    let mut interval = time::interval(Duration::from_secs(60)); // TODO: Unhardcode
+pub async fn otel_loop(
+    client: OtelClient,
+    state: AppState<impl TokenValidator>,
+    otel_push_interval: Duration,
+) {
+    let mut interval = time::interval(otel_push_interval);
     loop {
         interval.tick().await; // note: The very first tick() is no-op
         let stat_summaries = state.kubelet_stats_summary_cache.iter().map(|(_, v)| v);
