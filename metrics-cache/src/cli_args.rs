@@ -224,6 +224,14 @@ pub struct CliArgs {
     #[arg(long = "otel-endpoint")]
     pub otel_endpoint: Option<String>,
 
+    /// Push interval in seconds for sending otel metrics.
+    #[arg(
+        long,
+        value_parser = parse_push_interval,
+        default_value = "60"
+    )]
+    pub otel_push_interval: Duration,
+
     /// Emit all Pod resources rather than only annotated ones
     #[arg(long = "all-pods")]
     pub all_pods: bool,

@@ -165,7 +165,7 @@ async fn main() -> anyhow::Result<()> {
         // Push to OpenTelemetry collector
         () = async {
             match otel_client {
-                Some(client) => otel_loop(client, state.clone()).await,
+                Some(client) => otel_loop(client, state.clone(), args.otel_push_interval).await,
                 None => std::future::pending().await,
             }
         } => {
