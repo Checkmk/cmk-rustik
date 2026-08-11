@@ -178,6 +178,20 @@ pull:
     # certificate, in days. It is ignored when existingSecret is set.
     longevity: 3650
 
+# otel allows you to enable, disable, and configure the OpenTelemetry export.
+# Unlike push mode, this does not send Checkmk sections: it exports pod- and
+# container-level metrics derived from the kubelet data, using OTLP over HTTP.
+otel:
+  # enabled controls whether the OpenTelemetry export is activated or not.
+  enabled: false
+  # endpoint is the base URL of an OpenTelemetry collector's OTLP/HTTP receiver.
+  # Do *not* include the signal path: "/v1/metrics" is appended for you.
+  # Required when otel.enabled is true.
+  endpoint: ""
+  # interval is how often, in seconds, metrics are collected and exported to
+  # the collector. Must be greater than zero.
+  interval: 60
+
 # hostLabels defines how annotations get imported as labels in Checkmk. By
 # default annotations do not become host labels.
 hostLabels:
