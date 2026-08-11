@@ -68,6 +68,10 @@ spec:
             - --push-registration-insecure-skip-site-ca-verification
             {{- end }}
             {{- end }}
+            {{- if .Values.otel.enabled }}
+            - --otel-endpoint={{ required "otel.endpoint is required when otel is enabled" .Values.otel.endpoint }}
+            - --otel-push-interval={{ .Values.otel.interval }}
+            {{- end }}
             {{- range $k, $v := .Values.emitAll }}
             {{- if $v }}
             - --all-{{ $k }}
