@@ -31,6 +31,20 @@ pub struct PullAgentMiddlewareConfig {
     pub shared_secret: Option<String>,
 }
 
+impl Default for PullAgentMiddlewareConfig {
+    /// Defaults closed: auth enabled with no configured secret, so
+    /// [`authorized`] rejects every request. This is only meant as a
+    /// placeholder for tests that don't exercise pull-agent auth at all; if it
+    /// were ever reached in real code, it fails safe instead of leaving the
+    /// endpoint open.
+    fn default() -> Self {
+        Self {
+            auth_enabled: true,
+            shared_secret: None,
+        }
+    }
+}
+
 /// Perform authentication, specifically for pull-agent endpoints.
 ///
 /// If `config.shared_secret` is `None` or empty, we _REJECT_ all requests.

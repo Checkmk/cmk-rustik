@@ -36,6 +36,7 @@ pub fn ingest_app<V: TokenValidator>(state: AppState<V>) -> Router {
             "/kubelet_stats_summary",
             post(ingest::kubelet_stats_summary),
         )
+        .route("/system_agent/{node_name}", post(ingest::system_agent))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::kubernetes::authenticate,
@@ -45,4 +46,36 @@ pub fn ingest_app<V: TokenValidator>(state: AppState<V>) -> Router {
         .nest("/ingest", routes)
         .layer(tower_http::compression::CompressionLayer::new())
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    use super::*;
+    use crate::state::tests::test_app_state;
+
+    /// Sanity check that the ingest route is actually wired up behind the
+    /// kubernetes-token middleware; handler-level behavior is covered in
+    /// `handlers::ingest::tests`.
+    #[tokio::test]
+    async fn system_agent_ingest_requires_auth() {
+        let state = test_app_state();
+        let app = ingest_app(state);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/ingest/system_agent/node-1")
+                    .body(Body::from("<<<check_mk>>>\n"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
 }
