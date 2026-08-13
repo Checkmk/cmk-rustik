@@ -1,3 +1,4 @@
+use axum::body::Bytes;
 use std::collections::BTreeMap;
 use std::io::Write;
 
@@ -6,9 +7,13 @@ use crate::section::Section;
 #[derive(Debug)]
 pub struct WriteableSection {
     pub piggyback_hostname: String,
-    pub name: &'static str,
-    /// The JSON serialized body of the section
-    pub body: String,
+    pub body: SectionBody,
+}
+
+#[derive(Debug)]
+pub enum SectionBody {
+    Json { name: &'static str, body: String },
+    Raw(Bytes),
 }
 
 #[derive(Debug)]
@@ -25,9 +30,18 @@ impl WriteableSection {
         })?;
         Ok(Self {
             piggyback_hostname: piggyback_hostname.to_string(),
-            name: S::NAME,
-            body,
+            body: SectionBody::Json {
+                name: S::NAME,
+                body,
+            },
         })
+    }
+
+    pub fn from_raw(piggyback_hostname: String, raw: Bytes) -> Self {
+        Self {
+            piggyback_hostname,
+            body: SectionBody::Raw(raw),
+        }
     }
 }
 
@@ -47,9 +61,19 @@ pub fn frame<W: Write>(writer: &mut W, sections: Vec<WriteableSection>) -> std::
             writeln!(writer, "<<<<{host}>>>>")?;
         }
         for section in host_sections {
-            writeln!(writer, "<<<{}:sep(0)>>>", section.name)?;
-            writer.write_all(section.body.as_bytes())?;
-            writeln!(writer)?;
+            match &section.body {
+                SectionBody::Json { name, body } => {
+                    writeln!(writer, "<<<{name}:sep(0)>>>")?;
+                    writer.write_all(body.as_bytes())?;
+                    writeln!(writer)?;
+                }
+                SectionBody::Raw(raw) => {
+                    writer.write_all(raw)?;
+                    if !raw.ends_with(b"\n") && !raw.is_empty() {
+                        writeln!(writer)?;
+                    }
+                }
+            }
         }
         if !bare {
             writeln!(writer, "<<<<>>>>")?;
@@ -80,5 +104,47 @@ mod tests {
         let mut out = Vec::new();
         frame(&mut out, sections).unwrap();
         insta::assert_snapshot!(String::from_utf8(out).unwrap());
+    }
+
+    #[test]
+    fn frame_raw_and_json_mixed() {
+        let sections = vec![
+            WriteableSection::of("json-host", &TestSectionV1 { value: 7 }).unwrap(),
+            WriteableSection::from_raw(
+                "raw-host".to_string(),
+                Bytes::from_static(b"<<<check_mk>>>\nVersion: 2.5.0\n"),
+            ),
+        ];
+        let mut out = Vec::new();
+        frame(&mut out, sections).unwrap();
+        insta::assert_snapshot!(String::from_utf8(out).unwrap());
+    }
+
+    #[test]
+    fn frame_raw_without_trailing_newline_gets_one_added() {
+        let sections = vec![WriteableSection::from_raw(
+            "raw-host".to_string(),
+            Bytes::from_static(b"<<<check_mk>>>\nVersion: 2.5.0"),
+        )];
+        let mut out = Vec::new();
+        frame(&mut out, sections).unwrap();
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            "<<<<raw-host>>>>\n<<<check_mk>>>\nVersion: 2.5.0\n<<<<>>>>\n"
+        );
+    }
+
+    #[test]
+    fn frame_raw_empty_produces_no_spurious_blank_line() {
+        let sections = vec![WriteableSection::from_raw(
+            "raw-host".to_string(),
+            Bytes::new(),
+        )];
+        let mut out = Vec::new();
+        frame(&mut out, sections).unwrap();
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            "<<<<raw-host>>>>\n<<<<>>>>\n"
+        );
     }
 }

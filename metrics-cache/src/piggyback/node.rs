@@ -56,7 +56,60 @@ impl PiggybackHost for Node<'_> {
         if let Some(kube_node_info_v1) = KubeNodeInfoV1::from_node(self.api, self.settings) {
             out.push(WriteableSection::of(&me, &kube_node_info_v1));
         }
+        if let Some(raw) = self.snapshot.system_agent_snapshot.get(self.meta.name) {
+            out.push(Ok(WriteableSection::from_raw(me.clone(), raw.clone())));
+        }
         out.extend(self.aggregation_sections(&me));
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Bytes;
+    use std::time::Instant;
+
+    use crate::ingest::{MetricsFetcherIngestion, SystemAgentOutput};
+    use crate::section::writeable::SectionBody;
+    use crate::state::tests::test_app_state;
+    use crate::test_support;
+
+    #[tokio::test]
+    async fn emit_includes_raw_system_agent_output_keyed_by_bare_node_name() {
+        let state = test_app_state();
+        let cache = state.system_agent_cache.clone();
+        cache
+            .insert(
+                "node-1".to_string(),
+                Arc::new(MetricsFetcherIngestion {
+                    received_at: Instant::now(),
+                    payload: SystemAgentOutput(Bytes::from_static(b"<<<check_mk>>>\n")),
+                }),
+            )
+            .await;
+        cache.run_pending_tasks().await;
+
+        let api = test_support::node("node-1");
+        let host_settings = state.host_settings.clone();
+        let snapshot = Snapshot::new(
+            state.stores,
+            state.kubelet_stats_summary_cache,
+            state.system_agent_cache,
+        );
+        let node = Node::new(&api, &snapshot, &host_settings).unwrap();
+
+        let raw_section = node
+            .emit()
+            .into_iter()
+            .filter_map(Result::ok)
+            .find(|s| matches!(s.body, SectionBody::Raw(_)))
+            .expect("expected a raw system agent section");
+
+        assert_eq!(raw_section.piggyback_hostname, "node_testcluster_node-1");
+        match raw_section.body {
+            SectionBody::Raw(raw) => assert_eq!(raw, Bytes::from_static(b"<<<check_mk>>>\n")),
+            SectionBody::Json { .. } => unreachable!(),
+        }
     }
 }
