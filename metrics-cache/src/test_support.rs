@@ -3,8 +3,9 @@
 use k8s_openapi::api::apps::v1::ReplicaSet;
 use k8s_openapi::api::batch::v1::{CronJob, CronJobSpec, Job};
 use k8s_openapi::api::core::v1::{
-    Container, Namespace, Node, PersistentVolumeClaim, PersistentVolumeClaimSpec,
-    PersistentVolumeClaimStatus, Pod, PodSpec, VolumeResourceRequirements,
+    Container, Namespace, Node, NodeAddress, NodeStatus, NodeSystemInfo, PersistentVolumeClaim,
+    PersistentVolumeClaimSpec, PersistentVolumeClaimStatus, Pod, PodSpec,
+    VolumeResourceRequirements,
 };
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference, Time};
@@ -101,6 +102,43 @@ pub fn node(name: &str) -> Node {
         },
         ..Default::default()
     }
+}
+
+pub fn node_prefilled(name: &str) -> Node {
+    let timestamp: Timestamp = "2026-08-07 15:22:45-04".parse().unwrap();
+    let mut node = node(name);
+    node.metadata.creation_timestamp = Some(Time(timestamp));
+    node.metadata.labels = Some(BTreeMap::from([
+        (s("kubernetes.io/hostname"), name.to_string()),
+        (s("kubernetes.io/arch"), s("amd64")),
+    ]));
+    node.metadata.annotations = Some(BTreeMap::from([
+        (s("example.com/cool-animal"), s("monkeys")),
+        (s("checkmk.com/promote-to-host"), s("true")),
+    ]));
+    node.status = Some(NodeStatus {
+        addresses: Some(vec![
+            NodeAddress {
+                address: s("10.0.0.5"),
+                type_: s("InternalIP"),
+            },
+            NodeAddress {
+                address: name.to_string(),
+                type_: s("Hostname"),
+            },
+        ]),
+        node_info: Some(NodeSystemInfo {
+            architecture: s("amd64"),
+            container_runtime_version: s("containerd://1.7.24"),
+            kernel_version: s("6.8.0-51-generic"),
+            kubelet_version: s("v1.34.0"),
+            operating_system: s("linux"),
+            os_image: s("Ubuntu 22.04.5 LTS"),
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+    node
 }
 
 pub fn owner_ref(kind: &str, name: &str, uid: &str) -> OwnerReference {
