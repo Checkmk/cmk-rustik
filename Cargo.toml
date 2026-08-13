@@ -30,6 +30,7 @@ all = "deny"
 redundant_clone = "deny"
 wildcard_dependencies = "deny"
 unwrap_used = "deny"
+unnecessary_semicolon = "deny"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
