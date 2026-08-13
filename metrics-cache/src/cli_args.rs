@@ -406,10 +406,17 @@ mod tests {
     }
 
     #[test]
-    fn push_interval_cannot_be_zero() {
+    fn push_interval_cannot_be_less_than_one() {
         assert_eq!(
             parse(&["--push-interval", "0"])
                 .expect_err("push interval of zero should fail")
+                .kind(),
+            ErrorKind::ValueValidation
+        );
+
+        assert_eq!(
+            parse(&["--push-interval=-1"])
+                .expect_err("push interval of -1 should fail")
                 .kind(),
             ErrorKind::ValueValidation
         );
