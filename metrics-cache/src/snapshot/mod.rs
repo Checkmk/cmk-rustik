@@ -3,12 +3,15 @@ pub mod metric_tables;
 pub mod owner_graph;
 pub mod self_health;
 
+use axum::body::Bytes;
 use moka::future::Cache;
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
 use crate::ingest::MetricsFetcherIngestion;
+use crate::ingest::SystemAgentOutput;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::{FrozenStores, Stores};
 use crate::snapshot::indexes::Indexes;
@@ -38,6 +41,7 @@ pub struct Snapshot {
     pub metrics: MetricTables,
     pub indexes: Indexes,
     pub self_health: SelfHealth,
+    pub system_agent_snapshot: HashMap<String, Bytes>,
 }
 
 impl Snapshot {
@@ -46,6 +50,7 @@ impl Snapshot {
     pub fn new(
         stores: Stores,
         kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
+        system_agent_cache: Cache<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
     ) -> Self {
         let instant = Instant::now();
         let reflector_healths = stores.freeze_healths();
@@ -59,6 +64,10 @@ impl Snapshot {
             reflector_healths,
             &kubelet_stats_summary_cache,
         );
+        let system_agent_snapshot: HashMap<String, Bytes> = system_agent_cache
+            .iter()
+            .map(|(name, ingestion)| (name.to_string(), ingestion.payload.0.clone()))
+            .collect();
         Snapshot {
             instant,
             stores,
@@ -66,6 +75,7 @@ impl Snapshot {
             metrics,
             indexes,
             self_health,
+            system_agent_snapshot,
         }
     }
 }

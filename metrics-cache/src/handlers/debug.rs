@@ -8,7 +8,11 @@ use crate::section::writeable::frame;
 use crate::snapshot::Snapshot;
 
 pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> Result<String, StatusCode> {
-    let snap = Snapshot::new(state.stores, state.kubelet_stats_summary_cache);
+    let snap = Snapshot::new(
+        state.stores,
+        state.kubelet_stats_summary_cache,
+        state.system_agent_cache,
+    );
     let sections = emit_all(&snap, &state.host_settings);
     let mut out = Vec::new();
     frame(&mut out, sections).map_err(|e| {
