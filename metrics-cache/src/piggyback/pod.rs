@@ -94,13 +94,13 @@ impl PiggybackHost for Pod<'_> {
 
         if let Some(kube_pvc_v1) = &self.pvcs() {
             out.push(WriteableSection::of(&me, kube_pvc_v1));
-        };
+        }
         if let Some(kube_pvc_volumes_v1) = &self.pvc_volumes() {
             out.push(WriteableSection::of(&me, kube_pvc_volumes_v1));
-        };
+        }
         if let Some(kube_pvc_pvs_v1) = &self.pvs() {
             out.push(WriteableSection::of(&me, kube_pvc_pvs_v1));
-        };
+        }
         if let Some(phase) = &self.api.status.as_ref().and_then(|s| s.phase.as_deref()) {
             out.push(WriteableSection::of(&me, &KubePodLifecycleV1::new(phase)));
         }
