@@ -95,6 +95,14 @@ metricsCache:
   # Inherits top-level logLevel by default.
   logLevel: ""
 
+  # kubeletStatsCacheTtl is how long (seconds) kubelet stats entries are
+  # persisted in the cache before expiring.
+  kubeletStatsCacheTtl: 120
+
+  # linuxAgentCacheTtl is how long (seconds) Linux agent entries are
+  # persisted in the cache before expiring.
+  linuxAgentCacheTtl: 120
+
   # extraVolumes is volume definitions to add to the Pod in the Deployment.
   extraVolumes: []
   # extraVolumeMounts is volume mounts to mount in the metrics-cache container.

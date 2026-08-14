@@ -47,9 +47,11 @@ impl AppState<Client> {
             reader_allowlist: args.reader_allowlist.clone(),
             writer_allowlist: args.writer_allowlist.clone(),
             kubelet_stats_summary_cache: Cache::builder()
+                .time_to_live(args.kubelet_stats_cache_ttl)
                 .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
                 .build(),
             system_agent_cache: Cache::builder()
+                .time_to_live(args.linux_agent_cache_ttl)
                 .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
                 .build(),
             host_settings: host_settings.into(),
