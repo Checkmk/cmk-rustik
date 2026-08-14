@@ -53,6 +53,8 @@ spec:
             - --writer-allowlist={{ .Release.Namespace }}:{{ include "rustik.fullname" . }}-metrics-fetcher
             - --cluster-name={{ required "clusterName is required (there is no safe default: it names every generated host)" .Values.clusterName }}
             - --cluster-host-name={{ required "clusterHostName is required (it must exactly match the Checkmk host representing this cluster)" .Values.clusterHostName }}
+            - --kubelet-stats-cache-ttl={{ .Values.metricsCache.kubeletStatsCacheTtl }}
+            - --linux-agent-cache-ttl={{ .Values.metricsCache.linuxAgentCacheTtl }}
             {{- if .Values.hostLabels.importAllAnnotations }}
             {{- if .Values.hostLabels.importKeyPattern }}
             {{ fail "hostLabels.importKeyPattern should not be set while hostLabels.importAllAnnotations is true" }}
