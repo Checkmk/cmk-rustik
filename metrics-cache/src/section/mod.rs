@@ -1,5 +1,6 @@
 pub mod cluster;
 pub mod common;
+pub mod controller_spec;
 pub mod cronjob;
 pub mod namespace;
 pub mod node;

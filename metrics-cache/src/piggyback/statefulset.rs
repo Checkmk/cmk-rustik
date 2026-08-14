@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
+use crate::section::controller_spec::KubeControllerSpecV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
@@ -59,6 +60,15 @@ impl PiggybackHost for StatefulSet<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();
+        let min_ready_seconds = self
+            .api
+            .spec
+            .as_ref()
+            .and_then(|spec| spec.min_ready_seconds);
+        out.push(WriteableSection::of(
+            &me,
+            &KubeControllerSpecV1::new(min_ready_seconds),
+        ));
         out.extend(self.aggregation_sections(&me));
         out
     }

@@ -1,0 +1,7 @@
+---
+source: metrics-cache/src/section/controller_spec.rs
+expression: "KubeControllerSpecV1::new(Some(30))"
+---
+{
+  "min_ready_seconds": 30
+}
