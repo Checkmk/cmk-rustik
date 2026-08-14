@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use reqwest::Client;
+use std::time::Duration;
 use tracing::{debug, trace, warn};
 
 use crate::error::Result;
@@ -41,6 +42,7 @@ impl Payload {
         ca_cert_file: &Option<String>,
         port: u16,
         client: Client,
+        scrape_duration: Duration,
     ) -> Result<reqwest::Response> {
         trace!("reading kubelet token");
         let token =
@@ -65,6 +67,11 @@ impl Payload {
             .bearer_auth(token.trim())
             .body(self.extract())
             .header("content-type", self.content_type())
+            .header(
+                "X-Scrape-Time-Ms",
+                scrape_time_ms_header_value(scrape_duration),
+            )
+            .header("X-Rustik-Version", env!("CARGO_PKG_VERSION"))
             .send()
             .await?;
         if response.status().is_success() {
@@ -73,5 +80,32 @@ impl Payload {
             warn!(status = ?response, "payload rejected by metrics-cache");
         }
         Ok(response)
+    }
+}
+
+fn scrape_time_ms_header_value(duration: Duration) -> String {
+    duration.as_millis().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scrape_time_ms_header_value_formats_milliseconds() {
+        assert_eq!(
+            scrape_time_ms_header_value(Duration::from_millis(1500)),
+            "1500"
+        );
+    }
+
+    #[test]
+    fn scrape_time_ms_header_value_handles_zero() {
+        assert_eq!(scrape_time_ms_header_value(Duration::ZERO), "0");
+    }
+
+    #[test]
+    fn scrape_time_ms_header_value_truncates_sub_millisecond() {
+        assert_eq!(scrape_time_ms_header_value(Duration::from_micros(500)), "0");
     }
 }
