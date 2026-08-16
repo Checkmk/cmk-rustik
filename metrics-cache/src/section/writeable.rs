@@ -1,4 +1,4 @@
-use axum::body::Bytes;
+use bytes::Bytes;
 use std::collections::BTreeMap;
 use std::io::Write;
 
@@ -37,9 +37,9 @@ impl WriteableSection {
         })
     }
 
-    pub fn from_raw(piggyback_hostname: String, raw: Bytes) -> Self {
+    pub fn raw(piggyback_hostname: &str, raw: Bytes) -> Self {
         Self {
-            piggyback_hostname,
+            piggyback_hostname: piggyback_hostname.to_string(),
             body: SectionBody::Raw(raw),
         }
     }
@@ -110,8 +110,8 @@ mod tests {
     fn frame_raw_and_json_mixed() {
         let sections = vec![
             WriteableSection::of("json-host", &TestSectionV1 { value: 7 }).unwrap(),
-            WriteableSection::from_raw(
-                "raw-host".to_string(),
+            WriteableSection::raw(
+                "raw-host",
                 Bytes::from_static(b"<<<check_mk>>>\nVersion: 2.5.0\n"),
             ),
         ];
@@ -122,8 +122,8 @@ mod tests {
 
     #[test]
     fn frame_raw_without_trailing_newline_gets_one_added() {
-        let sections = vec![WriteableSection::from_raw(
-            "raw-host".to_string(),
+        let sections = vec![WriteableSection::raw(
+            "raw-host",
             Bytes::from_static(b"<<<check_mk>>>\nVersion: 2.5.0"),
         )];
         let mut out = Vec::new();
@@ -136,10 +136,7 @@ mod tests {
 
     #[test]
     fn frame_raw_empty_produces_no_spurious_blank_line() {
-        let sections = vec![WriteableSection::from_raw(
-            "raw-host".to_string(),
-            Bytes::new(),
-        )];
+        let sections = vec![WriteableSection::raw("raw-host", Bytes::new())];
         let mut out = Vec::new();
         frame(&mut out, sections).unwrap();
         assert_eq!(

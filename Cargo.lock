@@ -1567,6 +1567,7 @@ dependencies = [
  "anyhow",
  "axum",
  "axum-server",
+ "bytes",
  "clap",
  "flate2",
  "futures-util",

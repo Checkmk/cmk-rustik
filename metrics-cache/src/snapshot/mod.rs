@@ -3,7 +3,6 @@ pub mod metric_tables;
 pub mod owner_graph;
 pub mod self_health;
 
-use axum::body::Bytes;
 use moka::future::Cache;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -41,7 +40,7 @@ pub struct Snapshot {
     pub metrics: MetricTables,
     pub indexes: Indexes,
     pub self_health: SelfHealth,
-    pub system_agent_snapshot: HashMap<String, Bytes>,
+    pub system_agent_snapshot: HashMap<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
 }
 
 impl Snapshot {
@@ -64,9 +63,12 @@ impl Snapshot {
             reflector_healths,
             &kubelet_stats_summary_cache,
         );
-        let system_agent_snapshot: HashMap<String, Bytes> = system_agent_cache
+        let system_agent_snapshot: HashMap<
+            String,
+            Arc<MetricsFetcherIngestion<SystemAgentOutput>>,
+        > = system_agent_cache
             .iter()
-            .map(|(name, ingestion)| (name.to_string(), ingestion.payload.0.clone()))
+            .map(|(name, ingestion)| (name.to_string(), ingestion))
             .collect();
         Snapshot {
             instant,
