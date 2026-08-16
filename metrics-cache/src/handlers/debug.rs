@@ -1,5 +1,6 @@
 use axum::extract::State;
 use axum::http::StatusCode;
+use bytes::Bytes;
 
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
@@ -7,7 +8,7 @@ use crate::piggyback::emit_all;
 use crate::section::writeable::frame;
 use crate::snapshot::Snapshot;
 
-pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> Result<String, StatusCode> {
+pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> Result<Bytes, StatusCode> {
     let snap = Snapshot::new(
         state.stores,
         state.kubelet_stats_summary_cache,
@@ -19,5 +20,5 @@ pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> Result<S
         tracing::error!(%e, "framing failed writing to output vector");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    Ok(String::from_utf8_lossy(&out).into_owned())
+    Ok(out.into())
 }
