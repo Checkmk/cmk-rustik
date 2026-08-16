@@ -80,19 +80,19 @@ pub struct CliArgs {
 
     /// How long (seconds) kubelet stats entries are persisted in the cache
     #[arg(
-        long = "kubelet-stats-cache-ttl",
+        long,
         value_parser = parse_duration_secs,
         default_value = "120"
     )]
     pub kubelet_stats_cache_ttl: Duration,
 
-    /// How long (seconds) Linux agent entries are persisted in the cache
+    /// How long (seconds) system agent entries are persisted in the cache
     #[arg(
-        long = "linux-agent-cache-ttl",
+        long,
         value_parser = parse_duration_secs,
         default_value = "120"
     )]
-    pub linux_agent_cache_ttl: Duration,
+    pub system_agent_cache_ttl: Duration,
 
     /// How verbose to log
     #[arg(
@@ -417,7 +417,7 @@ mod tests {
     fn cache_ttls_have_expected_defaults() {
         let args = parse(&[]).expect("minimal args should parse");
         assert_eq!(args.kubelet_stats_cache_ttl, Duration::from_secs(120));
-        assert_eq!(args.linux_agent_cache_ttl, Duration::from_secs(120));
+        assert_eq!(args.system_agent_cache_ttl, Duration::from_secs(120));
     }
 
     #[test]
@@ -425,12 +425,12 @@ mod tests {
         let args = parse(&[
             "--kubelet-stats-cache-ttl",
             "30",
-            "--linux-agent-cache-ttl",
+            "--system-agent-cache-ttl",
             "60",
         ])
         .expect("cache TTL flags should parse");
         assert_eq!(args.kubelet_stats_cache_ttl, Duration::from_secs(30));
-        assert_eq!(args.linux_agent_cache_ttl, Duration::from_secs(60));
+        assert_eq!(args.system_agent_cache_ttl, Duration::from_secs(60));
     }
 
     #[test]
