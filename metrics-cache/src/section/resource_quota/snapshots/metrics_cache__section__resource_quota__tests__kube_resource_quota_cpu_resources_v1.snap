@@ -1,5 +1,5 @@
 ---
-source: metrics-cache/src/section/resource_quota.rs
+source: metrics-cache/src/section/resource_quota/mod.rs
 expression: "KubeResourceQuotaCpuResourcesV1::from_namespace(&namespace, &indexes)"
 ---
 {
