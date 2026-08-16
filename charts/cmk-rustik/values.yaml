@@ -99,9 +99,9 @@ metricsCache:
   # persisted in the cache before expiring.
   kubeletStatsCacheTtl: 120
 
-  # linuxAgentCacheTtl is how long (seconds) Linux agent entries are
+  # systemAgentCacheTtl is how long (seconds) system agent entries are
   # persisted in the cache before expiring.
-  linuxAgentCacheTtl: 120
+  systemAgentCacheTtl: 120
 
   # extraVolumes is volume definitions to add to the Pod in the Deployment.
   extraVolumes: []

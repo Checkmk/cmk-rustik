@@ -51,7 +51,7 @@ impl AppState<Client> {
                 .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
                 .build(),
             system_agent_cache: Cache::builder()
-                .time_to_live(args.linux_agent_cache_ttl)
+                .time_to_live(args.system_agent_cache_ttl)
                 .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
                 .build(),
             host_settings: host_settings.into(),
