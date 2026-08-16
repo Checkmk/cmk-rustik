@@ -1,8 +1,11 @@
+pub(crate) mod criteria;
+
 use k8s_openapi::api::core::v1::{Namespace, ResourceQuota};
 use serde::Serialize;
 
 use crate::section::Section;
 use crate::section::common::parse_quantity;
+use crate::section::performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1};
 use crate::snapshot::indexes::Indexes;
 
 enum Axis {
@@ -95,6 +98,36 @@ impl KubeResourceQuotaCpuResourcesV1 {
 
 impl Section for KubeResourceQuotaCpuResourcesV1 {
     const NAME: &'static str = "kube_resource_quota_cpu_resources_v1";
+}
+
+/// Actual CPU usage of the running pods matched by a ResourceQuota.
+/// (`kube_resource_quota_performance_cpu_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubeResourceQuotaPerformanceCpuV1(KubePerformanceCpuV1);
+
+impl KubeResourceQuotaPerformanceCpuV1 {
+    pub(crate) fn new(usage: u64) -> Self {
+        Self(KubePerformanceCpuV1::new(usage))
+    }
+}
+
+impl Section for KubeResourceQuotaPerformanceCpuV1 {
+    const NAME: &'static str = "kube_resource_quota_performance_cpu_v1";
+}
+
+/// Actual memory usage of the running pods matched by a ResourceQuota.
+/// (`kube_resource_quota_performance_memory_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubeResourceQuotaPerformanceMemoryV1(KubePerformanceMemoryV1);
+
+impl KubeResourceQuotaPerformanceMemoryV1 {
+    pub(crate) fn new(usage: u64) -> Self {
+        Self(KubePerformanceMemoryV1::new(usage))
+    }
+}
+
+impl Section for KubeResourceQuotaPerformanceMemoryV1 {
+    const NAME: &'static str = "kube_resource_quota_performance_memory_v1";
 }
 
 #[cfg(test)]

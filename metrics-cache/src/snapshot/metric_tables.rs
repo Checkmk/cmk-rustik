@@ -62,7 +62,7 @@ pub struct VolumeSample {
     pub capacity_bytes: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MetricTables {
     /// Performance samples for containers.
     ///
