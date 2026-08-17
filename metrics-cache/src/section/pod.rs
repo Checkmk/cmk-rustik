@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use crate::host_settings::HostSettings;
 use crate::section::Section;
 use crate::section::common::{Controller, LabelRef};
+use crate::section::container::ContainerStatusValue;
 use crate::snapshot::owner_graph::OwnerGraph;
 
 #[derive(Serialize)]
@@ -315,13 +316,39 @@ impl Section for KubePodConditionsV1<'_> {
     const NAME: &'static str = "kube_pod_conditions_v1";
 }
 
+/// Pod container statuses. (`kube_pod_containers_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePodContainersV1<'a> {
+    pub containers: BTreeMap<&'a str, ContainerStatusValue<'a>>,
+}
+
+impl<'a> KubePodContainersV1<'a> {
+    pub(crate) fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let statuses = pod.status.as_ref()?.container_statuses.as_ref()?;
+        let containers = ContainerStatusValue::from_statuses(statuses);
+        if containers.is_empty() {
+            return None;
+        }
+        Some(Self { containers })
+    }
+}
+
+impl Section for KubePodContainersV1<'_> {
+    const NAME: &'static str = "kube_pod_containers_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use crate::test_support::{host_settings, owner_graph, owner_ref, pod, pod_prefilled, s};
+    use k8s_openapi::api::core::v1::{
+        ContainerState, ContainerStateRunning, ContainerStateTerminated, ContainerStateWaiting,
+        ContainerStatus,
+    };
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
     use k8s_openapi::jiff::Timestamp;
+
+    use crate::test_support::{host_settings, owner_graph, owner_ref, pod, pod_prefilled, s};
 
     fn condition(type_: &str, status: &str, reason: &str, message: &str) -> PodCondition {
         let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
@@ -333,6 +360,24 @@ mod tests {
             last_transition_time: Some(Time(timestamp)),
             ..Default::default()
         }
+    }
+
+    fn container_status(name: &str, state: ContainerState) -> ContainerStatus {
+        ContainerStatus {
+            container_id: Some(format!("containerd://{name}")),
+            image_id: format!("{name}-image-id"),
+            name: name.to_string(),
+            image: format!("{name}:latest"),
+            ready: true,
+            state: Some(state),
+            restart_count: 0,
+            ..Default::default()
+        }
+    }
+
+    fn timestamp(s: &str) -> Time {
+        let timestamp: Timestamp = s.parse().unwrap();
+        Time(timestamp)
     }
 
     #[test]
@@ -430,5 +475,88 @@ mod tests {
     #[test]
     fn kube_pod_conditions_v1_without_conditions() {
         assert!(KubePodConditionsV1::from_pod(&pod("my-pod", None)).is_none());
+    }
+
+    #[test]
+    fn kube_pod_containers_v1() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![
+            container_status(
+                "nginx",
+                ContainerState {
+                    running: Some(ContainerStateRunning {
+                        started_at: Some(timestamp("2024-06-19 15:22:45-04")),
+                    }),
+                    ..Default::default()
+                },
+            ),
+            container_status(
+                "sidecar",
+                ContainerState {
+                    waiting: Some(ContainerStateWaiting {
+                        reason: Some("PodInitializing".to_string()),
+                        message: None,
+                    }),
+                    ..Default::default()
+                },
+            ),
+        ]);
+        insta::assert_json_snapshot!(KubePodContainersV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_terminated() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![container_status(
+            "nginx",
+            ContainerState {
+                terminated: Some(ContainerStateTerminated {
+                    exit_code: 1,
+                    started_at: Some(timestamp("2024-06-19 15:22:45-04")),
+                    finished_at: Some(timestamp("2024-06-19 15:23:00-04")),
+                    reason: Some("Error".to_string()),
+                    message: Some("boom".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        )]);
+        insta::assert_json_snapshot!(KubePodContainersV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_without_state() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![ContainerStatus {
+            state: None,
+            ..container_status("nginx", ContainerState::default())
+        }]);
+        assert!(KubePodContainersV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_running_without_started_at_is_skipped() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![container_status(
+            "nginx",
+            ContainerState {
+                running: Some(ContainerStateRunning { started_at: None }),
+                ..Default::default()
+            },
+        )]);
+        assert!(KubePodContainersV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_without_containers() {
+        assert!(KubePodContainersV1::from_pod(&pod("my-pod", None)).is_none());
     }
 }

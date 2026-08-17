@@ -1,0 +1,24 @@
+---
+source: metrics-cache/src/section/pod.rs
+expression: "KubePodContainersV1::from_pod(&pod)"
+---
+{
+  "containers": {
+    "nginx": {
+      "container_id": "containerd://nginx",
+      "image_id": "nginx-image-id",
+      "name": "nginx",
+      "image": "nginx:latest",
+      "ready": true,
+      "state": {
+        "type": "terminated",
+        "exit_code": 1,
+        "start_time": 1718824965,
+        "end_time": 1718824980,
+        "reason": "Error",
+        "detail": "boom"
+      },
+      "restart_count": 0
+    }
+  }
+}
