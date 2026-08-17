@@ -1,8 +1,6 @@
-pub mod debug;
-mod health;
-pub mod ingest;
-
-pub use health::health;
+pub(crate) mod health;
+pub(crate) mod ingest;
+pub(crate) mod pull;
 
 use crate::auth::kubernetes::TokenValidator;
 use crate::auth::pull_agent::PullAgentMiddlewareConfig;
@@ -12,7 +10,7 @@ use axum::{Router, middleware};
 
 pub fn pull_app<V: TokenValidator>(state: AppState<V>, pull: PullAgentMiddlewareConfig) -> Router {
     let routes = Router::new()
-        .route("/sections", get(debug::get))
+        .route("/sections", get(pull::get))
         .route_layer(middleware::from_fn_with_state(
             pull,
             auth::pull_agent::authenticate,
@@ -21,7 +19,7 @@ pub fn pull_app<V: TokenValidator>(state: AppState<V>, pull: PullAgentMiddleware
     Router::new()
         .route("/", get(|| async { "foo" }))
         .nest("/pull", routes)
-        .route("/health", get(health))
+        .route("/health", get(health::health))
         .layer(tower_http::compression::CompressionLayer::new())
         .with_state(state)
 }
