@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{Pod, PodCondition};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -183,11 +183,112 @@ impl Section for KubeStartTimeV1 {
     const NAME: &'static str = "kube_start_time_v1";
 }
 
+#[derive(Serialize)]
+pub(crate) struct PodConditionValue<'a> {
+    pub status: &'a str,
+    pub reason: Option<&'a str>,
+    pub detail: Option<&'a str>,
+    pub last_transition_time: Option<i64>,
+}
+
+impl<'a> PodConditionValue<'a> {
+    fn from_condition(condition: &'a PodCondition) -> Self {
+        Self {
+            status: &condition.status,
+            reason: condition.reason.as_deref(),
+            detail: condition.message.as_deref(),
+            last_transition_time: condition
+                .last_transition_time
+                .as_ref()
+                .map(|t| t.0.as_millisecond() / 1000),
+        }
+    }
+}
+
+/// Pod conditions. (`kube_pod_conditions_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePodConditionsV1<'a> {
+    pub initialized: Option<PodConditionValue<'a>>,
+    pub hasnetwork: Option<PodConditionValue<'a>>,
+    pub readytostartcontainers: Option<PodConditionValue<'a>>,
+    pub scheduled: PodConditionValue<'a>,
+    pub containersready: Option<PodConditionValue<'a>>,
+    pub ready: Option<PodConditionValue<'a>>,
+    pub disruptiontarget: Option<PodConditionValue<'a>>,
+    pub resizepending: Option<PodConditionValue<'a>>,
+    pub resizeinprogress: Option<PodConditionValue<'a>>,
+    pub allcontainersrestarting: Option<PodConditionValue<'a>>,
+}
+
+impl<'a> KubePodConditionsV1<'a> {
+    pub(crate) fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let mut initialized = None;
+        let mut hasnetwork = None;
+        let mut readytostartcontainers = None;
+        let mut scheduled = None;
+        let mut containersready = None;
+        let mut ready = None;
+        let mut disruptiontarget = None;
+        let mut resizepending = None;
+        let mut resizeinprogress = None;
+        let mut allcontainersrestarting = None;
+
+        let conditions = pod.status.as_ref()?.conditions.as_ref()?;
+        for condition in conditions {
+            let value = PodConditionValue::from_condition(condition);
+            match condition.type_.as_str() {
+                "Initialized" => initialized = Some(value),
+                "PodHasNetwork" => hasnetwork = Some(value),
+                "PodReadyToStartContainers" => readytostartcontainers = Some(value),
+                "PodScheduled" => scheduled = Some(value),
+                "ContainersReady" => containersready = Some(value),
+                "Ready" => ready = Some(value),
+                "DisruptionTarget" => disruptiontarget = Some(value),
+                "PodResizePending" => resizepending = Some(value),
+                "PodResizeInProgress" => resizeinprogress = Some(value),
+                "AllContainersRestarting" => allcontainersrestarting = Some(value),
+                _ => {} // unrecognized condition type: dropped, matches Python `from_kube_api`
+            }
+        }
+
+        Some(Self {
+            initialized,
+            hasnetwork,
+            readytostartcontainers,
+            scheduled: scheduled?,
+            containersready,
+            ready,
+            disruptiontarget,
+            resizepending,
+            resizeinprogress,
+            allcontainersrestarting,
+        })
+    }
+}
+
+impl Section for KubePodConditionsV1<'_> {
+    const NAME: &'static str = "kube_pod_conditions_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use crate::test_support::{host_settings, owner_graph, owner_ref, pod, pod_prefilled};
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+    use k8s_openapi::jiff::Timestamp;
+
+    fn condition(type_: &str, status: &str, reason: &str, message: &str) -> PodCondition {
+        let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
+        PodCondition {
+            type_: type_.to_string(),
+            status: status.to_string(),
+            reason: Some(reason.to_string()),
+            message: Some(message.to_string()),
+            last_transition_time: Some(Time(timestamp)),
+            ..Default::default()
+        }
+    }
 
     #[test]
     fn kube_pod_lifecycle_v1() {
@@ -224,5 +325,44 @@ mod tests {
         let mut without_start_time = pod_prefilled("my-pod");
         without_start_time.status.as_mut().unwrap().start_time = None;
         assert!(KubeStartTimeV1::from_pod(&without_start_time).is_none());
+    }
+
+    #[test]
+    fn kube_pod_conditions_v1() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status.get_or_insert_with(Default::default).conditions = Some(vec![
+            condition("PodScheduled", "True", "", ""),
+            condition("Initialized", "True", "", ""),
+            condition(
+                "Ready",
+                "False",
+                "ContainersNotReady",
+                "containers not ready",
+            ),
+        ]);
+        insta::assert_json_snapshot!(KubePodConditionsV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_conditions_v1_ignores_unknown_condition_types() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status.get_or_insert_with(Default::default).conditions = Some(vec![
+            condition("PodScheduled", "True", "", ""),
+            condition("SomeFutureCondition", "True", "", ""),
+        ]);
+        insta::assert_json_snapshot!(KubePodConditionsV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_conditions_v1_without_scheduled() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status.get_or_insert_with(Default::default).conditions =
+            Some(vec![condition("Initialized", "True", "", "")]);
+        assert!(KubePodConditionsV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_conditions_v1_without_conditions() {
+        assert!(KubePodConditionsV1::from_pod(&pod("my-pod", None)).is_none());
     }
 }
