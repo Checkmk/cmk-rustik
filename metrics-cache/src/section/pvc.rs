@@ -320,6 +320,7 @@ mod tests {
     use super::*;
     use std::assert_matches;
 
+    use crate::snapshot::metric_tables::VolumeSample;
     use crate::test_support::*;
 
     fn pvc_indexes() -> Indexes {
@@ -374,6 +375,68 @@ mod tests {
         // If everything is in another namespace, do not produce a section
         assert_matches!(
             KubePvcV1::from_claim_names(&indexes, "ANOTHER-namespace", ["pvc-1", "pvc-2"]),
+            None
+        );
+    }
+
+    fn pvc_metric_tables() -> MetricTables {
+        let mut metric_tables = MetricTables::default();
+        for (claim_name, available_bytes, capacity_bytes) in [
+            ("pvc-1", 536_870_912, 1_073_741_824),
+            ("pvc-2", 268_435_456, 1_073_741_824),
+        ] {
+            metric_tables
+                .pvc_volumes
+                .entry(s("really-cool-namespace"))
+                .or_default()
+                .insert(
+                    s(claim_name),
+                    VolumeSample {
+                        available_bytes,
+                        capacity_bytes,
+                    },
+                );
+        }
+        metric_tables
+    }
+
+    #[test]
+    fn kube_pvc_volumes_v1() {
+        let metric_tables = pvc_metric_tables();
+
+        insta::assert_json_snapshot!(KubePvcVolumesV1::from_claim_names(
+            &metric_tables,
+            "really-cool-namespace",
+            ["pvc-1", "pvc-2"]
+        ));
+
+        // If no claim has volume stats, do not produce a section
+        assert_matches!(
+            KubePvcVolumesV1::from_claim_names(
+                &metric_tables,
+                "really-cool-namespace",
+                ["bad", "worse"]
+            ),
+            None
+        );
+
+        // volume stats present, produce a section
+        assert_eq!(
+            KubePvcVolumesV1::from_claim_names(
+                &metric_tables,
+                "really-cool-namespace",
+                ["bad", "pvc-1"],
+            )
+            .unwrap()
+            .volumes
+            .keys()
+            .collect::<Vec<_>>(),
+            ["pvc-1"]
+        );
+
+        // another namespace, do not produce a section
+        assert_matches!(
+            KubePvcVolumesV1::from_claim_names(&metric_tables, "ANOTHER-namespace", ["pvc-1"]),
             None
         );
     }
