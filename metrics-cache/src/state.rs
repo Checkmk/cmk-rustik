@@ -9,6 +9,7 @@ use crate::cli_args::CliArgs;
 use crate::error::Result;
 use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings};
 use crate::ingest::MetricsFetcherIngestion;
+use crate::ingest::SystemAgentOutput;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::Stores;
 
@@ -22,6 +23,7 @@ pub struct AppState<V: TokenValidator> {
     pub reader_allowlist: Vec<String>,
     pub writer_allowlist: Vec<String>,
     pub kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
+    pub system_agent_cache: Cache<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
     pub host_settings: Arc<HostSettings>,
 }
 
@@ -45,6 +47,9 @@ impl AppState<Client> {
             reader_allowlist: args.reader_allowlist.clone(),
             writer_allowlist: args.writer_allowlist.clone(),
             kubelet_stats_summary_cache: Cache::builder()
+                .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
+                .build(),
+            system_agent_cache: Cache::builder()
                 .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
                 .build(),
             host_settings: host_settings.into(),
@@ -98,6 +103,10 @@ pub mod tests {
             reader_allowlist: vec!["test-ns:test-reader".to_string()],
             writer_allowlist: vec!["test-ns:test-writer".to_string()],
             kubelet_stats_summary_cache: Cache::builder()
+                .time_to_live(Duration::from_secs(120))
+                .max_capacity(10000)
+                .build(),
+            system_agent_cache: Cache::builder()
                 .time_to_live(Duration::from_secs(120))
                 .max_capacity(10000)
                 .build(),

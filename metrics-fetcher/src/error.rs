@@ -14,4 +14,13 @@ pub(crate) enum Error {
         #[source]
         source: std::env::VarError,
     },
+    #[error("check_mk_agent timed out after {0:?}")]
+    AgentTimeout(std::time::Duration),
+    #[error("check_mk_agent exited with {status}: {stderr}")]
+    AgentExitStatus {
+        status: std::process::ExitStatus,
+        stderr: String,
+    },
+    #[error("check_mk_agent produced empty output")]
+    AgentEmptyOutput,
 }

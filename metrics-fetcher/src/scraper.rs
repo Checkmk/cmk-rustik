@@ -1,5 +1,6 @@
 use reqwest::Client;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::time;
 use tokio::time::Duration;
 use tracing::{error, warn};
@@ -22,8 +23,10 @@ pub(crate) trait Scraper {
         let mut interval = time::interval(Duration::from_secs(60));
         loop {
             interval.tick().await;
+            let start = Instant::now();
             match self.scrape().await {
                 Ok(payload) => {
+                    let scrape_duration = start.elapsed();
                     let args = self.args();
                     match payload
                         .push_to_metrics_cache(
@@ -32,6 +35,7 @@ pub(crate) trait Scraper {
                             &args.metrics_cache_ca_cert_file,
                             args.metrics_cache_port,
                             self.relay_client(),
+                            scrape_duration,
                         )
                         .await
                     {
