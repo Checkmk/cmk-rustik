@@ -1,0 +1,34 @@
+---
+source: metrics-cache/src/section/pod.rs
+assertion_line: 344
+expression: "KubePodContainersV1::from_pod(&pod)"
+---
+{
+  "containers": {
+    "nginx": {
+      "container_id": "containerd://nginx",
+      "image_id": "nginx-image-id",
+      "name": "nginx",
+      "image": "nginx:latest",
+      "ready": true,
+      "state": {
+        "type": "running",
+        "start_time": 1718824965
+      },
+      "restart_count": 0
+    },
+    "sidecar": {
+      "container_id": "containerd://sidecar",
+      "image_id": "sidecar-image-id",
+      "name": "sidecar",
+      "image": "sidecar:latest",
+      "ready": true,
+      "state": {
+        "type": "waiting",
+        "reason": "PodInitializing",
+        "detail": null
+      },
+      "restart_count": 0
+    }
+  }
+}
