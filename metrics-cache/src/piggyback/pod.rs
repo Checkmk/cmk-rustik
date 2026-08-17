@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
-use crate::section::pod::{KubePodInfoV1, KubePodLifecycleV1, KubeStartTimeV1};
+use crate::section::pod::{
+    KubePodConditionsV1, KubePodInfoV1, KubePodLifecycleV1, KubeStartTimeV1,
+};
 use crate::section::pvc::{KubePvcPvsV1, KubePvcV1, KubePvcVolumesV1};
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -60,6 +62,11 @@ impl<'a> Pod<'a> {
         let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
         KubePvcPvsV1::from_claim_names(&self.snapshot.indexes, self.meta.namespace?, claim_names)
     }
+
+    /// Generate the section `kube_pod_conditions_v1` from the pod's status.
+    fn conditions(&'a self) -> Option<KubePodConditionsV1<'a>> {
+        KubePodConditionsV1::from_pod(self.api)
+    }
 }
 
 impl AggregationHost for Pod<'_> {
@@ -104,6 +111,9 @@ impl PiggybackHost for Pod<'_> {
         }
         if let Some(kube_start_time_v1) = KubeStartTimeV1::from_pod(self.api) {
             out.push(WriteableSection::of(&me, &kube_start_time_v1));
+        }
+        if let Some(kube_pod_conditions_v1) = &self.conditions() {
+            out.push(WriteableSection::of(&me, kube_pod_conditions_v1));
         }
 
         out
