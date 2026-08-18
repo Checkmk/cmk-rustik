@@ -337,6 +337,27 @@ impl Section for KubePodContainersV1<'_> {
     const NAME: &'static str = "kube_pod_containers_v1";
 }
 
+/// Pod init-container statuses. (`kube_pod_init_containers_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePodInitContainersV1<'a> {
+    pub containers: BTreeMap<&'a str, ContainerStatusValue<'a>>,
+}
+
+impl<'a> KubePodInitContainersV1<'a> {
+    pub(crate) fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let statuses = pod.status.as_ref()?.init_container_statuses.as_ref()?;
+        let containers = ContainerStatusValue::from_statuses(statuses);
+        if containers.is_empty() {
+            return None;
+        }
+        Some(Self { containers })
+    }
+}
+
+impl Section for KubePodInitContainersV1<'_> {
+    const NAME: &'static str = "kube_pod_init_containers_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -558,5 +579,34 @@ mod tests {
     #[test]
     fn kube_pod_containers_v1_without_containers() {
         assert!(KubePodContainersV1::from_pod(&pod("my-pod", None)).is_none());
+    }
+
+    #[test]
+    fn kube_pod_init_containers_v1() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .init_container_statuses = Some(vec![
+            container_status(
+                "init-a",
+                ContainerState {
+                    running: Some(ContainerStateRunning {
+                        started_at: Some(timestamp("2024-06-19 15:22:45-04")),
+                    }),
+                    ..Default::default()
+                },
+            ),
+            container_status(
+                "init-b",
+                ContainerState {
+                    waiting: Some(ContainerStateWaiting {
+                        reason: Some("PodInitializing".to_string()),
+                        message: None,
+                    }),
+                    ..Default::default()
+                },
+            ),
+        ]);
+        insta::assert_json_snapshot!(KubePodInitContainersV1::from_pod(&pod));
     }
 }
