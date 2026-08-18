@@ -50,7 +50,10 @@ jobs:
       - name: Build binaries for the /src mount
         run: cargo build
       - name: Prepare kind (create cluster, build and load docker images)
-        run: just kind-load
+        run: |
+          just dockerize
+          just kind-create
+          just kind-load
       - name: Run chart-testing (install)
         run: ct install --all
   ci:
