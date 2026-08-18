@@ -1,4 +1,5 @@
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -160,11 +161,131 @@ impl Section for KubePodLifecycleV1 {
     const NAME: &'static str = "kube_pod_lifecycle_v1";
 }
 
+fn to_unix_seconds(time: &Time) -> i64 {
+    time.0.as_millisecond() / 1000
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type")]
+pub(crate) enum ContainerStateValue<'a> {
+    #[serde(rename = "running")]
+    Running { start_time: Option<i64> },
+    #[serde(rename = "waiting")]
+    Waiting {
+        reason: Option<&'a str>,
+        detail: Option<&'a str>,
+    },
+    #[serde(rename = "terminated")]
+    Terminated {
+        exit_code: i32,
+        start_time: Option<i64>,
+        end_time: Option<i64>,
+        reason: Option<&'a str>,
+        detail: Option<&'a str>,
+    },
+}
+
+#[derive(Serialize)]
+pub(crate) struct ContainerStatusValue<'a> {
+    pub container_id: Option<&'a str>,
+    pub image_id: &'a str,
+    pub name: &'a str,
+    pub image: &'a str,
+    pub ready: bool,
+    pub state: ContainerStateValue<'a>,
+    pub restart_count: i32,
+}
+
+impl<'a> ContainerStatusValue<'a> {
+    fn from_status(status: &'a ContainerStatus) -> Option<Self> {
+        let state = status.state.as_ref()?;
+        let state = if let Some(running) = &state.running {
+            ContainerStateValue::Running {
+                start_time: running.started_at.as_ref().map(to_unix_seconds),
+            }
+        } else if let Some(waiting) = &state.waiting {
+            ContainerStateValue::Waiting {
+                reason: waiting.reason.as_deref(),
+                detail: waiting.message.as_deref(),
+            }
+        } else if let Some(terminated) = &state.terminated {
+            ContainerStateValue::Terminated {
+                exit_code: terminated.exit_code,
+                start_time: terminated.started_at.as_ref().map(to_unix_seconds),
+                end_time: terminated.finished_at.as_ref().map(to_unix_seconds),
+                reason: terminated.reason.as_deref(),
+                detail: terminated.message.as_deref(),
+            }
+        } else {
+            return None;
+        };
+
+        Some(Self {
+            container_id: status.container_id.as_deref(),
+            image_id: &status.image_id,
+            name: &status.name,
+            image: &status.image,
+            ready: status.ready,
+            state,
+            restart_count: status.restart_count,
+        })
+    }
+}
+
+/// Pod container statuses. (`kube_pod_containers_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePodContainersV1<'a> {
+    pub containers: BTreeMap<&'a str, ContainerStatusValue<'a>>,
+}
+
+impl<'a> KubePodContainersV1<'a> {
+    pub(crate) fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let statuses = pod.status.as_ref()?.container_statuses.as_ref()?;
+        let mut containers = BTreeMap::new();
+        for status in statuses {
+            if let Some(value) = ContainerStatusValue::from_status(status) {
+                containers.insert(status.name.as_str(), value);
+            }
+        }
+        if containers.is_empty() {
+            return None;
+        }
+        Some(Self { containers })
+    }
+}
+
+impl Section for KubePodContainersV1<'_> {
+    const NAME: &'static str = "kube_pod_containers_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use crate::test_support::{owner_graph, owner_ref, pod_prefilled};
+    use k8s_openapi::api::core::v1::{
+        ContainerState, ContainerStateRunning, ContainerStateTerminated, ContainerStateWaiting,
+    };
+    use k8s_openapi::jiff::Timestamp;
+
+    use crate::test_support::{owner_graph, owner_ref, pod, pod_prefilled};
+
+    fn container_status(name: &str, state: ContainerState) -> ContainerStatus {
+        ContainerStatus {
+            container_id: Some(format!("containerd://{name}")),
+            image_id: format!("{name}-image-id"),
+            name: name.to_string(),
+            image: format!("{name}:latest"),
+            ready: true,
+            state: Some(state),
+            restart_count: 0,
+            ..Default::default()
+        }
+    }
+
+    fn timestamp(s: &str) -> Time {
+        let timestamp: Timestamp = s.parse().unwrap();
+        Time(timestamp)
+    }
 
     #[test]
     fn kube_pod_lifecycle_v1() {
@@ -190,5 +311,73 @@ mod tests {
             always_emitted: crate::host_settings::AlwaysEmitted::default(),
         };
         insta::assert_json_snapshot!(KubePodInfoV1::from_pod(&pod, &graph, &settings));
+    }
+
+    #[test]
+    fn kube_pod_containers_v1() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![
+            container_status(
+                "nginx",
+                ContainerState {
+                    running: Some(ContainerStateRunning {
+                        started_at: Some(timestamp("2024-06-19 15:22:45-04")),
+                    }),
+                    ..Default::default()
+                },
+            ),
+            container_status(
+                "sidecar",
+                ContainerState {
+                    waiting: Some(ContainerStateWaiting {
+                        reason: Some("PodInitializing".to_string()),
+                        message: None,
+                    }),
+                    ..Default::default()
+                },
+            ),
+        ]);
+        insta::assert_json_snapshot!(KubePodContainersV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_terminated() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![container_status(
+            "nginx",
+            ContainerState {
+                terminated: Some(ContainerStateTerminated {
+                    exit_code: 1,
+                    started_at: Some(timestamp("2024-06-19 15:22:45-04")),
+                    finished_at: Some(timestamp("2024-06-19 15:23:00-04")),
+                    reason: Some("Error".to_string()),
+                    message: Some("boom".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        )]);
+        insta::assert_json_snapshot!(KubePodContainersV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_without_state() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![ContainerStatus {
+            state: None,
+            ..container_status("nginx", ContainerState::default())
+        }]);
+        assert!(KubePodContainersV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_without_containers() {
+        assert!(KubePodContainersV1::from_pod(&pod("my-pod", None)).is_none());
     }
 }

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
 use crate::section::{
-    pod::{KubePodInfoV1, KubePodLifecycleV1},
+    pod::{KubePodContainersV1, KubePodInfoV1, KubePodLifecycleV1},
     pvc::{KubePvcPvsV1, KubePvcV1, KubePvcVolumesV1},
     writeable::{SectionError, WriteableSection},
 };
@@ -62,6 +62,11 @@ impl<'a> Pod<'a> {
         let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
         KubePvcPvsV1::from_claim_names(&self.snapshot.indexes, self.meta.namespace?, claim_names)
     }
+
+    /// Generate the section `kube_pod_containers_v1` from the pod's status.
+    fn containers(&'a self) -> Option<KubePodContainersV1<'a>> {
+        KubePodContainersV1::from_pod(self.api)
+    }
 }
 
 impl AggregationHost for Pod<'_> {
@@ -103,6 +108,9 @@ impl PiggybackHost for Pod<'_> {
         }
         if let Some(phase) = &self.api.status.as_ref().and_then(|s| s.phase.as_deref()) {
             out.push(WriteableSection::of(&me, &KubePodLifecycleV1::new(phase)));
+        }
+        if let Some(kube_pod_containers_v1) = &self.containers() {
+            out.push(WriteableSection::of(&me, kube_pod_containers_v1));
         }
 
         out
