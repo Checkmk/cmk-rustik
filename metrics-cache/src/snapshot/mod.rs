@@ -2,21 +2,21 @@ pub mod indexes;
 pub mod metric_tables;
 pub mod owner_graph;
 pub mod self_health;
+pub mod system_agent;
 
 use moka::future::Cache;
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::ingest::MetricsFetcherIngestion;
-use crate::ingest::SystemAgentOutput;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::{FrozenStores, Stores};
+use crate::ingest::{MetricsFetcherIngestion, SystemAgentOutput};
 use crate::snapshot::indexes::Indexes;
 use crate::snapshot::metric_tables::MetricTables;
 use crate::snapshot::owner_graph::OwnerGraph;
 use crate::snapshot::self_health::SelfHealth;
+use crate::snapshot::system_agent::SystemAgentOutputs;
 
 /// Represents a single, static snapshot of the state of the cluster as it
 /// pertains to Checkmk monitoring.
@@ -40,7 +40,7 @@ pub struct Snapshot {
     pub metrics: MetricTables,
     pub indexes: Indexes,
     pub self_health: SelfHealth,
-    pub system_agent_snapshot: HashMap<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
+    pub(crate) system_agents: SystemAgentOutputs,
 }
 
 impl Snapshot {
@@ -63,13 +63,7 @@ impl Snapshot {
             reflector_healths,
             &kubelet_stats_summary_cache,
         );
-        let system_agent_snapshot: HashMap<
-            String,
-            Arc<MetricsFetcherIngestion<SystemAgentOutput>>,
-        > = system_agent_cache
-            .iter()
-            .map(|(name, ingestion)| (name.to_string(), ingestion))
-            .collect();
+        let system_agents = SystemAgentOutputs::from_cache(&system_agent_cache);
         Snapshot {
             instant,
             stores,
@@ -77,7 +71,7 @@ impl Snapshot {
             metrics,
             indexes,
             self_health,
-            system_agent_snapshot,
+            system_agents,
         }
     }
 }
