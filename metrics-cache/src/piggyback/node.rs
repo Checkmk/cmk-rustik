@@ -56,7 +56,7 @@ impl PiggybackHost for Node<'_> {
         if let Some(kube_node_info_v1) = KubeNodeInfoV1::from_node(self.api, self.settings) {
             out.push(WriteableSection::of(&me, &kube_node_info_v1));
         }
-        if let Some(ingestion) = self.snapshot.system_agent_snapshot.get(self.meta.name) {
+        if let Some(ingestion) = self.snapshot.system_agents.get(self.meta.name) {
             out.push(Ok(WriteableSection::raw(&me, ingestion.payload.0.clone())));
         }
         out.extend(self.aggregation_sections(&me));
