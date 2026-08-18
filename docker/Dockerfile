@@ -20,7 +20,10 @@ ARG CHECKMK_AGENT_PLUGIN_DIR="${CHECKMK_AGENT_DIR}/plugins"
 RUN wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/check_mk_agent.openwrt &&\
     wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/plugins/mk_inventory.linux &&\
     wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/plugins/lnx_container_host_if.linux &&\
-    install -m 0755 check_mk_agent.openwrt mk_inventory.linux lnx_container_host_if.linux /usr/local/bin/
+    install -m 0755 check_mk_agent.openwrt mk_inventory.linux lnx_container_host_if.linux /usr/local/bin/ &&\
+    rm -f check_mk_agent.openwrt mk_inventory.linux lnx_container_host_if.linux &&\
+    # coreutils is *required* because busybox `timeout` creates zombies and we leak PIDs
+    apk add coreutils=9.8-r1
 COPY --from=builder /src/target/*/release/metrics-fetcher /usr/local/bin/
 COPY docker/check_mk_agent /usr/local/bin/check_mk_agent
 RUN addgroup appgroup -g 10001 && adduser -HD appuser -G appgroup -u 10001
@@ -45,7 +48,10 @@ ARG CHECKMK_AGENT_PLUGIN_DIR="${CHECKMK_AGENT_DIR}/plugins"
 RUN wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/check_mk_agent.openwrt &&\
     wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/plugins/mk_inventory.linux &&\
     wget https://raw.githubusercontent.com/Checkmk/checkmk/refs/tags/${CMK_AGENT_SOURCE_TAG}/agents/plugins/lnx_container_host_if.linux &&\
-    install -m 0755 check_mk_agent.openwrt mk_inventory.linux lnx_container_host_if.linux /usr/local/bin/
+    install -m 0755 check_mk_agent.openwrt mk_inventory.linux lnx_container_host_if.linux /usr/local/bin/ &&\
+    rm -f check_mk_agent.openwrt mk_inventory.linux lnx_container_host_if.linux &&\
+    # coreutils is *required* because busybox `timeout` creates zombies and we leak PIDs
+    apk add coreutils=9.8-r1
 COPY docker/check_mk_agent /usr/local/bin/check_mk_agent
 RUN addgroup appgroup -g 10001 && adduser -HD appuser -G appgroup -u 10001
 USER appuser
