@@ -1,0 +1,33 @@
+---
+source: metrics-cache/src/section/pod.rs
+expression: "KubePodInitContainersV1::from_pod(&pod)"
+---
+{
+  "containers": {
+    "init-a": {
+      "container_id": "containerd://init-a",
+      "image_id": "init-a-image-id",
+      "name": "init-a",
+      "image": "init-a:latest",
+      "ready": true,
+      "state": {
+        "type": "running",
+        "start_time": 1718824965
+      },
+      "restart_count": 0
+    },
+    "init-b": {
+      "container_id": "containerd://init-b",
+      "image_id": "init-b-image-id",
+      "name": "init-b",
+      "image": "init-b:latest",
+      "ready": true,
+      "state": {
+        "type": "waiting",
+        "reason": "PodInitializing",
+        "detail": null
+      },
+      "restart_count": 0
+    }
+  }
+}
