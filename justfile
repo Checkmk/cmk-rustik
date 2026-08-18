@@ -21,7 +21,7 @@ kind-create:
       kind create cluster --name rustik --config -
 
 # Load images into the kind cluster, creating it if it does not exist
-kind-load: dockerize kind-create
+kind-load:
     kind load docker-image {{fetcher_tag}} --name rustik
     kind load docker-image {{cache_tag}} --name rustik
 
