@@ -31,6 +31,8 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: x86_64-unknown-linux-musl
+      - name: Work around Azure issues
+        run: sudo sed -i 's/azure\.archive/archive/g' /etc/apt/apt-mirrors.txt
       - name: Install musl C toolchain
         # cargo doc still *compiles* deps (running their build scripts) to
         # document our crates. ring's build script needs the musl C compiler
