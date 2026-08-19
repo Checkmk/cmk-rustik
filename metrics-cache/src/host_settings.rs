@@ -106,13 +106,13 @@ mod tests {
     use k8s_openapi::api::core::v1::Node;
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
+    use crate::test_support::host_settings;
+
     fn host_settings_with_excluded_roles(patterns: Vec<Regex>) -> HostSettings {
         HostSettings {
-            cluster_name: "test-cluster".to_string(),
-            cluster_host_name: "test-host".to_string(),
             annotation_key_pattern: AnnotationKeyPattern::IgnoreAll,
             excluded_node_role_patterns: patterns,
-            always_emitted: AlwaysEmitted::default(),
+            ..host_settings()
         }
     }
 

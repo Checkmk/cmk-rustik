@@ -82,9 +82,11 @@ impl AppState<Client> {
 // Intentionally public, provides util functions for other modules
 #[cfg(test)]
 pub mod tests {
+    use super::*;
+
     use k8s_openapi::api::authentication::v1::TokenReview;
 
-    use super::*;
+    use crate::test_support::host_settings;
 
     #[derive(Clone)]
     pub struct MockValidator {
@@ -112,14 +114,7 @@ pub mod tests {
                 .time_to_live(Duration::from_secs(120))
                 .max_capacity(10000)
                 .build(),
-            host_settings: HostSettings {
-                cluster_name: "testcluster".to_string(),
-                cluster_host_name: "testclusterhost".to_string(),
-                annotation_key_pattern: AnnotationKeyPattern::ImportAll,
-                excluded_node_role_patterns: Vec::new(),
-                always_emitted: AlwaysEmitted::default(),
-            }
-            .into(),
+            host_settings: host_settings().into(),
         }
     }
 

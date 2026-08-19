@@ -106,7 +106,7 @@ mod tests {
             .find(|s| matches!(s.body, SectionBody::Raw(_)))
             .expect("expected a raw system agent section");
 
-        assert_eq!(raw_section.piggyback_hostname, "node_testcluster_node-1");
+        assert_eq!(raw_section.piggyback_hostname, "node_the-cluster_node-1");
         match raw_section.body {
             SectionBody::Raw(raw) => assert_eq!(raw, Bytes::from_static(b"<<<check_mk>>>\n")),
             SectionBody::Json { .. } => unreachable!(),

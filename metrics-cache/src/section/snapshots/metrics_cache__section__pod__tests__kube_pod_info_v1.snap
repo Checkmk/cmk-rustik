@@ -31,6 +31,6 @@ expression: "KubePodInfoV1::from_pod(&pod, &graph, &settings)"
       "name": "deploy-1"
     }
   ],
-  "cluster": "test-cluster",
-  "kubernetes_cluster_hostname": "test-host"
+  "cluster": "the-cluster",
+  "kubernetes_cluster_hostname": "cluster.host.tld"
 }

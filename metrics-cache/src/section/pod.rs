@@ -164,7 +164,7 @@ impl Section for KubePodLifecycleV1 {
 mod tests {
     use super::*;
 
-    use crate::test_support::{owner_graph, owner_ref, pod_prefilled};
+    use crate::test_support::{host_settings, owner_graph, owner_ref, pod_prefilled};
 
     #[test]
     fn kube_pod_lifecycle_v1() {
@@ -182,13 +182,7 @@ mod tests {
             ),
             ("rs-uid", owner_ref("Deployment", "deploy-1", "deploy-uid")),
         ]);
-        let settings = HostSettings {
-            cluster_name: "test-cluster".to_string(),
-            cluster_host_name: "test-host".to_string(),
-            annotation_key_pattern: crate::host_settings::AnnotationKeyPattern::IgnoreAll,
-            excluded_node_role_patterns: Vec::new(),
-            always_emitted: crate::host_settings::AlwaysEmitted::default(),
-        };
+        let settings = host_settings();
         insta::assert_json_snapshot!(KubePodInfoV1::from_pod(&pod, &graph, &settings));
     }
 }
