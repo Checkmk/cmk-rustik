@@ -158,11 +158,36 @@ impl Section for KubePodLifecycleV1 {
     const NAME: &'static str = "kube_pod_lifecycle_v1";
 }
 
+/// Kubernetes Pod start time. (`kube_start_time_v1`)
+///
+/// Date and time at which the object was acknowledged by the Kubelet,
+/// the check plugin turns it into an uptime. The Kubernetes API leaves
+/// `.status.startTime` unset until then (e.g. for a Pod that cannot be
+/// scheduled and is Pending), so this section is conditional.
+#[derive(Debug, Serialize)]
+pub(crate) struct KubeStartTimeV1 {
+    start_time: f64,
+}
+
+impl KubeStartTimeV1 {
+    /// Create a section for a Pod, unless the Pod has no start time yet.
+    pub(crate) fn from_pod(pod: &Pod) -> Option<Self> {
+        let start_time = pod.status.as_ref()?.start_time.as_ref()?;
+        Some(Self {
+            start_time: start_time.0.as_millisecond() as f64 / 1000.0,
+        })
+    }
+}
+
+impl Section for KubeStartTimeV1 {
+    const NAME: &'static str = "kube_start_time_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use crate::test_support::{host_settings, owner_graph, owner_ref, pod_prefilled};
+    use crate::test_support::{host_settings, owner_graph, owner_ref, pod, pod_prefilled};
 
     #[test]
     fn kube_pod_lifecycle_v1() {
@@ -182,5 +207,22 @@ mod tests {
         ]);
         let settings = host_settings();
         insta::assert_json_snapshot!(KubePodInfoV1::from_pod(&pod, &graph, &settings));
+    }
+
+    #[test]
+    fn kube_start_time_v1() {
+        let section = KubeStartTimeV1::from_pod(&pod_prefilled("my-pod"));
+        insta::assert_json_snapshot!(section);
+    }
+
+    #[test]
+    fn kube_start_time_v1_is_none_without_a_start_time() {
+        // A Pod without any status
+        assert!(KubeStartTimeV1::from_pod(&pod("unscheduled", None)).is_none());
+
+        // A Pod which has a status, but no start time in it
+        let mut without_start_time = pod_prefilled("my-pod");
+        without_start_time.status.as_mut().unwrap().start_time = None;
+        assert!(KubeStartTimeV1::from_pod(&without_start_time).is_none());
     }
 }

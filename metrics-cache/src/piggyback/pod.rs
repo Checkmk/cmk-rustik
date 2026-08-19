@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
-use crate::section::pod::{KubePodInfoV1, KubePodLifecycleV1};
+use crate::section::pod::{KubePodInfoV1, KubePodLifecycleV1, KubeStartTimeV1};
 use crate::section::pvc::{KubePvcPvsV1, KubePvcV1, KubePvcVolumesV1};
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -101,6 +101,9 @@ impl PiggybackHost for Pod<'_> {
         }
         if let Some(phase) = &self.api.status.as_ref().and_then(|s| s.phase.as_deref()) {
             out.push(WriteableSection::of(&me, &KubePodLifecycleV1::new(phase)));
+        }
+        if let Some(kube_start_time_v1) = KubeStartTimeV1::from_pod(self.api) {
+            out.push(WriteableSection::of(&me, &kube_start_time_v1));
         }
 
         out
