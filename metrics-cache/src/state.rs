@@ -6,7 +6,7 @@ use tokio::task::JoinSet;
 
 use crate::auth::kubernetes::TokenValidator;
 use crate::cli_args::CliArgs;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings};
 use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::SystemAgentOutput;
@@ -31,6 +31,11 @@ impl AppState<Client> {
     pub async fn new(args: &CliArgs, tasks: &mut JoinSet<()>) -> Result<Self> {
         let client = Self::kube_client(args.connect_timeout, args.read_timeout).await?;
         let watcher_client = Self::kube_watcher_client(args.connect_timeout).await?;
+        let cluster_version = client
+            .apiserver_version()
+            .await
+            .map_err(Error::KubeApiServerVersion)?
+            .git_version;
         let host_settings = HostSettings {
             cluster_name: args.cluster_name.clone(),
             cluster_host_name: args.cluster_host_name.clone(),
@@ -40,6 +45,7 @@ impl AppState<Client> {
             ),
             excluded_node_role_patterns: args.excluded_node_role_patterns.clone(),
             always_emitted: AlwaysEmitted::from_cli_args(args),
+            cluster_version,
         };
         let state = Self {
             client,

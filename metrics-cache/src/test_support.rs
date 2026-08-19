@@ -213,6 +213,7 @@ pub fn host_settings() -> HostSettings {
         annotation_key_pattern: AnnotationKeyPattern::ImportAll,
         excluded_node_role_patterns: Vec::new(),
         always_emitted: AlwaysEmitted::default(),
+        cluster_version: s("v1.36.1"),
     }
 }
 

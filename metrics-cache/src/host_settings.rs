@@ -71,6 +71,8 @@ pub struct HostSettings {
     pub annotation_key_pattern: AnnotationKeyPattern,
     pub excluded_node_role_patterns: Vec<Regex>,
     pub always_emitted: AlwaysEmitted,
+    // Not configuration but belongs with other static facts about the cluster
+    pub cluster_version: String,
 }
 
 impl HostSettings {

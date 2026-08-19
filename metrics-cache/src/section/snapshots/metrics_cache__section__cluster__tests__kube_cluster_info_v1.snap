@@ -1,0 +1,8 @@
+---
+source: metrics-cache/src/section/cluster.rs
+expression: "KubeClusterInfoV1::from_host_settings(&host_settings())"
+---
+{
+  "name": "the-cluster",
+  "version": "v1.36.1"
+}

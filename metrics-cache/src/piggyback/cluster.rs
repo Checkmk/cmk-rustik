@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, PiggybackHost};
+use crate::section::cluster::KubeClusterInfoV1;
 use crate::section::self_health::KubeRustikHealthV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -94,6 +95,10 @@ impl PiggybackHost for Cluster<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = "";
         let mut out = Vec::new();
+        out.push(WriteableSection::of(
+            me,
+            &KubeClusterInfoV1::from_host_settings(self.settings),
+        ));
         out.extend(self.aggregation_sections(me));
         out.push(WriteableSection::of(
             me,
