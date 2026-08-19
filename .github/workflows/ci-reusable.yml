@@ -46,6 +46,8 @@ jobs:
         with:
           rustflags: ""
           target: x86_64-unknown-linux-musl
+      - name: Work around Azure issues
+        run: sudo sed -i 's/azure\.archive/archive/g' /etc/apt/apt-mirrors.txt
       - name: Install musl C toolchain
         run: sudo apt update && sudo apt install -y musl-tools
       - name: Build binaries for the /src mount
@@ -67,6 +69,8 @@ jobs:
           components: clippy, rustfmt
           rustflags: ""
           target: x86_64-unknown-linux-musl
+      - name: Work around Azure issues
+        run: sudo sed -i 's/azure\.archive/archive/g' /etc/apt/apt-mirrors.txt
       - run: sudo apt update && sudo apt install -y musl-tools
         if: always()
       - run: cargo test --all-features

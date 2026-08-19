@@ -11,8 +11,6 @@ permissions:
 
 jobs:
   image:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
     strategy:
       matrix:
         component: [metrics-cache, metrics-fetcher]
