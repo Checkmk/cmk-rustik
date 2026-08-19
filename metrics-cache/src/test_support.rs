@@ -43,9 +43,18 @@ pub fn pod_prefilled(name: &str) -> Pod {
     pod.metadata.uid = Some(s("aaca3e54-7772-4af7-881f-c912008bc541"));
     pod.metadata.namespace = Some(s("the-namespace-of-all-namespaces"));
     pod.metadata.labels = Some([(s("app"), s("nginx"))].into());
-    let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
+    let timestamp: Timestamp = "2024-06-19 15:22:45-04"
+        .parse()
+        .expect("Failed to parse timestamp");
     pod.metadata.creation_timestamp = Some(Time(timestamp));
-    pod.status.get_or_insert_with(Default::default).qos_class = Some(s("Burstable"));
+
+    let status = pod.status.get_or_insert_with(Default::default);
+    status.qos_class = Some(s("Burstable"));
+    let start_time: Timestamp = "2024-06-19 15:23:45-04"
+        .parse()
+        .expect("Failed to parse timestamp");
+    status.start_time = Some(Time(start_time));
+
     pod
 }
 
