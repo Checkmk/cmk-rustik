@@ -1,9 +1,7 @@
-use axum::{
-    extract::{Request, State},
-    http::{Method, StatusCode},
-    middleware::Next,
-    response::Response,
-};
+use axum::extract::{Request, State};
+use axum::http::{Method, StatusCode};
+use axum::middleware::Next;
+use axum::response::Response;
 use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewSpec, TokenReviewStatus};
 use kube::api::PostParams;
 use kube::{Api, Client};
@@ -106,13 +104,10 @@ pub async fn authenticate<V: TokenValidator>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{
-        Router,
-        body::Body,
-        http::{Method, Request},
-        middleware,
-        routing::get,
-    };
+    use axum::body::Body;
+    use axum::http::{Method, Request};
+    use axum::routing::get;
+    use axum::{Router, middleware};
     use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewStatus, UserInfo};
     use tower::ServiceExt;
 

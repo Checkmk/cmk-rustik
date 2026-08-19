@@ -4,11 +4,9 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
-use crate::section::{
-    pod::{KubePodInfoV1, KubePodLifecycleV1},
-    pvc::{KubePvcPvsV1, KubePvcV1, KubePvcVolumesV1},
-    writeable::{SectionError, WriteableSection},
-};
+use crate::section::pod::{KubePodInfoV1, KubePodLifecycleV1};
+use crate::section::pvc::{KubePvcPvsV1, KubePvcV1, KubePvcVolumesV1};
+use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
 pub struct Pod<'a> {

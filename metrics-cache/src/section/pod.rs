@@ -3,10 +3,8 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 use crate::host_settings::HostSettings;
-use crate::section::{
-    Section,
-    common::{Controller, LabelRef},
-};
+use crate::section::Section;
+use crate::section::common::{Controller, LabelRef};
 use crate::snapshot::owner_graph::OwnerGraph;
 
 #[derive(Serialize)]

@@ -5,10 +5,8 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
-use crate::section::{
-    cronjob::KubeCronJobInfoV1,
-    writeable::{SectionError, WriteableSection},
-};
+use crate::section::cronjob::KubeCronJobInfoV1;
+use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
 pub struct CronJob<'a> {

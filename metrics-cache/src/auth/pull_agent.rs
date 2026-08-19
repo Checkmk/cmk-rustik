@@ -9,12 +9,10 @@
 //! though this is unsafe (since the process information would leak it) and we
 //! do not do this in the Helm chart.
 
-use axum::{
-    extract::{Request, State},
-    http::{StatusCode, header},
-    middleware::Next,
-    response::Response,
-};
+use axum::extract::{Request, State};
+use axum::http::{StatusCode, header};
+use axum::middleware::Next;
+use axum::response::Response;
 use subtle::ConstantTimeEq;
 
 /// Configuration for the pull-agent middleware.

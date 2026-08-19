@@ -2,11 +2,11 @@ use k8s_openapi::api::core::v1;
 use std::ops::Add;
 use std::sync::Arc;
 
-use crate::section::{
-    performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1},
-    resource::{KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis},
-    writeable::{SectionError, WriteableSection},
+use crate::section::performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1};
+use crate::section::resource::{
+    KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis,
 };
+use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
 /// Many hosts contain aggregations ("roll-ups") of resource and performance
