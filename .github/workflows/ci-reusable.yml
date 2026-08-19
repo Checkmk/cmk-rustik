@@ -11,6 +11,7 @@ jobs:
   helm-chart:
     name: Run the helm chart
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: Set up Helm
