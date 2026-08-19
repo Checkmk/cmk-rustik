@@ -11,3 +11,10 @@ nodes:
   extraMounts:
   - hostPath: "$SRC_DIR$"
     containerPath: /src
+# Enable swap for testing swap sections
+kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    failSwapOn: false
+    memorySwap:
+      swapBehavior: LimitedSwap

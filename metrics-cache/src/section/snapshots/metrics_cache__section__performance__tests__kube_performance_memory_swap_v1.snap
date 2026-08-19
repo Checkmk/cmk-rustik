@@ -1,0 +1,10 @@
+---
+source: metrics-cache/src/section/performance.rs
+expression: "KubePerformanceMemorySwapV1::new(114_962_432)"
+---
+{
+  "resource": {
+    "type_": "memory",
+    "usage": 114962432.0
+  }
+}

@@ -58,6 +58,27 @@ impl Section for KubePerformanceMemoryV1 {
     const NAME: &'static str = "kube_performance_memory_v1";
 }
 
+/// Swap performance/utilization. (`kube_performance_memory_swap_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePerformanceMemorySwapV1 {
+    resource: PerformanceFields,
+}
+
+impl KubePerformanceMemorySwapV1 {
+    pub(crate) fn new(usage: u64) -> Self {
+        Self {
+            resource: PerformanceFields {
+                type_: PerformanceType::Memory,
+                usage: usage as f64,
+            },
+        }
+    }
+}
+
+impl Section for KubePerformanceMemorySwapV1 {
+    const NAME: &'static str = "kube_performance_memory_swap_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -70,5 +91,10 @@ mod tests {
     #[test]
     fn kube_performance_memory_v1() {
         insta::assert_json_snapshot!(KubePerformanceMemoryV1::new(104_857_600));
+    }
+
+    #[test]
+    fn kube_performance_memory_swap_v1() {
+        insta::assert_json_snapshot!(KubePerformanceMemorySwapV1::new(114_962_432));
     }
 }

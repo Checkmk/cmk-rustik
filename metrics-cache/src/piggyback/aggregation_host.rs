@@ -2,7 +2,9 @@ use k8s_openapi::api::core::v1;
 use std::ops::Add;
 use std::sync::Arc;
 
-use crate::section::performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1};
+use crate::section::performance::{
+    KubePerformanceCpuV1, KubePerformanceMemorySwapV1, KubePerformanceMemoryV1,
+};
 use crate::section::resource::{
     KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis,
 };
@@ -61,6 +63,15 @@ pub(crate) trait AggregationHost {
         ))
     }
 
+    fn swap_performance(&self) -> Option<KubePerformanceMemorySwapV1> {
+        Some(KubePerformanceMemorySwapV1::new(
+            self.snapshot()
+                .metrics
+                .aggregate(self.pods())
+                .swap_usage_bytes?,
+        ))
+    }
+
     /// Emit all possible resources and performance sections for the pod set
     /// returned by [`Self::pods()`].
     fn aggregation_sections(&self, me: &str) -> Vec<Result<WriteableSection, SectionError>> {
@@ -73,6 +84,9 @@ pub(crate) trait AggregationHost {
         }
         if let Some(mem_perf) = &self.memory_performance() {
             out.push(WriteableSection::of(me, mem_perf));
+        }
+        if let Some(swap_perf) = &self.swap_performance() {
+            out.push(WriteableSection::of(me, swap_perf));
         }
         out
     }

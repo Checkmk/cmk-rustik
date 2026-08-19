@@ -23,6 +23,7 @@ use crate::ingest::kubelet_stats::StatsSummary;
 pub struct Sample {
     pub cpu_usage_nano_cores: Option<u64>,
     pub memory_working_set_bytes: Option<u64>,
+    pub swap_usage_bytes: Option<u64>,
 }
 
 impl Add for Sample {
@@ -47,6 +48,11 @@ impl AddAssign for Sample {
             &mut self.memory_working_set_bytes,
             rhs.memory_working_set_bytes,
         ) {
+            (Some(a), Some(b)) => *a += b,
+            (a @ None, b) => *a = b,
+            _ => {}
+        }
+        match (&mut self.swap_usage_bytes, rhs.swap_usage_bytes) {
             (Some(a), Some(b)) => *a += b,
             (a @ None, b) => *a = b,
             _ => {}
@@ -108,6 +114,7 @@ impl MetricTables {
                             .memory
                             .as_ref()
                             .and_then(|m| m.working_set_bytes),
+                        swap_usage_bytes: container.swap.as_ref().and_then(|m| m.usage_bytes),
                     };
                     pod_map.insert(container.name.clone(), sample);
                 }
@@ -199,26 +206,55 @@ impl MetricTables {
 mod tests {
     use super::*;
 
-    fn sample(cpu_usage_nano_cores: Option<u64>, memory_working_set_bytes: Option<u64>) -> Sample {
+    fn sample(
+        cpu_usage_nano_cores: Option<u64>,
+        memory_working_set_bytes: Option<u64>,
+        swap_usage_bytes: Option<u64>,
+    ) -> Sample {
         Sample {
             cpu_usage_nano_cores,
             memory_working_set_bytes,
+            swap_usage_bytes,
         }
     }
 
     #[test]
     fn add_assign() {
-        for ((l1, l2), (r1, r2), (expected1, expected2)) in [
-            ((None, None), (None, None), (None, None)),
-            ((Some(3), None), (None, None), (Some(3), None)),
-            ((None, Some(4)), (None, Some(4)), (None, Some(8))),
-            ((Some(1), Some(4)), (Some(2), Some(4)), (Some(3), Some(8))),
-            ((None, None), (Some(2), Some(4)), (Some(2), Some(4))),
-            ((Some(2), Some(4)), (None, None), (Some(2), Some(4))),
+        for (lhs, rhs, expected) in [
+            (
+                sample(None, None, None),
+                sample(None, None, None),
+                sample(None, None, None),
+            ),
+            (
+                sample(Some(3), None, None),
+                sample(None, None, None),
+                sample(Some(3), None, None),
+            ),
+            (
+                sample(None, Some(4), Some(5)),
+                sample(None, Some(4), Some(5)),
+                sample(None, Some(8), Some(10)),
+            ),
+            (
+                sample(Some(1), Some(4), Some(6)),
+                sample(Some(2), Some(4), Some(7)),
+                sample(Some(3), Some(8), Some(13)),
+            ),
+            (
+                sample(None, None, None),
+                sample(Some(2), Some(4), Some(8)),
+                sample(Some(2), Some(4), Some(8)),
+            ),
+            (
+                sample(Some(2), Some(4), Some(8)),
+                sample(None, None, None),
+                sample(Some(2), Some(4), Some(8)),
+            ),
         ] {
-            let mut acc = sample(l1, l2);
-            acc += sample(r1, r2);
-            assert_eq!(acc, sample(expected1, expected2));
+            let mut acc = lhs;
+            acc += rhs;
+            assert_eq!(acc, expected);
         }
     }
 }

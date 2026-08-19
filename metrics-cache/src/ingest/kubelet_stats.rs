@@ -32,6 +32,7 @@ pub struct Container {
     pub name: String,
     pub cpu: Option<CPUStats>,
     pub memory: Option<MemoryStats>,
+    pub swap: Option<SwapStats>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -44,6 +45,12 @@ pub struct CPUStats {
 pub struct MemoryStats {
     #[serde(rename = "workingSetBytes")]
     pub working_set_bytes: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct SwapStats {
+    #[serde(rename = "swapUsageBytes")]
+    pub usage_bytes: Option<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -94,6 +101,13 @@ mod tests {
                 .as_ref()
                 .and_then(|m| m.working_set_bytes),
             Some(10706944)
+        );
+        assert_matches!(
+            parsed.pods[3].containers[0]
+                .swap
+                .as_ref()
+                .and_then(|s| s.usage_bytes),
+            Some(0)
         );
         assert_matches!(
             parsed.pods[4].volume.as_ref().map(|m| m[0].available_bytes),

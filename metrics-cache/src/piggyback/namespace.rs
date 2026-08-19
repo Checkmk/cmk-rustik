@@ -217,10 +217,12 @@ mod tests {
         let matching = Sample {
             cpu_usage_nano_cores: Some(1_000_000_000),
             memory_working_set_bytes: Some(100),
+            swap_usage_bytes: None,
         };
         let unmatched = Sample {
             cpu_usage_nano_cores: Some(2_000_000_000),
             memory_working_set_bytes: Some(200),
+            swap_usage_bytes: None,
         };
         let metrics = metrics_for(&[("matching", matching), ("other", unmatched)]);
 
@@ -243,6 +245,7 @@ mod tests {
             Sample {
                 cpu_usage_nano_cores: Some(1_000_000_000),
                 memory_working_set_bytes: Some(100),
+                swap_usage_bytes: None,
             },
         )]);
 
