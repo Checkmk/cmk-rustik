@@ -1,0 +1,16 @@
+---
+source: metrics-cache/src/section/cluster.rs
+expression: "KubeClusterDetailsV1::new(&Some(api_health.into()))"
+---
+{
+  "api_health": {
+    "live": {
+      "status_code": 200,
+      "response": "ok"
+    },
+    "ready": {
+      "status_code": 200,
+      "response": "ok"
+    }
+  }
+}

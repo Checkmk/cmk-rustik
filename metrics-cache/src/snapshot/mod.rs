@@ -5,6 +5,13 @@ pub mod owner_graph;
 pub mod self_health;
 pub mod system_agent;
 
+use moka::future::Cache;
+use std::borrow::Borrow;
+use std::sync::Arc;
+use std::time::Instant;
+use tokio::sync::watch::Receiver;
+
+use crate::ingest::api_health::ApiHealthUpdate;
 use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::{FrozenStores, Stores};
@@ -15,10 +22,6 @@ use crate::snapshot::metric_tables::MetricTables;
 use crate::snapshot::owner_graph::OwnerGraph;
 use crate::snapshot::self_health::SelfHealth;
 use crate::snapshot::system_agent::SystemAgentOutputs;
-use moka::future::Cache;
-use std::borrow::Borrow;
-use std::sync::Arc;
-use std::time::Instant;
 
 /// Represents a single, static snapshot of the state of the cluster as it
 /// pertains to Checkmk monitoring.
@@ -44,6 +47,7 @@ pub struct Snapshot {
     pub self_health: SelfHealth,
     pub(crate) kubelet_health: KubeletHealths,
     pub(crate) system_agents: SystemAgentOutputs,
+    pub(crate) api_health_update: ApiHealthUpdate,
 }
 
 impl Snapshot {
@@ -54,6 +58,7 @@ impl Snapshot {
         kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
         kubelet_health_cache: Cache<String, Arc<MetricsFetcherIngestion<KubeletHealth>>>,
         system_agent_cache: Cache<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
+        api_health_receiver: Receiver<ApiHealthUpdate>,
     ) -> Self {
         let instant = Instant::now();
         let reflector_healths = stores.freeze_healths();
@@ -69,6 +74,7 @@ impl Snapshot {
         );
         let kubelet_health = KubeletHealths::from_cache(&kubelet_health_cache);
         let system_agents = SystemAgentOutputs::from_cache(&system_agent_cache);
+        let api_health_update = api_health_receiver.borrow().clone();
         Snapshot {
             instant,
             stores,
@@ -78,6 +84,7 @@ impl Snapshot {
             self_health,
             kubelet_health,
             system_agents,
+            api_health_update,
         }
     }
 }

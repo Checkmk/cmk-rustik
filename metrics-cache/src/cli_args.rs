@@ -202,7 +202,7 @@ pub struct CliArgs {
     /// Push interval in seconds for push mode. Ignored if push mode is not enabled.
     #[arg(
         long = "push-interval",
-        value_parser = parse_push_interval,
+        value_parser = parse_interval,
         default_value = "60"
     )]
     pub push_interval: Duration,
@@ -242,10 +242,15 @@ pub struct CliArgs {
     /// Push interval in seconds for sending otel metrics.
     #[arg(
         long,
-        value_parser = parse_push_interval,
+        value_parser = parse_interval,
         default_value = "60"
     )]
     pub otel_push_interval: Duration,
+
+    /// How often (seconds) to query the Kubernetes API health endpoints /readyz
+    /// and /livez
+    #[arg(long, value_parser = parse_interval, default_value = "45")]
+    pub api_health_poll_interval: Duration,
 
     /// Emit all Pod resources rather than only annotated ones
     #[arg(long = "all-pods")]
@@ -311,18 +316,18 @@ fn parse_duration_days(arg: &str) -> Result<Duration, std::num::ParseIntError> {
 }
 
 #[derive(Error, Debug)]
-enum PushIntervalError {
+enum IntervalError {
     #[error("must be a whole number of seconds")]
     NotANumber(#[from] std::num::ParseIntError),
     #[error("must be greater than zero")]
     Zero,
 }
 
-fn parse_push_interval(arg: &str) -> Result<Duration, PushIntervalError> {
+fn parse_interval(arg: &str) -> Result<Duration, IntervalError> {
     let interval = parse_duration_secs(arg)?;
     // if 0, tokio panics
     match interval.is_zero() {
-        true => Err(PushIntervalError::Zero),
+        true => Err(IntervalError::Zero),
         false => Ok(interval),
     }
 }

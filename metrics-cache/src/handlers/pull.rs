@@ -14,6 +14,7 @@ pub async fn get(State(state): State<AppState<impl TokenValidator>>) -> Result<B
         state.kubelet_stats_summary_cache,
         state.kubelet_health_cache,
         state.system_agent_cache,
+        state.api_health_receiver,
     );
     let sections = emit_all(&snap, &state.host_settings);
     let mut out = Vec::new();

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, PiggybackHost};
-use crate::section::cluster::KubeClusterInfoV1;
+use crate::section::cluster::{KubeClusterDetailsV1, KubeClusterInfoV1};
 use crate::section::self_health::KubeRustikHealthV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -104,6 +104,12 @@ impl PiggybackHost for Cluster<'_> {
             me,
             &KubeRustikHealthV1::from_self_health(&self.snapshot.self_health),
         ));
+        if let Some(kube_cluster_details_v1) =
+            KubeClusterDetailsV1::new(&self.snapshot.api_health_update)
+        {
+            out.push(WriteableSection::of(me, &kube_cluster_details_v1));
+        }
+
         out
     }
 }

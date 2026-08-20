@@ -2,6 +2,7 @@ use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use std::io;
 use std::net::SocketAddr;
+use tokio::sync::watch;
 use tokio::task::JoinSet;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
@@ -9,6 +10,7 @@ use tracing_subscriber::EnvFilter;
 use metrics_cache::auth::pull_agent::PullAgentMiddlewareConfig;
 use metrics_cache::cli_args::CliArgs;
 use metrics_cache::handlers;
+use metrics_cache::ingest::api_health::loop_query_health;
 use metrics_cache::otel::client::OtelClient;
 use metrics_cache::otel::otel_loop;
 use metrics_cache::push::client::CheckmkPushClient;
@@ -90,7 +92,13 @@ async fn main() -> anyhow::Result<()> {
         .expect("Failed to install rustls crypto provider");
 
     let mut reflector_tasks = JoinSet::new();
-    let state = AppState::new(&args, &mut reflector_tasks).await?;
+
+    // API health channel; the receiver lives in AppState, the sender lives in
+    // the a `select!` branch future and is used on each API health endpoint
+    // poll to send in the latest result.
+    let (api_health_sender, api_health_receiver) = watch::channel(None);
+
+    let state = AppState::new(&args, &mut reflector_tasks, api_health_receiver).await?;
     let pull_app = handlers::pull_app(state.clone(), pull_agent_middleware(&args)?);
     let ingest_app = handlers::ingest_app(state.clone());
 
@@ -171,6 +179,16 @@ async fn main() -> anyhow::Result<()> {
         } => {
             tracing::error!("OpenTelemetry loop exited unexpectedly");
             anyhow::bail!("OpenTelemetry loop terminated unexpectedly");
+        }
+
+        // Kubernetes API server health polls (/readyz and /livez)
+        res = async {
+            loop_query_health(state.client.clone(), api_health_sender, args.api_health_poll_interval).await
+        } => {
+            if let Err(e) = res {
+                tracing::error!(error = %e, "API health polling loop exited with error");
+            }
+            anyhow::bail!("API health polling loop terminated unexpectedly");
         }
     }
 }

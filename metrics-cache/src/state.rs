@@ -2,6 +2,7 @@ use kube::Client;
 use moka::future::Cache;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::watch::Receiver;
 use tokio::task::JoinSet;
 
 use crate::auth::kubernetes::TokenValidator;
@@ -10,6 +11,7 @@ use crate::error::{Error, Result};
 use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings};
 use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::SystemAgentOutput;
+use crate::ingest::api_health::ApiHealthUpdate;
 use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::Stores;
@@ -27,10 +29,15 @@ pub struct AppState<V: TokenValidator> {
     pub kubelet_health_cache: Cache<String, Arc<MetricsFetcherIngestion<KubeletHealth>>>,
     pub system_agent_cache: Cache<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
     pub host_settings: Arc<HostSettings>,
+    pub api_health_receiver: Receiver<ApiHealthUpdate>,
 }
 
 impl AppState<Client> {
-    pub async fn new(args: &CliArgs, tasks: &mut JoinSet<()>) -> Result<Self> {
+    pub async fn new(
+        args: &CliArgs,
+        tasks: &mut JoinSet<()>,
+        api_health_receiver: Receiver<ApiHealthUpdate>,
+    ) -> Result<Self> {
         let client = Self::kube_client(args.connect_timeout, args.read_timeout).await?;
         let watcher_client = Self::kube_watcher_client(args.connect_timeout).await?;
         let cluster_version = client
@@ -67,6 +74,7 @@ impl AppState<Client> {
                 .max_capacity(MAX_SUPPORTED_KUBERNETES_NODES)
                 .build(),
             host_settings: host_settings.into(),
+            api_health_receiver,
         };
         Ok(state)
     }
@@ -113,6 +121,7 @@ pub mod tests {
     }
 
     pub fn test_app_state_with_validator(client: MockValidator) -> AppState<MockValidator> {
+        let (_, rx) = tokio::sync::watch::channel(None);
         AppState {
             client,
             stores: Default::default(),
@@ -131,6 +140,7 @@ pub mod tests {
                 .max_capacity(10000)
                 .build(),
             host_settings: host_settings().into(),
+            api_health_receiver: rx,
         }
     }
 

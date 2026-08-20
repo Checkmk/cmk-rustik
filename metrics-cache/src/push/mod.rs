@@ -50,6 +50,7 @@ async fn push_cycle(
         state.kubelet_stats_summary_cache.clone(),
         state.kubelet_health_cache.clone(),
         state.system_agent_cache.clone(),
+        state.api_health_receiver.clone(),
     );
     let sections = emit_all(&snap, &state.host_settings);
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());

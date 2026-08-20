@@ -112,6 +112,12 @@ metricsCache:
   # extraVolumeMounts is volume mounts to mount in the metrics-cache container.
   extraVolumeMounts: []
 
+  # apiHealthPollInterval is the number of seconds in between polling the
+  # Kubernetes API server /livez and /readyz health endpoints, used in reporting
+  # overall cluster health. Should be lower than push.interval if push mode is
+  # used and lower than your check interval if pull mode is used.
+  apiHealthPollInterval: 45
+
 # push allows you to enable, disable, and configure push mode; pushing data
 # *into* Checkmk from the cluster.
 push:
