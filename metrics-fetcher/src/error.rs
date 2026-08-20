@@ -8,6 +8,8 @@ pub(crate) enum Error {
     Reqwest(#[from] reqwest::Error),
     #[error("IO error {0}")]
     Io(#[from] std::io::Error),
+    #[error("JSON serialization error")]
+    Json(#[from] serde_json::Error),
     #[error("error getting environment variable: {name}")]
     EnvVar {
         name: String,

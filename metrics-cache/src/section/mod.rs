@@ -4,6 +4,7 @@ pub mod controller_spec;
 pub mod cronjob;
 pub mod namespace;
 pub mod node;
+pub mod node_kubelet;
 pub mod performance;
 pub mod pod;
 pub mod pvc;

@@ -1,0 +1,11 @@
+---
+source: metrics-cache/src/section/node_kubelet.rs
+expression: "KubeNodeKubeletV1::from_node(&node, &healths)"
+---
+{
+  "version": "v1.34.0",
+  "health": {
+    "status_code": 200,
+    "response": "ok"
+  }
+}

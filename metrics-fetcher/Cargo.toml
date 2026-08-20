@@ -13,6 +13,8 @@ bytes = "1.11.1"
 clap = { workspace = true }
 reqwest = { version = "0.13.3", features = ["blocking", "query", "json", "rustls-no-provider", "http2", "system-proxy"], default-features = false }
 rustls = { workspace = true }
+serde = { workspace = true }
+serde_json = "1.0.150"
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["process"] }
 tracing = { workspace = true }

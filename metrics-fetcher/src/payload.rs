@@ -8,6 +8,7 @@ use crate::error::Result;
 #[derive(Debug)]
 pub(crate) enum Payload {
     KubeletStatsSummary(Bytes),
+    KubeletHealth { node_name: String, body: Bytes },
     CheckmkLinuxAgent { node_name: String, body: Bytes },
 }
 
@@ -15,6 +16,7 @@ impl Payload {
     fn metrics_cache_endpoint(&self) -> String {
         match self {
             Self::KubeletStatsSummary(_) => "/kubelet_stats_summary".to_string(),
+            Self::KubeletHealth { node_name, .. } => format!("/kubelet_health/{node_name}"),
             Self::CheckmkLinuxAgent { node_name, .. } => format!("/system_agent/{node_name}"),
         }
     }
@@ -22,6 +24,7 @@ impl Payload {
     fn content_type(&self) -> &'static str {
         match self {
             Self::KubeletStatsSummary(_) => "application/json",
+            Self::KubeletHealth { .. } => "application/json",
             // Not text/plain: a patched image's plugin can make check_mk_agent
             // output non-UTF-8, even non-textual, so we don't claim otherwise.
             Self::CheckmkLinuxAgent { .. } => "application/octet-stream",
@@ -31,6 +34,7 @@ impl Payload {
     fn extract(&self) -> Bytes {
         match self {
             Self::KubeletStatsSummary(bytes) => bytes.clone(),
+            Self::KubeletHealth { body, .. } => body.clone(),
             Self::CheckmkLinuxAgent { body, .. } => body.clone(),
         }
     }

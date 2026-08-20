@@ -1,6 +1,7 @@
 use axum::body::Bytes;
 use std::time::Instant;
 
+pub mod kubelet_health;
 pub mod kubelet_stats;
 pub mod reflectors;
 

@@ -94,6 +94,14 @@ pub struct CliArgs {
     )]
     pub system_agent_cache_ttl: Duration,
 
+    /// How long (seconds) kubelet health entries are persisted in the cache
+    #[arg(
+        long,
+        value_parser = parse_duration_secs,
+        default_value = "120"
+    )]
+    pub kubelet_health_cache_ttl: Duration,
+
     /// How verbose to log
     #[arg(
         short = 'l',
@@ -418,6 +426,7 @@ mod tests {
         let args = parse(&[]).expect("minimal args should parse");
         assert_eq!(args.kubelet_stats_cache_ttl, Duration::from_secs(120));
         assert_eq!(args.system_agent_cache_ttl, Duration::from_secs(120));
+        assert_eq!(args.kubelet_health_cache_ttl, Duration::from_secs(120));
     }
 
     #[test]
@@ -427,10 +436,13 @@ mod tests {
             "30",
             "--system-agent-cache-ttl",
             "60",
+            "--kubelet-health-cache-ttl",
+            "90",
         ])
         .expect("cache TTL flags should parse");
         assert_eq!(args.kubelet_stats_cache_ttl, Duration::from_secs(30));
         assert_eq!(args.system_agent_cache_ttl, Duration::from_secs(60));
+        assert_eq!(args.kubelet_health_cache_ttl, Duration::from_secs(90));
     }
 
     #[test]

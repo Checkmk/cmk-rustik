@@ -48,6 +48,7 @@ async fn push_cycle(
     let snap = Snapshot::new(
         state.stores.clone(),
         state.kubelet_stats_summary_cache.clone(),
+        state.kubelet_health_cache.clone(),
         state.system_agent_cache.clone(),
     );
     let sections = emit_all(&snap, &state.host_settings);
