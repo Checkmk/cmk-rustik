@@ -1,14 +1,14 @@
+use crate::AppState;
+use crate::auth::kubernetes::TokenValidator;
+use crate::ingest::MetricsFetcherIngestion;
+use crate::ingest::SystemAgentOutput;
+use crate::ingest::kubelet_health::KubeletHealth;
+use crate::ingest::kubelet_stats::StatsSummary;
 use axum::body::Bytes;
 use axum::extract::Path;
 use axum::{Json, extract::State};
 use std::sync::Arc;
 use std::time::Instant;
-
-use crate::AppState;
-use crate::auth::kubernetes::TokenValidator;
-use crate::ingest::MetricsFetcherIngestion;
-use crate::ingest::SystemAgentOutput;
-use crate::ingest::kubelet_stats::StatsSummary;
 
 pub async fn kubelet_stats_summary(
     State(state): State<AppState<impl TokenValidator>>,
@@ -21,6 +21,22 @@ pub async fn kubelet_stats_summary(
     };
     state
         .kubelet_stats_summary_cache
+        .insert(node_name, Arc::new(ingestion))
+        .await;
+    Json("ok".to_string())
+}
+
+pub async fn kubelet_health(
+    State(state): State<AppState<impl TokenValidator>>,
+    Path(node_name): Path<String>,
+    Json(health): Json<KubeletHealth>,
+) -> Json<String> {
+    let ingestion = MetricsFetcherIngestion {
+        received_at: Instant::now(),
+        payload: health,
+    };
+    state
+        .kubelet_health_cache
         .insert(node_name, Arc::new(ingestion))
         .await;
     Json("ok".to_string())

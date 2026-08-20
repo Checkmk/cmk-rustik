@@ -34,6 +34,7 @@ pub fn ingest_app<V: TokenValidator>(state: AppState<V>) -> Router {
             "/kubelet_stats_summary",
             post(ingest::kubelet_stats_summary),
         )
+        .route("/kubelet_health/{node_name}", post(ingest::kubelet_health))
         .route("/system_agent/{node_name}", post(ingest::system_agent))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

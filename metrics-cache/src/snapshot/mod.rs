@@ -1,22 +1,24 @@
 pub mod indexes;
+pub mod kubelet_health;
 pub mod metric_tables;
 pub mod owner_graph;
 pub mod self_health;
 pub mod system_agent;
 
-use moka::future::Cache;
-use std::borrow::Borrow;
-use std::sync::Arc;
-use std::time::Instant;
-
+use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::{FrozenStores, Stores};
 use crate::ingest::{MetricsFetcherIngestion, SystemAgentOutput};
 use crate::snapshot::indexes::Indexes;
+use crate::snapshot::kubelet_health::KubeletHealths;
 use crate::snapshot::metric_tables::MetricTables;
 use crate::snapshot::owner_graph::OwnerGraph;
 use crate::snapshot::self_health::SelfHealth;
 use crate::snapshot::system_agent::SystemAgentOutputs;
+use moka::future::Cache;
+use std::borrow::Borrow;
+use std::sync::Arc;
+use std::time::Instant;
 
 /// Represents a single, static snapshot of the state of the cluster as it
 /// pertains to Checkmk monitoring.
@@ -40,6 +42,7 @@ pub struct Snapshot {
     pub metrics: MetricTables,
     pub indexes: Indexes,
     pub self_health: SelfHealth,
+    pub(crate) kubelet_health: KubeletHealths,
     pub(crate) system_agents: SystemAgentOutputs,
 }
 
@@ -49,6 +52,7 @@ impl Snapshot {
     pub fn new(
         stores: Stores,
         kubelet_stats_summary_cache: Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
+        kubelet_health_cache: Cache<String, Arc<MetricsFetcherIngestion<KubeletHealth>>>,
         system_agent_cache: Cache<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
     ) -> Self {
         let instant = Instant::now();
@@ -63,6 +67,7 @@ impl Snapshot {
             reflector_healths,
             &kubelet_stats_summary_cache,
         );
+        let kubelet_health = KubeletHealths::from_cache(&kubelet_health_cache);
         let system_agents = SystemAgentOutputs::from_cache(&system_agent_cache);
         Snapshot {
             instant,
@@ -71,6 +76,7 @@ impl Snapshot {
             metrics,
             indexes,
             self_health,
+            kubelet_health,
             system_agents,
         }
     }

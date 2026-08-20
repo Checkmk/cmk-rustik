@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
 use crate::section::node::KubeNodeInfoV1;
+use crate::section::node_kubelet::KubeNodeKubeletV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
@@ -53,8 +54,15 @@ impl PiggybackHost for Node<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();
+
         if let Some(kube_node_info_v1) = KubeNodeInfoV1::from_node(self.api, self.settings) {
             out.push(WriteableSection::of(&me, &kube_node_info_v1));
+        }
+
+        if let Some(kube_node_kubelet_v1) =
+            KubeNodeKubeletV1::from_node(self.api, &self.snapshot.kubelet_health)
+        {
+            out.push(WriteableSection::of(&me, &kube_node_kubelet_v1));
         }
         if let Some(ingestion) = self.snapshot.system_agents.get(self.meta.name) {
             out.push(Ok(WriteableSection::raw(&me, ingestion.payload.0.clone())));
@@ -95,6 +103,7 @@ mod tests {
         let snapshot = Snapshot::new(
             state.stores,
             state.kubelet_stats_summary_cache,
+            state.kubelet_health_cache,
             state.system_agent_cache,
         );
         let node = Node::new(&api, &snapshot, &host_settings).unwrap();

@@ -4,5 +4,5 @@ metadata:
   name: {{ include "rustik.fullname" . }}-metrics-fetcher
 rules:
   - apiGroups: [""]
-    resources: ["nodes/stats"]
+    resources: ["nodes/stats", "nodes/healthz"]
     verbs: ["get"]

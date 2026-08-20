@@ -103,6 +103,10 @@ metricsCache:
   # persisted in the cache before expiring.
   systemAgentCacheTtl: 120
 
+  # kubeletHealthCacheTtl is how long (seconds) kubelet health entries are
+  # persisted in the cache before expiring.
+  kubeletHealthCacheTtl: 120
+
   # extraVolumes is volume definitions to add to the Pod in the Deployment.
   extraVolumes: []
   # extraVolumeMounts is volume mounts to mount in the metrics-cache container.
