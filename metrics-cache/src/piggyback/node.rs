@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
-use crate::section::node::KubeNodeInfoV1;
+use crate::section::node::{KubeNodeContainerCountV1, KubeNodeInfoV1};
 use crate::section::node_kubelet::KubeNodeKubeletV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -67,6 +67,10 @@ impl PiggybackHost for Node<'_> {
         if let Some(ingestion) = self.snapshot.system_agents.get(self.meta.name) {
             out.push(Ok(WriteableSection::raw(&me, ingestion.payload.0.clone())));
         }
+        out.push(WriteableSection::of(
+            &me,
+            &KubeNodeContainerCountV1::new(self.pods()),
+        ));
         out.extend(self.aggregation_sections(&me));
         out
     }

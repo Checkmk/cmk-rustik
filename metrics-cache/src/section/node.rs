@@ -1,6 +1,7 @@
-use k8s_openapi::api::core::v1::Node;
+use k8s_openapi::api::core::v1::{Node, Pod};
 use serde::Serialize;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::section::Section;
@@ -83,17 +84,91 @@ impl<'a> KubeNodeInfoV1<'a> {
         Some(node_section)
     }
 }
+
 impl Section for KubeNodeInfoV1<'_> {
     const NAME: &'static str = "kube_node_info_v1";
+}
+
+/// Container counts by state. (`kube_node_container_count_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubeNodeContainerCountV1 {
+    pub running: u64,
+    pub waiting: u64,
+    pub terminated: u64,
+}
+
+impl KubeNodeContainerCountV1 {
+    pub fn new<'a>(pods: impl IntoIterator<Item = &'a Arc<Pod>>) -> Self {
+        let mut running = 0;
+        let mut waiting = 0;
+        let mut terminated = 0;
+
+        for pod in pods {
+            let Some(statuses) = pod
+                .status
+                .as_ref()
+                .and_then(|status| status.container_statuses.as_deref())
+            else {
+                continue;
+            };
+            for status in statuses {
+                let Some(state) = &status.state else {
+                    continue;
+                };
+                if state.terminated.is_some() {
+                    terminated += 1;
+                    continue;
+                }
+                if state.running.is_some() {
+                    running += 1;
+                    continue;
+                }
+                // Upstream says: "If none of them is specified, the default one
+                // is ContainerStateWaiting.", so if we are still here whether
+                // or not status.waiting is not None, we count it as waiting.
+                waiting += 1;
+            }
+        }
+
+        Self {
+            running,
+            waiting,
+            terminated,
+        }
+    }
+}
+
+impl Section for KubeNodeContainerCountV1 {
+    const NAME: &'static str = "kube_node_container_count_v1";
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use k8s_openapi::api::core::v1::{
+        ContainerState, ContainerStateRunning, ContainerStateTerminated, ContainerStateWaiting,
+        ContainerStatus,
+    };
     use regex::Regex;
 
     use crate::host_settings::AnnotationKeyPattern;
-    use crate::test_support::{host_settings, node, node_prefilled};
+    use crate::test_support::{host_settings, node, node_prefilled, pod_prefilled};
+
+    fn pod_with_container_states(states: Vec<ContainerState>) -> Arc<Pod> {
+        let mut pod = pod_prefilled("pod");
+        pod.status.as_mut().unwrap().container_statuses = Some(
+            states
+                .into_iter()
+                .enumerate()
+                .map(|(i, state)| ContainerStatus {
+                    name: format!("container-{i}"),
+                    state: Some(state),
+                    ..Default::default()
+                })
+                .collect(),
+        );
+        Arc::new(pod)
+    }
 
     #[test]
     fn kube_node_info_v1() {
@@ -138,5 +213,51 @@ mod tests {
     #[test]
     fn kube_node_info_v1_without_node_info() {
         assert!(KubeNodeInfoV1::from_node(&node("worker-1"), &host_settings()).is_none());
+    }
+
+    #[test]
+    fn kube_node_container_count_v1_counts_all_pods() {
+        let pods = [
+            pod_with_container_states(vec![ContainerState {
+                running: Some(ContainerStateRunning::default()),
+                ..Default::default()
+            }]),
+            pod_with_container_states(vec![ContainerState {
+                terminated: Some(ContainerStateTerminated::default()),
+                ..Default::default()
+            }]),
+        ];
+
+        let count = KubeNodeContainerCountV1::new(&pods);
+        assert_eq!((count.running, count.waiting, count.terminated), (1, 0, 1));
+    }
+
+    #[test]
+    fn kube_node_container_count_v1_defaults_to_waiting() {
+        let pods = [pod_with_container_states(vec![ContainerState::default()])];
+
+        let count = KubeNodeContainerCountV1::new(&pods);
+        assert_eq!((count.running, count.waiting, count.terminated), (0, 1, 0));
+    }
+
+    #[test]
+    fn kube_node_container_count_v1_counts_mixed_states() {
+        let pods = [pod_with_container_states(vec![
+            ContainerState {
+                running: Some(ContainerStateRunning::default()),
+                ..Default::default()
+            },
+            ContainerState {
+                waiting: Some(ContainerStateWaiting::default()),
+                ..Default::default()
+            },
+            ContainerState {
+                terminated: Some(ContainerStateTerminated::default()),
+                ..Default::default()
+            },
+        ])];
+
+        let count = KubeNodeContainerCountV1::new(&pods);
+        assert_eq!((count.running, count.waiting, count.terminated), (1, 1, 1));
     }
 }
