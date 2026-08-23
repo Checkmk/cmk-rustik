@@ -151,6 +151,9 @@ push:
   # interval is how often, in seconds, sections are generated and pushed to
   # the Checkmk site. Must be greater than zero.
   interval: 60
+  # certificateRenewalThreshold is how many days before expiration the client
+  # certificate should be renewed.
+  certificateRenewalThreshold: 45
 
 # pull allows you to configure pull mode, so that Checkmk's special agent can
 # query the agent directly.

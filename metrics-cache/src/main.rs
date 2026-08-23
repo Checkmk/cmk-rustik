@@ -102,12 +102,13 @@ async fn main() -> anyhow::Result<()> {
     let pull_app = handlers::pull_app(state.clone(), pull_agent_middleware(&args)?);
     let ingest_app = handlers::ingest_app(state.clone());
 
-    let push_client = match &args.push_receiver {
+    let push = match &args.push_receiver {
         Some(base_url) => {
             info!("Push receiver enabled, will push sections to Checkmk server");
             let registration = CheckmkPushRegistration::new(state.clone().client, &args);
             let secret = registration.register_if_needed().await?;
-            Some(CheckmkPushClient::from_secret(base_url, &secret)?)
+            let client = CheckmkPushClient::from_secret(base_url, &secret)?;
+            Some((client, registration))
         }
         None => None,
     };
@@ -159,8 +160,14 @@ async fn main() -> anyhow::Result<()> {
 
         // Push to Checkmk server
         res = async {
-            match push_client {
-                Some(client) => push_loop(client, state.clone(), args.push_interval).await,
+            match push {
+                Some((client, registration)) => push_loop(
+                    client,
+                    registration,
+                    state.clone(),
+                    args.push_interval,
+                    args.push_certificate_renewal_threshold,
+                ).await,
                 None => std::future::pending().await,
             }
         } => {
