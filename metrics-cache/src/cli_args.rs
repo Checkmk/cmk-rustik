@@ -60,7 +60,7 @@ pub struct CliArgs {
     /// Service accounts that have access to query data from the metrics cache
     /// API GET endpoints. Comma-separated, in the form NAMESPACE:SERVICEACCOUNT
     #[arg(
-        long = "reader-allowlist",
+        long,
         alias = "reader-whitelist",
         value_delimiter = ',',
         default_value = "checkmk-monitoring:checkmk"
@@ -71,7 +71,7 @@ pub struct CliArgs {
     /// API POST endpoints. Comma-separated, in the form
     /// NAMESPACE:SERVICEACCOUNT
     #[arg(
-        long = "writer-allowlist",
+        long,
         alias = "writer-whitelist",
         value_delimiter = ',',
         default_value = "checkmk-monitoring:node-collector" // Backwards compat
@@ -105,7 +105,7 @@ pub struct CliArgs {
     /// How verbose to log
     #[arg(
         short = 'l',
-        long = "log-level",
+        long,
         value_parser = ["trace", "debug", "info", "warn", "error", "off"],
         default_value = "info",
     )]
@@ -148,14 +148,14 @@ pub struct CliArgs {
 
     /// Maximum number of retries when contacting the Kubernetes API for
     /// authentication
-    #[arg(short = 'r', long = "max-retries", default_value_t = 3)]
+    #[arg(short = 'r', long, default_value_t = 3)]
     pub max_retries: u8,
 
     /// Time in seconds to wait for a TCP connection to the Kubernetes API
     /// during authentication
     #[arg(
         short = 'C',
-        long = "connect-timeout",
+        long,
         value_parser = parse_duration_secs,
         default_value = "10",
     )]
@@ -165,28 +165,25 @@ pub struct CliArgs {
     /// authentication
     #[arg(
         short = 'R',
-        long = "read-timeout",
+        long,
         value_parser = parse_duration_secs,
         default_value = "12",
     )]
     pub read_timeout: Duration,
 
     /// The name of the cluster, included in each piggyback hostname
-    #[arg(long = "cluster-name")]
+    #[arg(long)]
     pub cluster_name: String,
 
     /// The name of the source host in Checkmk (should be an exact match)
-    #[arg(long = "cluster-host-name")]
+    #[arg(long)]
     pub cluster_host_name: String,
 
     /// Import all annotations as host labels
-    #[arg(long = "import-all-annotations", default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     pub import_all_annotations: bool,
 
-    #[arg(
-        long = "annotation-key-pattern",
-        conflicts_with = "import_all_annotations"
-    )]
+    #[arg(long, conflicts_with = "import_all_annotations")]
     pub annotation_key_pattern: Option<Regex>,
 
     /// Make the pull-based endpoints publicly accessible
@@ -201,7 +198,7 @@ pub struct CliArgs {
 
     /// Push interval in seconds for push mode. Ignored if push mode is not enabled.
     #[arg(
-        long = "push-interval",
+        long,
         value_parser = parse_interval,
         default_value = "60"
     )]
@@ -209,7 +206,7 @@ pub struct CliArgs {
 
     /// Enable push mode and send sections to the specified server (including
     /// port)
-    #[arg(long = "push-receiver")]
+    #[arg(long)]
     pub push_receiver: Option<String>,
 
     /// Token to register with the Checkmk push-agent receiver for push mode
@@ -232,11 +229,11 @@ pub struct CliArgs {
 
     /// Excluded node role (infix) patterns for cluster-level aggregations,
     /// comma-separated
-    #[arg(long = "excluded-node-role-patterns", value_delimiter = ',')]
+    #[arg(long, value_delimiter = ',')]
     pub excluded_node_role_patterns: Vec<Regex>,
 
     /// Enable sending OTel metrics to the endpoint given
-    #[arg(long = "otel-endpoint")]
+    #[arg(long)]
     pub otel_endpoint: Option<String>,
 
     /// Push interval in seconds for sending otel metrics.
@@ -253,31 +250,31 @@ pub struct CliArgs {
     pub api_health_poll_interval: Duration,
 
     /// Emit all Pod resources rather than only annotated ones
-    #[arg(long = "all-pods")]
+    #[arg(long)]
     pub all_pods: bool,
 
     /// Emit all Namespace resources rather than only annotated ones
-    #[arg(long = "all-namespaces")]
+    #[arg(long)]
     pub all_namespaces: bool,
 
     /// Emit all Node resources rather than only annotated ones
-    #[arg(long = "all-nodes")]
+    #[arg(long)]
     pub all_nodes: bool,
 
     /// Emit all Deployment resources rather than only annotated ones
-    #[arg(long = "all-deployments")]
+    #[arg(long)]
     pub all_deployments: bool,
 
     /// Emit all DaemonSet resources rather than only annotated ones
-    #[arg(long = "all-daemonsets")]
+    #[arg(long)]
     pub all_daemonsets: bool,
 
     /// Emit all StatefulSet resources rather than only annotated ones
-    #[arg(long = "all-statefulsets")]
+    #[arg(long)]
     pub all_statefulsets: bool,
 
     /// Emit all CronJob resources rather than only annotated ones
-    #[arg(long = "all-cronjobs")]
+    #[arg(long)]
     pub all_cronjobs: bool,
 }
 
