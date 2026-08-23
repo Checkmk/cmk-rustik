@@ -13,18 +13,18 @@
 //!    the first two and the private key from step 1 in an agent-maintained
 //!    Kubernetes Secret.
 //!
-//! ## Auto-renew (TODO)
+//! ## Auto-renew
 //!
 //! For renewal the steps are similar, a new CSR is made, the UUID is re-used,
 //! and we authenticate with the current certificate.
 //!
-//! It is configurable as a command-line argument how often we check if it is
-//! time to renew (and what constitutes renewal). See
-//! [`crate::cli_args::CliArgs`] for current defaults.
+//! The expiry threshold is configurable as a command-line argument. See
+//! [`crate::cli_args::CliArgs`] for the current default.
 
+use k8s_openapi::ByteString;
 use k8s_openapi::api::core::v1::Secret;
 use kube::Client;
-use kube::api::Api;
+use kube::api::{Api, PostParams};
 use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -34,8 +34,21 @@ use uuid::Uuid;
 use crate::cli_args::CliArgs;
 use crate::error::Result;
 use crate::push;
+use crate::push::client::CheckmkPushClient;
 
 const CERT_SECRET: &str = "metrics-cache-cmk-push-cert";
+
+fn replace_secret_identity(secret: &mut Secret, agent_cert: String, private_key: String) {
+    let data = secret.data.get_or_insert_default();
+    data.insert(
+        "agent_cert".to_string(),
+        ByteString(agent_cert.into_bytes()),
+    );
+    data.insert(
+        "private_key".to_string(),
+        ByteString(private_key.into_bytes()),
+    );
+}
 
 /// Payload for push agent registration request to Checkmk server.
 #[derive(Debug, Serialize)]
@@ -102,6 +115,47 @@ impl<'a> CheckmkPushRegistration<'a> {
         let private_key = key_pair.serialize_pem();
         trace!("Returning CSR and private key");
         Ok((csr, private_key))
+    }
+
+    /// Renew the current client identity and persist it in the certificate
+    /// Secret.
+    ///
+    /// The replacement client is built before the Secret is updated so
+    /// malformed or mismatched credentials cannot break the next restart.
+    pub async fn renew(&self, client: &CheckmkPushClient) -> Result<CheckmkPushClient> {
+        let base_url = self.cli_args.push_receiver.as_deref().ok_or_else(|| {
+            push::Error::PushMode("Push receiver URL not provided, cannot renew".to_string())
+        })?;
+        let mut secret = self.get_cert_secret().await?.ok_or_else(|| {
+            push::Error::PushMode("push certificate secret disappeared before renewal".to_string())
+        })?;
+        let secret_uuid = secret
+            .data
+            .as_ref()
+            .and_then(|data| data.get("uuid"))
+            .and_then(|uuid| std::str::from_utf8(&uuid.0).ok())
+            .and_then(|uuid| Uuid::parse_str(uuid).ok())
+            .ok_or_else(|| {
+                push::Error::PushMode("push certificate secret contains no valid uuid".to_string())
+            })?;
+        if &secret_uuid != client.uuid() {
+            return Err(push::Error::PushMode(
+                "push certificate secret changed while metrics-cache was running".to_string(),
+            )
+            .into());
+        }
+
+        let (csr, private_key) = self.generate_registration_csr(&secret_uuid)?;
+        let agent_cert = client.renew_certificate(&csr).await?;
+        replace_secret_identity(&mut secret, agent_cert, private_key);
+
+        let replacement = CheckmkPushClient::from_secret(base_url, &secret)?;
+        let secrets: Api<Secret> = Api::default_namespaced(self.kube_client.clone());
+        secrets
+            .replace(CERT_SECRET, &PostParams::default(), &secret)
+            .await?;
+        info!(uuid = %secret_uuid, "Successfully renewed push agent certificate");
+        Ok(replacement)
     }
 
     /// Attempt registration with the Checkmk server
@@ -289,5 +343,33 @@ impl<'a> CheckmkPushRegistration<'a> {
                 Ok(secrets.get(CERT_SECRET).await?)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn replacing_identity_preserves_other_secret_data() {
+        let mut secret = Secret {
+            data: Some(BTreeMap::from([
+                ("agent_cert".to_string(), ByteString(b"old-cert".to_vec())),
+                ("private_key".to_string(), ByteString(b"old-key".to_vec())),
+                ("root_cert".to_string(), ByteString(b"root".to_vec())),
+                ("uuid".to_string(), ByteString(b"uuid".to_vec())),
+            ])),
+            ..Default::default()
+        };
+
+        replace_secret_identity(&mut secret, "new-cert".to_string(), "new-key".to_string());
+
+        let data = secret
+            .data
+            .expect("test Secret should contain identity data");
+        assert_eq!(data["agent_cert"].0, b"new-cert");
+        assert_eq!(data["private_key"].0, b"new-key");
+        assert_eq!(data["root_cert"].0, b"root");
+        assert_eq!(data["uuid"].0, b"uuid");
     }
 }
