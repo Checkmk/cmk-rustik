@@ -90,7 +90,7 @@ impl Section for KubeNodeInfoV1<'_> {
 }
 
 /// Container counts by state. (`kube_node_container_count_v1`)
-#[derive(Serialize)]
+#[derive(Default, Serialize)]
 pub(crate) struct KubeNodeContainerCountV1 {
     pub running: u64,
     pub waiting: u64,
@@ -99,9 +99,7 @@ pub(crate) struct KubeNodeContainerCountV1 {
 
 impl KubeNodeContainerCountV1 {
     pub fn new<'a>(pods: impl IntoIterator<Item = &'a Arc<Pod>>) -> Self {
-        let mut running = 0;
-        let mut waiting = 0;
-        let mut terminated = 0;
+        let mut section = Self::default();
 
         for pod in pods {
             let Some(statuses) = pod
@@ -116,25 +114,21 @@ impl KubeNodeContainerCountV1 {
                     continue;
                 };
                 if state.terminated.is_some() {
-                    terminated += 1;
+                    section.terminated += 1;
                     continue;
                 }
                 if state.running.is_some() {
-                    running += 1;
+                    section.running += 1;
                     continue;
                 }
                 // Upstream says: "If none of them is specified, the default one
                 // is ContainerStateWaiting.", so if we are still here whether
                 // or not status.waiting is not None, we count it as waiting.
-                waiting += 1;
+                section.waiting += 1;
             }
         }
 
-        Self {
-            running,
-            waiting,
-            terminated,
-        }
+        section
     }
 }
 
@@ -255,9 +249,13 @@ mod tests {
                 terminated: Some(ContainerStateTerminated::default()),
                 ..Default::default()
             },
+            ContainerState {
+                running: Some(ContainerStateRunning::default()),
+                ..Default::default()
+            },
         ])];
 
         let count = KubeNodeContainerCountV1::new(&pods);
-        assert_eq!((count.running, count.waiting, count.terminated), (1, 1, 1));
+        assert_eq!((count.running, count.waiting, count.terminated), (2, 1, 1));
     }
 }
