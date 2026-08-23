@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::section::performance::{
     KubePerformanceCpuV1, KubePerformanceMemorySwapV1, KubePerformanceMemoryV1,
 };
+use crate::section::pod::KubePodResourcesV1;
 use crate::section::resource::{
     KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis,
 };
@@ -45,6 +46,10 @@ pub(crate) trait AggregationHost {
         KubeMemoryResourcesV1(ra)
     }
 
+    fn pod_resources(&self) -> KubePodResourcesV1<'_> {
+        KubePodResourcesV1::from_pods(self.pods().map(Arc::as_ref))
+    }
+
     fn cpu_performance(&self) -> Option<KubePerformanceCpuV1> {
         Some(KubePerformanceCpuV1::new(
             self.snapshot()
@@ -76,6 +81,7 @@ pub(crate) trait AggregationHost {
     /// returned by [`Self::pods()`].
     fn aggregation_sections(&self, me: &str) -> Vec<Result<WriteableSection, SectionError>> {
         let mut out = vec![
+            WriteableSection::of(me, &self.pod_resources()),
             WriteableSection::of(me, &self.cpu_resources()),
             WriteableSection::of(me, &self.memory_resources()),
         ];

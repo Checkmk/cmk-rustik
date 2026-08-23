@@ -183,11 +183,56 @@ impl Section for KubeStartTimeV1 {
     const NAME: &'static str = "kube_start_time_v1";
 }
 
+/// Pod names grouped by their Kubernetes lifecycle phase.
+/// (`kube_pod_resources_v1`)
+///
+/// The names borrow from the API objects in the current snapshot; this keeps
+/// the section cheap even for large clusters.
+#[derive(Debug, Default, Serialize)]
+pub(crate) struct KubePodResourcesV1<'a> {
+    running: Vec<&'a str>,
+    pending: Vec<&'a str>,
+    succeeded: Vec<&'a str>,
+    failed: Vec<&'a str>,
+    unknown: Vec<&'a str>,
+}
+
+impl<'a> KubePodResourcesV1<'a> {
+    /// Group the named pods by their API-reported lifecycle phase.
+    ///
+    /// Missing or unrecognised phases are retained in `unknown`, while pods
+    /// without a name cannot be represented by the wire schema and are skipped.
+    pub(crate) fn from_pods(pods: impl IntoIterator<Item = &'a Pod>) -> Self {
+        let mut resources = Self::default();
+        for pod in pods {
+            let Some(name) = pod.metadata.name.as_deref() else {
+                continue;
+            };
+            let phase = pod
+                .status
+                .as_ref()
+                .and_then(|status| status.phase.as_deref());
+            match phase {
+                Some("Running") => resources.running.push(name),
+                Some("Pending") => resources.pending.push(name),
+                Some("Succeeded") => resources.succeeded.push(name),
+                Some("Failed") => resources.failed.push(name),
+                _ => resources.unknown.push(name),
+            }
+        }
+        resources
+    }
+}
+
+impl Section for KubePodResourcesV1<'_> {
+    const NAME: &'static str = "kube_pod_resources_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use crate::test_support::{host_settings, owner_graph, owner_ref, pod, pod_prefilled};
+    use crate::test_support::{host_settings, owner_graph, owner_ref, pod, pod_prefilled, s};
 
     #[test]
     fn kube_pod_lifecycle_v1() {
@@ -224,5 +269,26 @@ mod tests {
         let mut without_start_time = pod_prefilled("my-pod");
         without_start_time.status.as_mut().unwrap().start_time = None;
         assert!(KubeStartTimeV1::from_pod(&without_start_time).is_none());
+    }
+
+    #[test]
+    fn kube_pod_resources_v1() {
+        let pod_with_phase = |name, phase| {
+            let mut pod = pod(name, None);
+            pod.status.get_or_insert_with(Default::default).phase = Some(s(phase));
+            pod
+        };
+        let running = pod_with_phase("running-pod", "Running");
+        let running2 = pod_with_phase("running-2-pod", "Running");
+        let pending = pod_with_phase("pending-pod", "Pending");
+        let succeeded = pod_with_phase("succeeded-pod", "Succeeded");
+        let failed = pod_with_phase("failed-pod", "Failed");
+        let failed2 = pod_with_phase("failed-2-pod", "Failed");
+        let unknown = pod("no-phase-pod", None);
+
+        let section = KubePodResourcesV1::from_pods([
+            &running, &pending, &succeeded, &failed, &unknown, &running2, &failed2,
+        ]);
+        insta::assert_json_snapshot!(section);
     }
 }

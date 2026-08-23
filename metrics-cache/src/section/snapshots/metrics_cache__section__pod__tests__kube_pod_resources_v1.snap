@@ -1,0 +1,23 @@
+---
+source: metrics-cache/src/section/pod.rs
+expression: section
+---
+{
+  "running": [
+    "running-pod",
+    "running-2-pod"
+  ],
+  "pending": [
+    "pending-pod"
+  ],
+  "succeeded": [
+    "succeeded-pod"
+  ],
+  "failed": [
+    "failed-pod",
+    "failed-2-pod"
+  ],
+  "unknown": [
+    "no-phase-pod"
+  ]
+}
