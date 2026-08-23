@@ -1,5 +1,6 @@
 pub mod client;
 pub mod register;
+mod renew;
 pub mod server_cert_verifier;
 
 use anyhow::Context;

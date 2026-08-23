@@ -20,6 +20,7 @@ use rustls::{
     CertificateError, ClientConfig, DigitallySignedStruct, RootCertStore, SignatureScheme,
 };
 use std::sync::Arc;
+use std::time::SystemTime;
 use thiserror::Error;
 use x509_parser::prelude::FromDer;
 
@@ -39,8 +40,22 @@ pub enum ClientConfigError {
     InvalidRootCertificate(#[source] rustls::Error),
     #[error("failed to create server certificate verifier")]
     ServerCertVerifier(#[source] rustls::client::VerifierBuilderError),
+    #[error("failed to read agent certificate metadata")]
+    InvalidClientCertificate(#[source] rustls::Error),
     #[error("agent certificate and private key are invalid")]
     InvalidClientIdentity(#[source] rustls::Error),
+}
+
+/// TLS configuration and renewal metadata read from the client certificate.
+pub(super) struct PushTlsConfig {
+    pub config: ClientConfig,
+    pub certificate_validity: CertificateValidity,
+}
+
+/// Validity timestamps parsed from the leaf client certificate.
+pub(super) struct CertificateValidity {
+    pub not_before: SystemTime,
+    pub not_after: SystemTime,
 }
 
 #[derive(Debug)]
@@ -166,6 +181,18 @@ fn certificates(
     Ok(certificates)
 }
 
+fn client_certificate_validity(
+    certificate: &CertificateDer<'_>,
+) -> Result<CertificateValidity, rustls::Error> {
+    let (_remaining, certificate) =
+        x509_parser::certificate::X509Certificate::from_der(certificate.as_ref())
+            .map_err(|_| rustls::Error::InvalidCertificate(CertificateError::BadEncoding))?;
+    Ok(CertificateValidity {
+        not_before: certificate.validity().not_before.to_datetime().into(),
+        not_after: certificate.validity().not_after.to_datetime().into(),
+    })
+}
+
 fn root_cert_store(root_cert_pem: &str) -> Result<RootCertStore, ClientConfigError> {
     let certificates = certificates("root certificate", root_cert_pem)?;
 
@@ -182,12 +209,14 @@ pub(super) fn client_config(
     root_cert_pem: &str,
     agent_cert_pem: &str,
     private_key_pem: &str,
-) -> Result<ClientConfig, ClientConfigError> {
+) -> Result<PushTlsConfig, ClientConfigError> {
     let crypto_provider =
         CryptoProvider::get_default().ok_or(ClientConfigError::MissingCryptoProvider)?;
     let verifier = DisallowUuidCn::new(root_cert_store(root_cert_pem)?, crypto_provider)
         .map_err(ClientConfigError::ServerCertVerifier)?;
     let certificate_chain = certificates("agent certificate", agent_cert_pem)?;
+    let certificate_validity = client_certificate_validity(&certificate_chain[0])
+        .map_err(ClientConfigError::InvalidClientCertificate)?;
     let private_key =
         PrivateKeyDer::from_pem_slice(private_key_pem.as_bytes()).map_err(|source| {
             ClientConfigError::ReadPem {
@@ -196,12 +225,17 @@ pub(super) fn client_config(
             }
         })?;
 
-    DangerousClientConfigBuilder {
+    let config = DangerousClientConfigBuilder {
         cfg: ClientConfig::builder(),
     }
     .with_custom_certificate_verifier(Arc::new(verifier))
     .with_client_auth_cert(certificate_chain, private_key)
-    .map_err(ClientConfigError::InvalidClientIdentity)
+    .map_err(ClientConfigError::InvalidClientIdentity)?;
+
+    Ok(PushTlsConfig {
+        config,
+        certificate_validity,
+    })
 }
 
 #[cfg(test)]
@@ -210,6 +244,7 @@ mod tests {
     use rcgen::{
         BasicConstraints, CertificateParams, DistinguishedName, DnType, IsCa, Issuer, KeyPair,
     };
+    use std::time::Duration;
 
     fn verifier_and_certificate(
         common_name: &str,
@@ -315,5 +350,27 @@ mod tests {
                 )
                 .is_err()
         );
+    }
+
+    #[test]
+    fn reads_client_certificate_validity() {
+        let key_pair = KeyPair::generate().expect("certificate key should generate");
+        let mut params = CertificateParams::default();
+        let expected_not_before = SystemTime::UNIX_EPOCH
+            .checked_add(Duration::from_secs(1_900_000_000))
+            .expect("test timestamp should be valid");
+        let expected_not_after = SystemTime::UNIX_EPOCH
+            .checked_add(Duration::from_secs(2_000_000_000))
+            .expect("test timestamp should be valid");
+        params.not_before = expected_not_before.into();
+        params.not_after = expected_not_after.into();
+        let certificate = params
+            .self_signed(&key_pair)
+            .expect("certificate should generate");
+        let validity = client_certificate_validity(certificate.der())
+            .expect("certificate validity should parse");
+
+        assert_eq!(validity.not_before, expected_not_before);
+        assert_eq!(validity.not_after, expected_not_after);
     }
 }

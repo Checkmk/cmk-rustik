@@ -4,66 +4,55 @@
 use k8s_openapi::api::core::v1::Secret;
 use reqwest::multipart;
 use tracing::{error, trace};
+use uuid::Uuid;
 
 use crate::error::Result;
 use crate::push::Error;
+use crate::push::renew::RenewalState;
 use crate::push::server_cert_verifier;
 
 /// A client to push section data into a Checkmk server.
 ///
-/// It assumes an existing certificate and key (to generate one and register
-/// with the Checkmk server see the module [`crate::push::register`].
+/// It assumes an existing certificate and key. To generate them and register
+/// with the Checkmk server, see [`crate::push::register`].
 pub struct CheckmkPushClient {
     pub client: reqwest::Client,
     pub push_url: String,
+    pub(super) renewal: RenewalState,
+}
+
+fn secret_value(secret: &Secret, key: &str, description: &str) -> Result<String> {
+    secret
+        .data
+        .as_ref()
+        .and_then(|data| data.get(key))
+        .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned())
+        .ok_or_else(|| {
+            error!("{description} missing from secret");
+            Error::PushMode(format!("{description} missing from secret")).into()
+        })
 }
 
 impl CheckmkPushClient {
     pub fn from_secret(base_url: &str, secret: &Secret) -> Result<Self> {
         trace!("Creating CheckmkPushClient from secret");
-        let key = secret
-            .data
-            .as_ref()
-            .and_then(|data| data.get("private_key"))
-            .map(|bs| String::from_utf8_lossy(&bs.0).to_string())
-            .ok_or_else(|| {
-                error!("private key missing from secret");
-                Error::PushMode("private key missing from secret".to_string())
-            })?;
-        let root_cert = secret
-            .data
-            .as_ref()
-            .and_then(|data| data.get("root_cert"))
-            .map(|bs| String::from_utf8_lossy(&bs.0).to_string())
-            .ok_or_else(|| {
-                error!("root certificate missing from secret");
-                Error::PushMode("root certificate missing from secret".to_string())
-            })?;
-        let agent_cert = secret
-            .data
-            .as_ref()
-            .and_then(|data| data.get("agent_cert"))
-            .map(|bs| String::from_utf8_lossy(&bs.0).to_string())
-            .ok_or_else(|| {
-                error!("agent certificate missing from secret");
-                Error::PushMode("agent certificate missing from secret".to_string())
-            })?;
-        let uuid = secret
-            .data
-            .as_ref()
-            .and_then(|data| data.get("uuid"))
-            .map(|bs| String::from_utf8_lossy(&bs.0).to_string())
-            .ok_or_else(|| {
-                error!("uuid missing from secret");
-                Error::PushMode("uuid missing from secret".to_string())
-            })?;
-        let tls_config = server_cert_verifier::client_config(&root_cert, &agent_cert, &key)
-            .map_err(|error| {
+        let key = secret_value(secret, "private_key", "private key")?;
+        let root_cert = secret_value(secret, "root_cert", "root certificate")?;
+        let agent_cert = secret_value(secret, "agent_cert", "agent certificate")?;
+        let uuid = secret_value(secret, "uuid", "uuid")?;
+        let uuid = Uuid::parse_str(&uuid).map_err(|error| {
+            error!(?error, "invalid uuid in push certificate secret");
+            Error::PushMode("invalid uuid in push certificate secret".to_string())
+        })?;
+        let tls = server_cert_verifier::client_config(&root_cert, &agent_cert, &key).map_err(
+            |error| {
                 error!(error = ?error, "failed to configure push-mode TLS");
                 Error::TlsClientConfig(error)
-            })?;
+            },
+        )?;
+        let renewal = RenewalState::new(base_url, uuid, &tls);
         let client = reqwest::Client::builder()
-            .use_preconfigured_tls(tls_config)
+            .use_preconfigured_tls(tls.config)
             .build()
             .map_err(|e| {
                 error!(error = ?e, "failed to build push-mode client");
@@ -74,7 +63,11 @@ impl CheckmkPushClient {
             base_url.trim_end_matches('/'),
             uuid
         );
-        Ok(Self { client, push_url })
+        Ok(Self {
+            client,
+            push_url,
+            renewal,
+        })
     }
 
     pub(super) async fn push_section_data(&self, section_data: Vec<u8>) -> Result<()> {
