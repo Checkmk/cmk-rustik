@@ -160,7 +160,7 @@ impl<'a> CheckmkPushRegistration<'a> {
 
     /// Attempt registration with the Checkmk server
     #[tracing::instrument(
-        skip(self),
+        skip(self, csr, token),
         fields(
             host = %self.cli_args.cluster_host_name,
             uuid = %uuid,
