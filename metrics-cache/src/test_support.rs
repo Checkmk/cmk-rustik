@@ -113,6 +113,17 @@ pub fn node(name: &str) -> Node {
     }
 }
 
+pub fn node_with_roles(name: &str, roles: &[&str]) -> Node {
+    let mut node = node(name);
+    node.metadata.labels = Some(
+        roles
+            .iter()
+            .map(|role| (format!("node-role.kubernetes.io/{role}"), String::new()))
+            .collect(),
+    );
+    node
+}
+
 pub fn node_prefilled(name: &str) -> Node {
     let timestamp: Timestamp = "2026-08-07 15:22:45-04".parse().unwrap();
     let mut node = node(name);

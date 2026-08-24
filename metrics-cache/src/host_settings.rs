@@ -75,6 +75,16 @@ pub struct HostSettings {
     pub cluster_version: String,
 }
 
+/// The roles of a node, derived from its `node-role.kubernetes.io/<role>`
+/// labels. A node can carry any number of roles, including none at all.
+pub fn node_roles(node: &Node) -> impl Iterator<Item = &str> {
+    node.metadata
+        .labels
+        .iter()
+        .flatten()
+        .filter_map(|(label, _)| label.strip_prefix("node-role.kubernetes.io/"))
+}
+
 impl HostSettings {
     /// Given a node, determine if it should be excluded from cluster metrics.
     ///
@@ -87,17 +97,10 @@ impl HostSettings {
             return false;
         }
 
-        let Some(labels) = &node.metadata.labels else {
-            return false;
-        };
-        let roles: Vec<&str> = labels
-            .keys()
-            .filter_map(|k| k.strip_prefix("node-role.kubernetes.io/"))
-            .collect();
-        roles.iter().any(|r| {
+        node_roles(node).any(|role| {
             self.excluded_node_role_patterns
                 .iter()
-                .any(|p| p.is_match(r))
+                .any(|p| p.is_match(role))
         })
     }
 }
@@ -105,10 +108,8 @@ impl HostSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k8s_openapi::api::core::v1::Node;
-    use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
-    use crate::test_support::host_settings;
+    use crate::test_support::{host_settings, node, node_with_roles, s};
 
     fn host_settings_with_excluded_roles(patterns: Vec<Regex>) -> HostSettings {
         HostSettings {
@@ -118,17 +119,22 @@ mod tests {
         }
     }
 
-    fn node_with_role(role: &str) -> Node {
-        Node {
-            metadata: ObjectMeta {
-                labels: Some(BTreeMap::from([(
-                    format!("node-role.kubernetes.io/{role}"),
-                    "".to_string(),
-                )])),
-                ..Default::default()
-            },
-            ..Default::default()
-        }
+    #[test]
+    fn test_node_roles() {
+        let mut node = node("node01");
+        assert_eq!(node_roles(&node).count(), 0);
+
+        node.metadata.labels = Some(BTreeMap::from([
+            (s("node-role.kubernetes.io/control-plane"), s("")),
+            (s("node-role.kubernetes.io/worker"), s("")),
+            // Neither of these is a role, despite looking the part.
+            (s("node-role.kubernetes.io"), s("")),
+            (s("kubernetes.io/arch"), s("amd64")),
+        ]));
+        assert_eq!(
+            node_roles(&node).collect::<Vec<_>>(),
+            vec!["control-plane", "worker"]
+        );
     }
 
     #[test]
@@ -140,9 +146,9 @@ mod tests {
         let exclude_exact = host_settings_with_excluded_roles(vec![pattern_exact]);
         let no_exclusion = host_settings_with_excluded_roles(vec![]);
 
-        let control_plane = node_with_role("control-plane");
-        let worker = node_with_role("worker");
-        let silly_control_plane_node = node_with_role("silly-control-plane-node");
+        let control_plane = node_with_roles("control-1", &["control-plane"]);
+        let worker = node_with_roles("worker-1", &["worker"]);
+        let silly_control_plane_node = node_with_roles("silly-1", &["silly-control-plane-node"]);
 
         // effectively, substring-search
         assert!(exclude_c_plane.is_node_excluded(&control_plane));
