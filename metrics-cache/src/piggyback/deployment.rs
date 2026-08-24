@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
+use crate::section::common::ThinContainers;
 use crate::section::controller_spec::KubeControllerSpecV1;
+use crate::section::deployment::KubeDeploymentInfoV1;
 use crate::section::update_strategy::KubeUpdateStrategyV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -61,6 +63,14 @@ impl PiggybackHost for Deployment<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();
+
+        let containers = ThinContainers::from_pods(self.pods());
+        if let Some(kube_deployment_info_v1) =
+            KubeDeploymentInfoV1::from_deployment(self.api, containers, self.settings)
+        {
+            out.push(WriteableSection::of(&me, &kube_deployment_info_v1));
+        }
+
         if let Some(kube_update_strategy_v1) = KubeUpdateStrategyV1::from_deployment(self.api) {
             out.push(WriteableSection::of(&me, &kube_update_strategy_v1));
         }

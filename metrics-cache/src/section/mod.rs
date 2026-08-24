@@ -2,6 +2,7 @@ pub mod cluster;
 pub mod common;
 pub mod controller_spec;
 pub mod cronjob;
+pub mod deployment;
 pub mod namespace;
 pub mod node;
 pub mod node_kubelet;

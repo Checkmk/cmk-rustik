@@ -1,0 +1,47 @@
+---
+source: metrics-cache/src/section/deployment.rs
+expression: "KubeDeploymentInfoV1::from_deployment(&deployment, containers,\n&host_settings())"
+---
+{
+  "name": "nginx",
+  "namespace": "the-namespace-of-all-namespaces",
+  "creation_timestamp": 1718824965.0,
+  "labels": {
+    "app": {
+      "name": "app",
+      "value": "nginx"
+    }
+  },
+  "annotations": {
+    "checkmk.com/promote-to-host": "true",
+    "example.com/cool-animal": "monkeys"
+  },
+  "selector": {
+    "match_labels": {
+      "app": "nginx"
+    },
+    "match_expressions": [
+      {
+        "key": "tier",
+        "operator": "In",
+        "values": [
+          "backend",
+          "frontend"
+        ]
+      }
+    ]
+  },
+  "containers": {
+    "images": [
+      "envoy:1.31",
+      "nginx:1.27"
+    ],
+    "names": [
+      "nginx",
+      "nginx",
+      "sidecar"
+    ]
+  },
+  "cluster": "the-cluster",
+  "kubernetes_cluster_hostname": "cluster.host.tld"
+}
