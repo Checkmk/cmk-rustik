@@ -1,0 +1,31 @@
+---
+source: metrics-cache/src/section/cluster.rs
+expression: "KubeNodeCountV1::from_nodes(&nodes)"
+---
+{
+  "nodes": [
+    {
+      "ready": true,
+      "roles": [
+        "control-plane",
+        "master"
+      ]
+    },
+    {
+      "ready": true,
+      "roles": [
+        "worker"
+      ]
+    },
+    {
+      "ready": false,
+      "roles": [
+        "worker"
+      ]
+    },
+    {
+      "ready": false,
+      "roles": []
+    }
+  ]
+}

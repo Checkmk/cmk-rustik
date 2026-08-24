@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, PiggybackHost};
-use crate::section::cluster::{KubeClusterDetailsV1, KubeClusterInfoV1};
+use crate::section::cluster::{KubeClusterDetailsV1, KubeClusterInfoV1, KubeNodeCountV1};
 use crate::section::node::KubeAllocatablePodsV1;
 use crate::section::self_health::KubeRustikHealthV1;
 use crate::section::writeable::{SectionError, WriteableSection};
@@ -99,6 +99,11 @@ impl PiggybackHost for Cluster<'_> {
             me,
             &KubeClusterInfoV1::from_host_settings(self.settings),
         ));
+        out.push(WriteableSection::of(
+            me,
+            // Deliberately every node, not just the aggregation nodes.
+            &KubeNodeCountV1::from_nodes(&self.snapshot.stores.nodes),
+        ));
         out.extend(self.aggregation_sections(me));
         out.push(WriteableSection::of(
             me,
@@ -123,8 +128,56 @@ impl PiggybackHost for Cluster<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use regex::Regex;
 
+    use crate::section::Section;
+    use crate::section::writeable::SectionBody;
+    use crate::state::tests::test_app_state;
     use crate::test_support::*;
+
+    fn snapshot_with_nodes(nodes: Vec<Arc<Node>>) -> Snapshot {
+        let state = test_app_state();
+        let mut snapshot = Snapshot::new(
+            state.stores,
+            state.kubelet_stats_summary_cache,
+            state.kubelet_health_cache,
+            state.system_agent_cache,
+            state.api_health_receiver,
+        );
+        snapshot.stores.nodes = nodes;
+        snapshot
+    }
+
+    #[tokio::test]
+    async fn test_node_count_covers_nodes_excluded_from_aggregation() {
+        let settings = HostSettings {
+            excluded_node_role_patterns: vec![Regex::new("control-plane").unwrap()],
+            ..host_settings()
+        };
+        let snapshot = snapshot_with_nodes(vec![
+            Arc::new(node_with_roles("control-1", &["control-plane"])),
+            Arc::new(node_with_roles("worker-1", &["worker"])),
+        ]);
+
+        let cluster = Cluster::new(&snapshot, &settings);
+        assert_eq!(cluster.aggregation_nodes.len(), 1, "control plane excluded");
+
+        let body = cluster
+            .emit()
+            .into_iter()
+            .filter_map(Result::ok)
+            .find_map(|section| match section.body {
+                SectionBody::Json { name, body } if name == KubeNodeCountV1::NAME => Some(body),
+                _ => None,
+            })
+            .expect("expected a kube_node_count_v1 section");
+        let section: serde_json::Value = serde_json::from_str(&body).unwrap();
+
+        let counted = section["nodes"].as_array().expect("nodes is an array");
+        assert_eq!(counted.len(), 2, "both nodes are counted");
+        assert_eq!(counted[0]["roles"][0], "control-plane");
+        assert_eq!(counted[1]["roles"][0], "worker");
+    }
 
     #[test]
     /// Test that [`Cluster::aggregation_pods()`] includes pods only running on

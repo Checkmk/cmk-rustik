@@ -1,6 +1,8 @@
+use k8s_openapi::api::core::v1::Node;
 use serde::Serialize;
+use std::sync::Arc;
 
-use crate::host_settings::HostSettings;
+use crate::host_settings::{HostSettings, node_roles};
 use crate::ingest::api_health;
 use crate::section::Section;
 
@@ -74,11 +76,75 @@ impl Section for KubeClusterDetailsV1<'_> {
     const NAME: &'static str = "kube_cluster_details_v1";
 }
 
+/// One node's contribution to the node count.
+#[derive(Serialize)]
+struct CountableNode<'a> {
+    ready: bool,
+    roles: Vec<&'a str>,
+}
+
+/// Ready/not-ready node counts, split by role. (`kube_node_count_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubeNodeCountV1<'a> {
+    nodes: Vec<CountableNode<'a>>,
+}
+
+impl<'a> KubeNodeCountV1<'a> {
+    pub fn from_nodes(nodes: &'a [Arc<Node>]) -> KubeNodeCountV1<'a> {
+        KubeNodeCountV1 {
+            nodes: nodes
+                .iter()
+                .map(|node| CountableNode {
+                    ready: node_is_ready(node),
+                    roles: node_roles(node).collect(),
+                })
+                .collect(),
+        }
+    }
+}
+
+impl Section for KubeNodeCountV1<'_> {
+    const NAME: &'static str = "kube_node_count_v1";
+}
+
+/// A node is ready when the first of its conditions of type `Ready` has status
+/// `True`.
+fn node_is_ready(node: &Node) -> bool {
+    node.status
+        .as_ref()
+        .and_then(|status| status.conditions.as_ref())
+        .into_iter()
+        .flatten()
+        .find(|condition| condition.type_.eq_ignore_ascii_case("ready"))
+        .is_some_and(|condition| condition.status == "True")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use k8s_openapi::api::core::v1::{NodeCondition, NodeStatus};
+    use std::collections::BTreeMap;
 
-    use crate::test_support::{host_settings, s};
+    use crate::test_support::{host_settings, node, node_with_roles, s};
+
+    fn condition(type_: &str, status: &str) -> NodeCondition {
+        NodeCondition {
+            type_: s(type_),
+            status: s(status),
+            ..Default::default()
+        }
+    }
+
+    /// A node with the given roles, reporting the given `Ready` condition
+    /// status.
+    fn countable_node(name: &str, roles: &[&str], ready: &str) -> Node {
+        let mut node = node_with_roles(name, roles);
+        node.status = Some(NodeStatus {
+            conditions: Some(vec![condition("Ready", ready)]),
+            ..Default::default()
+        });
+        node
+    }
 
     #[test]
     fn kube_cluster_info_v1() {
@@ -103,5 +169,53 @@ mod tests {
     #[test]
     fn no_cluster_details_without_api_health() {
         assert!(KubeClusterDetailsV1::new(&None).is_none());
+    }
+
+    #[test]
+    fn kube_node_count_v1() {
+        let nodes = [
+            countable_node("control-1", &["control-plane", "master"], "True"),
+            countable_node("worker-1", &["worker"], "True"),
+            countable_node("worker-2", &["worker"], "False"),
+            // A node need not have a role at all
+            countable_node("unlabelled-1", &[], "Unknown"),
+        ]
+        .map(Arc::new);
+        insta::assert_json_snapshot!(KubeNodeCountV1::from_nodes(&nodes));
+    }
+
+    /// A cluster we know nothing about yet still emits the section
+    #[test]
+    fn kube_node_count_v1_without_nodes() {
+        assert!(KubeNodeCountV1::from_nodes(&[]).nodes.is_empty());
+    }
+
+    /// Kubernetes condition types are conventionally capitalized, but the
+    /// Python section matched them case-insensitively, so we do too.
+    #[test]
+    fn kube_node_count_v1_readiness_is_case_insensitive() {
+        let mut node = node("node01");
+        node.status = Some(NodeStatus {
+            conditions: Some(vec![condition("ready", "True")]),
+            ..Default::default()
+        });
+        let nodes = [Arc::new(node)];
+        assert!(KubeNodeCountV1::from_nodes(&nodes).nodes[0].ready);
+    }
+
+    /// Roles come from the `node-role.kubernetes.io/` labels only
+    #[test]
+    fn kube_node_count_v1_roles() {
+        let mut node = node("node01");
+        node.metadata.labels = Some(BTreeMap::from([
+            (s("node-role.kubernetes.io/control-plane"), s("")),
+            (s("node-role.kubernetes.io/worker"), s("")),
+            (s("kubernetes.io/arch"), s("amd64")),
+        ]));
+        let nodes = [Arc::new(node)];
+        assert_eq!(
+            KubeNodeCountV1::from_nodes(&nodes).nodes[0].roles,
+            vec!["control-plane", "worker"]
+        );
     }
 }
