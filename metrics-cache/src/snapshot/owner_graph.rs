@@ -16,7 +16,7 @@ use crate::snapshot::Uid;
 /// `OwnerGraph` owns the structures to perform such lookups and exposes
 /// functions to make use of said structures.
 ///
-/// When the graph is created, internally two maps are created:
+/// When the graph is created, internally three maps are created:
 ///
 /// - The first maps Kubernetes [`Uid`]s of all "controllable" objects that we
 ///   monitor (e.g. Pods, ReplicaSets, etc.) to [`OwnerReference`]s. This is a
@@ -28,10 +28,13 @@ use crate::snapshot::Uid;
 ///   [`Uid`]s, to a vector containing the pods that they own. This mapping is
 ///   recursive (represents the transitive closure of all the pods owned by the
 ///   controller in the key).
+///
+/// - The third maps controllers to their directly owned Jobs.
 #[derive(Debug)]
 pub struct OwnerGraph {
     pub owner_ref_by_uid: HashMap<Uid, OwnerReference>,
     pub pods_by_controller: HashMap<Uid, Vec<Arc<Pod>>>,
+    pub jobs_by_controller: HashMap<Uid, Vec<Arc<Job>>>,
 }
 
 impl OwnerGraph {
@@ -43,9 +46,11 @@ impl OwnerGraph {
         let owner_ref_by_uid =
             Self::map_object_uids_to_owner_ref(&stores.pods, &stores.replicasets, &stores.jobs);
         let pods_by_controller = Self::get_pods_by_controller(&stores.pods, &owner_ref_by_uid);
+        let jobs_by_controller = Self::get_jobs_by_controller(&stores.jobs, &owner_ref_by_uid);
         OwnerGraph {
             owner_ref_by_uid,
             pods_by_controller,
+            jobs_by_controller,
         }
     }
 
@@ -124,6 +129,32 @@ impl OwnerGraph {
         self.pods_by_controller
             .get(controller_uid)
             .map_or(&[], Vec::as_slice)
+    }
+
+    /// Get all Jobs directly controlled by the controller at the given UID.
+    pub fn jobs_by_controller(&self, controller_uid: &str) -> &[Arc<Job>] {
+        self.jobs_by_controller
+            .get(controller_uid)
+            .map_or(&[], Vec::as_slice)
+    }
+
+    fn get_jobs_by_controller(
+        jobs: &[Arc<Job>],
+        owner_ref_by_uid: &HashMap<Uid, OwnerReference>,
+    ) -> HashMap<Uid, Vec<Arc<Job>>> {
+        let mut out: HashMap<Uid, Vec<Arc<Job>>> = HashMap::new();
+        for job in jobs {
+            let Some(uid) = job.metadata.uid.as_deref() else {
+                continue;
+            };
+            let Some(controller) = owner_ref_by_uid.get(uid) else {
+                continue;
+            };
+            out.entry(controller.uid.as_str().into())
+                .or_default()
+                .push(job.clone());
+        }
+        out
     }
 
     /// Like [`Self::walk_up()`] but operates on a borrowed map directly so that
@@ -223,13 +254,17 @@ mod tests {
         let map = OwnerGraph::map_object_uids_to_owner_ref(
             &[pod1.into(), pod_owned_by_non_controller.into()],
             &[rs.into()],
-            &[job.into()],
+            &[job.clone().into()],
         );
 
         assert_eq!(map.len(), 3); // the pod with no controller is dropped
         assert_eq!(map["pod1-uid"].uid, "rs-uid");
         assert_eq!(map["rs-uid"].uid, "dep-uid");
         assert_eq!(map["job1-uid"].uid, "cj-uid");
+
+        let jobs = [job.into()];
+        let jobs_by_controller = OwnerGraph::get_jobs_by_controller(&jobs, &map);
+        assert_eq!(jobs_by_controller["cj-uid"].len(), 1);
     }
 
     #[test]
@@ -257,6 +292,7 @@ mod tests {
         let graph = OwnerGraph {
             owner_ref_by_uid: HashMap::new(),
             pods_by_controller: HashMap::from([("rs-uid".into(), vec![pod("p1", None).into()])]),
+            jobs_by_controller: HashMap::new(),
         };
 
         // Known controller: returns its owned pods.

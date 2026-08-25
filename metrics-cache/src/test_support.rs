@@ -227,6 +227,7 @@ pub fn owner_graph(edges: &[(&str, OwnerReference)]) -> OwnerGraph {
             .map(|(uid, owner)| ((*uid).into(), owner.clone()))
             .collect(),
         pods_by_controller: HashMap::new(),
+        jobs_by_controller: HashMap::new(),
     }
 }
 
