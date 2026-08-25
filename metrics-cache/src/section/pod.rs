@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::host_settings::HostSettings;
 use crate::section::Section;
 use crate::section::common::{Controller, LabelRef};
-use crate::section::container::ContainerStatusValue;
+use crate::section::container::{ContainerSpecValue, ContainerStatusValue};
 use crate::snapshot::owner_graph::OwnerGraph;
 
 #[derive(Serialize)]
@@ -358,6 +358,25 @@ impl Section for KubePodInitContainersV1<'_> {
     const NAME: &'static str = "kube_pod_init_containers_v1";
 }
 
+/// Pod container specs. (`kube_pod_container_specs_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePodContainerSpecsV1<'a> {
+    pub containers: BTreeMap<&'a str, ContainerSpecValue<'a>>,
+}
+
+impl<'a> KubePodContainerSpecsV1<'a> {
+    pub(crate) fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let containers = &pod.spec.as_ref()?.containers;
+        Some(Self {
+            containers: ContainerSpecValue::from_specs(containers)?,
+        })
+    }
+}
+
+impl Section for KubePodContainerSpecsV1<'_> {
+    const NAME: &'static str = "kube_pod_container_specs_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -369,7 +388,9 @@ mod tests {
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
     use k8s_openapi::jiff::Timestamp;
 
-    use crate::test_support::{host_settings, owner_graph, owner_ref, pod, pod_prefilled, s};
+    use crate::test_support::{
+        container, host_settings, owner_graph, owner_ref, pod, pod_prefilled, s,
+    };
 
     fn condition(type_: &str, status: &str, reason: &str, message: &str) -> PodCondition {
         let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
@@ -608,5 +629,33 @@ mod tests {
             ),
         ]);
         insta::assert_json_snapshot!(KubePodInitContainersV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_container_specs_v1() {
+        let mut pod = pod_prefilled("my-pod");
+        let mut nginx = container("nginx");
+        nginx.image_pull_policy = Some(s("Always"));
+        let mut sidecar = container("sidecar");
+        sidecar.image_pull_policy = Some(s("IfNotPresent"));
+        pod.spec.as_mut().unwrap().containers = vec![nginx, sidecar];
+        insta::assert_json_snapshot!(KubePodContainerSpecsV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_container_specs_v1_is_none_if_any_container_is_missing_image_pull_policy() {
+        let mut pod = pod_prefilled("my-pod");
+        let mut nginx = container("nginx");
+        nginx.image_pull_policy = Some(s("Always"));
+        let sidecar = container("sidecar");
+        pod.spec.as_mut().unwrap().containers = vec![nginx, sidecar];
+        assert!(KubePodContainerSpecsV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_container_specs_v1_without_spec() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.spec = None;
+        assert!(KubePodContainerSpecsV1::from_pod(&pod).is_none());
     }
 }

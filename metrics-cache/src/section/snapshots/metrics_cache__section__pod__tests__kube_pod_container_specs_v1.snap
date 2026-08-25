@@ -1,0 +1,14 @@
+---
+source: metrics-cache/src/section/pod.rs
+expression: "KubePodContainerSpecsV1::from_pod(&pod)"
+---
+{
+  "containers": {
+    "nginx": {
+      "image_pull_policy": "Always"
+    },
+    "sidecar": {
+      "image_pull_policy": "IfNotPresent"
+    }
+  }
+}
