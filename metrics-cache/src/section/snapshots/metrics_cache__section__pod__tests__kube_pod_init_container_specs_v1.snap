@@ -1,0 +1,14 @@
+---
+source: metrics-cache/src/section/pod.rs
+expression: "KubePodInitContainerSpecsV1::from_pod(&pod)"
+---
+{
+  "containers": {
+    "init-a": {
+      "image_pull_policy": "Always"
+    },
+    "init-b": {
+      "image_pull_policy": "IfNotPresent"
+    }
+  }
+}

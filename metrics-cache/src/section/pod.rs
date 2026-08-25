@@ -377,6 +377,25 @@ impl Section for KubePodContainerSpecsV1<'_> {
     const NAME: &'static str = "kube_pod_container_specs_v1";
 }
 
+/// Pod init-container specs. (`kube_pod_init_container_specs_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePodInitContainerSpecsV1<'a> {
+    pub containers: BTreeMap<&'a str, ContainerSpecValue<'a>>,
+}
+
+impl<'a> KubePodInitContainerSpecsV1<'a> {
+    pub(crate) fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let init_containers = pod.spec.as_ref()?.init_containers.as_deref().unwrap_or(&[]);
+        Some(Self {
+            containers: ContainerSpecValue::from_specs(init_containers)?,
+        })
+    }
+}
+
+impl Section for KubePodInitContainerSpecsV1<'_> {
+    const NAME: &'static str = "kube_pod_init_container_specs_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -657,5 +676,41 @@ mod tests {
         let mut pod = pod_prefilled("my-pod");
         pod.spec = None;
         assert!(KubePodContainerSpecsV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_init_container_specs_v1() {
+        let mut pod = pod_prefilled("my-pod");
+        let mut init_a = container("init-a");
+        init_a.image_pull_policy = Some(s("Always"));
+        let mut init_b = container("init-b");
+        init_b.image_pull_policy = Some(s("IfNotPresent"));
+        pod.spec.as_mut().unwrap().init_containers = Some(vec![init_a, init_b]);
+        insta::assert_json_snapshot!(KubePodInitContainerSpecsV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_init_container_specs_v1_is_none_if_any_container_is_missing_image_pull_policy() {
+        let mut pod = pod_prefilled("my-pod");
+        let mut init_a = container("init-a");
+        init_a.image_pull_policy = Some(s("Always"));
+        let init_b = container("init-b");
+        pod.spec.as_mut().unwrap().init_containers = Some(vec![init_a, init_b]);
+        assert!(KubePodInitContainerSpecsV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_init_container_specs_v1_is_emitted_with_empty_map_without_init_containers() {
+        let pod = pod_prefilled("my-pod");
+        let section = KubePodInitContainerSpecsV1::from_pod(&pod)
+            .expect("section should always be emitted, even with no init containers");
+        assert!(section.containers.is_empty());
+    }
+
+    #[test]
+    fn kube_pod_init_container_specs_v1_without_spec() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.spec = None;
+        assert!(KubePodInitContainerSpecsV1::from_pod(&pod).is_none());
     }
 }
