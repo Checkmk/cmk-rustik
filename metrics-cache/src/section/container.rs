@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::ContainerStatus;
+use k8s_openapi::api::core::v1::{Container, ContainerStatus};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -89,5 +89,32 @@ impl<'a> ContainerStatusValue<'a> {
             }
         }
         containers
+    }
+}
+
+/// A single container's spec (declared, not runtime, state).
+#[derive(Serialize)]
+pub(crate) struct ContainerSpecValue<'a> {
+    pub image_pull_policy: &'a str,
+}
+
+impl<'a> ContainerSpecValue<'a> {
+    fn from_spec(container: &'a Container) -> Option<Self> {
+        Some(Self {
+            image_pull_policy: container.image_pull_policy.as_deref()?,
+        })
+    }
+
+    /// Build a spec map, keyed by container name, from a raw container list
+    /// (e.g. `pod.spec.containers`).
+    pub(crate) fn from_specs(
+        containers: &'a [Container],
+    ) -> Option<BTreeMap<&'a str, ContainerSpecValue<'a>>> {
+        let mut specs = BTreeMap::new();
+        for container in containers {
+            let value = Self::from_spec(container)?;
+            specs.insert(container.name.as_str(), value);
+        }
+        Some(specs)
     }
 }
