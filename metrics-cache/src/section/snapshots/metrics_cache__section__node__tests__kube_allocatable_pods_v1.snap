@@ -1,0 +1,8 @@
+---
+source: metrics-cache/src/section/node.rs
+expression: "KubeAllocatablePodsV1::from_node(&node_with_pod_counts(\"110\", \"110\"))"
+---
+{
+  "capacity": 110,
+  "allocatable": 110
+}

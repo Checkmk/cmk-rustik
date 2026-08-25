@@ -1,11 +1,13 @@
 use k8s_openapi::api::core::v1::{Node, Pod};
+use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use serde::Serialize;
 use std::collections::BTreeMap;
+use std::ops::Add;
 use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::section::Section;
-use crate::section::common::LabelRef;
+use crate::section::common::{LabelRef, parse_quantity};
 
 /// One entry of a Node's `status.addresses`.
 ///
@@ -136,17 +138,71 @@ impl Section for KubeNodeContainerCountV1 {
     const NAME: &'static str = "kube_node_container_count_v1";
 }
 
+#[derive(Default, Serialize)]
+pub(crate) struct KubeAllocatablePodsV1 {
+    pub capacity: u64,
+    pub allocatable: u64,
+}
+
+fn pod_count(resources: Option<&BTreeMap<String, Quantity>>) -> u64 {
+    resources
+        .and_then(|r| r.get("pods"))
+        .and_then(|q| parse_quantity(&q.0))
+        .map_or(0, |v| v.ceil() as u64)
+}
+
+impl KubeAllocatablePodsV1 {
+    pub fn from_node(node: &Node) -> Self {
+        let status = node.status.as_ref();
+        Self {
+            capacity: pod_count(status.and_then(|s| s.capacity.as_ref())),
+            allocatable: pod_count(status.and_then(|s| s.allocatable.as_ref())),
+        }
+    }
+
+    pub fn from_nodes<'a>(nodes: impl IntoIterator<Item = &'a Node>) -> Self {
+        nodes
+            .into_iter()
+            .map(Self::from_node)
+            .fold(Self::default(), Add::add)
+    }
+}
+
+impl Add for KubeAllocatablePodsV1 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            capacity: self.capacity + rhs.capacity,
+            allocatable: self.allocatable + rhs.allocatable,
+        }
+    }
+}
+
+impl Section for KubeAllocatablePodsV1 {
+    const NAME: &'static str = "kube_allocatable_pods_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use k8s_openapi::api::core::v1::{
         ContainerState, ContainerStateRunning, ContainerStateTerminated, ContainerStateWaiting,
-        ContainerStatus,
+        ContainerStatus, NodeStatus,
     };
     use regex::Regex;
 
     use crate::host_settings::AnnotationKeyPattern;
-    use crate::test_support::{host_settings, node, node_prefilled, pod_prefilled};
+    use crate::test_support::{host_settings, node, node_prefilled, pod_prefilled, s};
+
+    fn node_with_pod_counts(capacity: &str, allocatable: &str) -> Node {
+        let mut node = node("worker-1");
+        node.status = Some(NodeStatus {
+            capacity: Some(BTreeMap::from([(s("pods"), Quantity(s(capacity)))])),
+            allocatable: Some(BTreeMap::from([(s("pods"), Quantity(s(allocatable)))])),
+            ..Default::default()
+        });
+        node
+    }
 
     fn pod_with_container_states(states: Vec<ContainerState>) -> Arc<Pod> {
         let mut pod = pod_prefilled("pod");
@@ -257,5 +313,29 @@ mod tests {
 
         let count = KubeNodeContainerCountV1::new(&pods);
         assert_eq!((count.running, count.waiting, count.terminated), (2, 1, 1));
+    }
+
+    #[test]
+    fn kube_allocatable_pods_v1() {
+        insta::assert_json_snapshot!(KubeAllocatablePodsV1::from_node(&node_with_pod_counts(
+            "110", "110"
+        )));
+    }
+
+    #[test]
+    fn kube_allocatable_pods_v1_without_status_is_zero() {
+        let section = KubeAllocatablePodsV1::from_node(&node("worker-1"));
+        assert_eq!((section.capacity, section.allocatable), (0, 0));
+    }
+
+    #[test]
+    fn kube_allocatable_pods_v1_sums_across_nodes() {
+        let nodes = [
+            node_with_pod_counts("110", "110"),
+            node_with_pod_counts("1k", "250.5"),
+        ];
+
+        let section = KubeAllocatablePodsV1::from_nodes(&nodes);
+        assert_eq!((section.capacity, section.allocatable), (1110, 361));
     }
 }
