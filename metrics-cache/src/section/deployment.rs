@@ -59,9 +59,38 @@ impl Section for KubeDeploymentInfoV1<'_> {
     const NAME: &'static str = "kube_deployment_info_v1";
 }
 
+/// Deployment replica counts. (`kube_deployment_replicas_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubeDeploymentReplicasV1 {
+    available: i32,
+    desired: i32,
+    ready: i32,
+    updated: i32,
+    terminating: Option<i32>,
+}
+
+impl KubeDeploymentReplicasV1 {
+    pub(crate) fn from_deployment(deployment: &Deployment) -> Option<Self> {
+        let spec = deployment.spec.as_ref()?;
+        let status = deployment.status.as_ref()?;
+        Some(Self {
+            available: status.available_replicas.unwrap_or(0),
+            desired: spec.replicas?,
+            ready: status.ready_replicas.unwrap_or(0),
+            updated: status.updated_replicas.unwrap_or(0),
+            terminating: status.terminating_replicas,
+        })
+    }
+}
+
+impl Section for KubeDeploymentReplicasV1 {
+    const NAME: &'static str = "kube_deployment_replicas_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use k8s_openapi::api::apps::v1::DeploymentStatus;
     use std::sync::Arc;
 
     use crate::test_support::{deployment, host_settings, pod_with_container_statuses};
@@ -96,5 +125,35 @@ mod tests {
             KubeDeploymentInfoV1::from_deployment(&deployment, containers, &host_settings())
                 .is_none()
         );
+    }
+
+    #[test]
+    fn kube_deployment_replicas_v1() {
+        let mut deployment = deployment("nginx");
+        deployment.spec.as_mut().unwrap().replicas = Some(5);
+        deployment.status = Some(DeploymentStatus {
+            available_replicas: Some(4),
+            ready_replicas: Some(3),
+            replicas: Some(99),
+            updated_replicas: Some(2),
+            terminating_replicas: Some(1),
+            ..Default::default()
+        });
+
+        insta::assert_json_snapshot!(KubeDeploymentReplicasV1::from_deployment(&deployment));
+    }
+
+    #[test]
+    fn deployment_replicas_default_missing_status_counts() {
+        let mut deployment = deployment("nginx");
+        deployment.spec.as_mut().unwrap().replicas = Some(0);
+        deployment.status = Some(DeploymentStatus::default());
+
+        let replicas = KubeDeploymentReplicasV1::from_deployment(&deployment).unwrap();
+        assert_eq!(
+            (replicas.available, replicas.ready, replicas.updated),
+            (0, 0, 0)
+        );
+        assert_eq!(replicas.terminating, None);
     }
 }

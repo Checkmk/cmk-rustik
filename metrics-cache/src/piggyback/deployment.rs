@@ -7,7 +7,7 @@ use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
 use crate::section::common::ThinContainers;
 use crate::section::controller_spec::KubeControllerSpecV1;
-use crate::section::deployment::KubeDeploymentInfoV1;
+use crate::section::deployment::{KubeDeploymentInfoV1, KubeDeploymentReplicasV1};
 use crate::section::update_strategy::KubeUpdateStrategyV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -84,6 +84,11 @@ impl PiggybackHost for Deployment<'_> {
             &KubeControllerSpecV1::new(min_ready_seconds),
         ));
         out.extend(self.aggregation_sections(&me));
+        if let Some(kube_deployment_replicas_v1) =
+            KubeDeploymentReplicasV1::from_deployment(self.api)
+        {
+            out.push(WriteableSection::of(&me, &kube_deployment_replicas_v1));
+        }
         out
     }
 }
