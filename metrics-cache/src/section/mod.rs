@@ -3,6 +3,7 @@ pub mod common;
 pub mod container;
 pub mod controller_spec;
 pub mod cronjob;
+pub mod daemonset;
 pub mod deployment;
 pub mod namespace;
 pub mod node;

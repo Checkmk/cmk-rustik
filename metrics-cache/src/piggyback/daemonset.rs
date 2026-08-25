@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
 use crate::section::controller_spec::KubeControllerSpecV1;
+use crate::section::daemonset::KubeDaemonSetReplicasV1;
 use crate::section::update_strategy::KubeUpdateStrategyV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -63,6 +64,10 @@ impl PiggybackHost for DaemonSet<'_> {
         let mut out = Vec::new();
         if let Some(kube_update_strategy_v1) = KubeUpdateStrategyV1::from_daemonset(self.api) {
             out.push(WriteableSection::of(&me, &kube_update_strategy_v1));
+        }
+        if let Some(kube_daemonset_replicas_v1) = KubeDaemonSetReplicasV1::from_daemonset(self.api)
+        {
+            out.push(WriteableSection::of(&me, &kube_daemonset_replicas_v1));
         }
         let min_ready_seconds = self
             .api
