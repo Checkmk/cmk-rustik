@@ -1,5 +1,8 @@
+use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, LabelSelectorRequirement};
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 use tracing::debug;
 
 #[derive(Serialize)]
@@ -20,6 +23,80 @@ impl<'a> LabelRef<'a> {
 pub(crate) struct Controller<'a> {
     pub(crate) type_: &'a str,
     pub(crate) name: &'a str,
+}
+
+#[derive(Serialize)]
+pub(crate) struct MatchExpression<'a> {
+    key: &'a str,
+    operator: &'a str,
+    values: Vec<&'a str>,
+}
+
+impl<'a> MatchExpression<'a> {
+    fn from_requirement(requirement: &'a LabelSelectorRequirement) -> Self {
+        Self {
+            key: &requirement.key,
+            operator: &requirement.operator,
+            values: requirement
+                .values
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .map(String::as_str)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub(crate) struct Selector<'a> {
+    match_labels: BTreeMap<&'a str, &'a str>,
+    match_expressions: Vec<MatchExpression<'a>>,
+}
+
+impl<'a> Selector<'a> {
+    pub fn from_label_selector(selector: &'a LabelSelector) -> Self {
+        Self {
+            match_labels: selector
+                .match_labels
+                .as_ref()
+                .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect())
+                .unwrap_or_default(),
+            match_expressions: selector
+                .match_expressions
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .map(MatchExpression::from_requirement)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinContainers<'a> {
+    images: BTreeSet<&'a str>,
+    names: Vec<&'a str>,
+}
+
+impl<'a> ThinContainers<'a> {
+    pub fn from_pods(pods: impl Iterator<Item = &'a Arc<Pod>>) -> Self {
+        let mut images = BTreeSet::new();
+        let mut names = Vec::new();
+        for pod in pods {
+            if let Some(statuses) = pod
+                .status
+                .as_ref()
+                .and_then(|s| s.container_statuses.as_ref())
+            {
+                for status in statuses {
+                    images.insert(status.image.as_str());
+                    names.push(status.name.as_str());
+                }
+            }
+        }
+        Self { images, names }
+    }
 }
 
 /// Parse a Kubernetes quantity string.

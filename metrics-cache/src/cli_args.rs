@@ -204,6 +204,10 @@ pub struct CliArgs {
     )]
     pub push_interval: Duration,
 
+    /// Number of days before client certificate expiration to attempt renewal
+    #[arg(long, value_parser = parse_duration_days, default_value = "45")]
+    pub push_certificate_renewal_threshold: Duration,
+
     /// Enable push mode and send sections to the specified server (including
     /// port)
     #[arg(long)]
@@ -468,6 +472,22 @@ mod tests {
                 .expect_err("push interval of -1 should fail")
                 .kind(),
             ErrorKind::ValueValidation
+        );
+    }
+
+    #[test]
+    fn push_certificate_renewal_threshold_is_in_days() {
+        let defaults = parse(&[]).expect("minimal args should parse");
+        assert_eq!(
+            defaults.push_certificate_renewal_threshold,
+            Duration::from_hours(24 * 45)
+        );
+
+        let configured = parse(&["--push-certificate-renewal-threshold", "30"])
+            .expect("renewal threshold should parse");
+        assert_eq!(
+            configured.push_certificate_renewal_threshold,
+            Duration::from_hours(24 * 30)
         );
     }
 }

@@ -1,0 +1,31 @@
+---
+source: metrics-cache/src/section/pod.rs
+expression: "KubePodConditionsV1::from_pod(&pod)"
+---
+{
+  "initialized": {
+    "status": "True",
+    "reason": "",
+    "detail": "",
+    "last_transition_time": 1718824965
+  },
+  "hasnetwork": null,
+  "readytostartcontainers": null,
+  "scheduled": {
+    "status": "True",
+    "reason": "",
+    "detail": "",
+    "last_transition_time": 1718824965
+  },
+  "containersready": null,
+  "ready": {
+    "status": "False",
+    "reason": "ContainersNotReady",
+    "detail": "containers not ready",
+    "last_transition_time": 1718824965
+  },
+  "disruptiontarget": null,
+  "resizepending": null,
+  "resizeinprogress": null,
+  "allcontainersrestarting": null
+}

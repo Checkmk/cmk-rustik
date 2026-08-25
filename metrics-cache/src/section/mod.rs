@@ -1,7 +1,10 @@
 pub mod cluster;
 pub mod common;
+pub mod container;
 pub mod controller_spec;
 pub mod cronjob;
+pub mod daemonset;
+pub mod deployment;
 pub mod namespace;
 pub mod node;
 pub mod node_kubelet;
@@ -11,6 +14,7 @@ pub mod pvc;
 pub mod resource;
 pub mod resource_quota;
 pub mod self_health;
+pub mod update_strategy;
 pub mod writeable;
 
 use serde::Serialize;

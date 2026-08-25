@@ -1,5 +1,6 @@
 pub mod client;
 pub mod register;
+mod renew;
 pub mod server_cert_verifier;
 
 use anyhow::Context;
@@ -14,6 +15,7 @@ use tracing::{debug, error};
 use crate::auth::kubernetes::TokenValidator;
 use crate::piggyback::emit_all;
 use crate::push::client::CheckmkPushClient;
+use crate::push::register::CheckmkPushRegistration;
 use crate::section::writeable::frame;
 use crate::snapshot::Snapshot;
 use crate::state::AppState;
@@ -60,6 +62,22 @@ async fn push_cycle(
     Ok(())
 }
 
+async fn renew_certificate_if_needed(
+    client: &mut CheckmkPushClient,
+    registration: &CheckmkPushRegistration<'_>,
+    renewal_threshold: Duration,
+) {
+    if !client.begin_renewal_attempt(renewal_threshold) {
+        return;
+    }
+    match registration.renew(client).await {
+        Ok(replacement) => client.replace_identity(replacement),
+        Err(error) => {
+            error!(?error, "Failed to renew push agent certificate");
+        }
+    }
+}
+
 /// Run the push loop forever.
 ///
 /// Every push interval, [`push_cycle()`] is called to generate sections and
@@ -67,11 +85,13 @@ async fn push_cycle(
 ///
 /// Waits until all stores are ready before doing its initial push and looping.
 ///
-/// Owns the [`CheckmkPushClient`] for the lifetime of the loop.
+/// After each push attempt, renews the client certificate when needed.
 pub async fn push_loop(
-    client: CheckmkPushClient,
+    mut client: CheckmkPushClient,
+    registration: CheckmkPushRegistration<'_>,
     state: AppState<impl TokenValidator>,
     push_interval: Duration,
+    certificate_renewal_threshold: Duration,
 ) -> Result<(), WriterDropped> {
     state.stores.wait_until_all_ready().await?;
     let mut interval = time::interval(push_interval);
@@ -81,5 +101,7 @@ pub async fn push_loop(
             Ok(_) => debug!("Successfully pushed metrics to Checkmk server"),
             Err(e) => error!(error = ?e, "Failed to push metrics to Checkmk server"),
         }
+        renew_certificate_if_needed(&mut client, &registration, certificate_renewal_threshold)
+            .await;
     }
 }

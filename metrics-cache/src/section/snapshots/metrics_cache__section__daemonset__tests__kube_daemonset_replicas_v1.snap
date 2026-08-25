@@ -1,0 +1,11 @@
+---
+source: metrics-cache/src/section/daemonset.rs
+expression: "KubeDaemonSetReplicasV1::from_daemonset(&daemonset)"
+---
+{
+  "available": 8,
+  "desired": 10,
+  "ready": 7,
+  "updated": 9,
+  "misscheduled": 2
+}

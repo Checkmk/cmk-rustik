@@ -1,10 +1,11 @@
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{Pod, PodCondition};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
 use crate::host_settings::HostSettings;
 use crate::section::Section;
 use crate::section::common::{Controller, LabelRef};
+use crate::section::container::ContainerStatusValue;
 use crate::snapshot::owner_graph::OwnerGraph;
 
 #[derive(Serialize)]
@@ -228,11 +229,177 @@ impl Section for KubePodResourcesV1<'_> {
     const NAME: &'static str = "kube_pod_resources_v1";
 }
 
+#[derive(Serialize)]
+pub(crate) struct PodConditionValue<'a> {
+    pub status: &'a str,
+    pub reason: Option<&'a str>,
+    pub detail: Option<&'a str>,
+    pub last_transition_time: Option<i64>,
+}
+
+impl<'a> PodConditionValue<'a> {
+    fn from_condition(condition: &'a PodCondition) -> Self {
+        Self {
+            status: &condition.status,
+            reason: condition.reason.as_deref(),
+            detail: condition.message.as_deref(),
+            last_transition_time: condition
+                .last_transition_time
+                .as_ref()
+                .map(|t| t.0.as_millisecond() / 1000),
+        }
+    }
+}
+
+/// Pod conditions. (`kube_pod_conditions_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePodConditionsV1<'a> {
+    pub initialized: Option<PodConditionValue<'a>>,
+    pub hasnetwork: Option<PodConditionValue<'a>>,
+    pub readytostartcontainers: Option<PodConditionValue<'a>>,
+    pub scheduled: PodConditionValue<'a>,
+    pub containersready: Option<PodConditionValue<'a>>,
+    pub ready: Option<PodConditionValue<'a>>,
+    pub disruptiontarget: Option<PodConditionValue<'a>>,
+    pub resizepending: Option<PodConditionValue<'a>>,
+    pub resizeinprogress: Option<PodConditionValue<'a>>,
+    pub allcontainersrestarting: Option<PodConditionValue<'a>>,
+}
+
+impl<'a> KubePodConditionsV1<'a> {
+    pub(crate) fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let mut initialized = None;
+        let mut hasnetwork = None;
+        let mut readytostartcontainers = None;
+        let mut scheduled = None;
+        let mut containersready = None;
+        let mut ready = None;
+        let mut disruptiontarget = None;
+        let mut resizepending = None;
+        let mut resizeinprogress = None;
+        let mut allcontainersrestarting = None;
+
+        let conditions = pod.status.as_ref()?.conditions.as_ref()?;
+        for condition in conditions {
+            let value = PodConditionValue::from_condition(condition);
+            match condition.type_.as_str() {
+                "Initialized" => initialized = Some(value),
+                "PodHasNetwork" => hasnetwork = Some(value),
+                "PodReadyToStartContainers" => readytostartcontainers = Some(value),
+                "PodScheduled" => scheduled = Some(value),
+                "ContainersReady" => containersready = Some(value),
+                "Ready" => ready = Some(value),
+                "DisruptionTarget" => disruptiontarget = Some(value),
+                "PodResizePending" => resizepending = Some(value),
+                "PodResizeInProgress" => resizeinprogress = Some(value),
+                "AllContainersRestarting" => allcontainersrestarting = Some(value),
+                _ => {} // unrecognized condition type: dropped, matches Python `from_kube_api`
+            }
+        }
+
+        Some(Self {
+            initialized,
+            hasnetwork,
+            readytostartcontainers,
+            scheduled: scheduled?,
+            containersready,
+            ready,
+            disruptiontarget,
+            resizepending,
+            resizeinprogress,
+            allcontainersrestarting,
+        })
+    }
+}
+
+impl Section for KubePodConditionsV1<'_> {
+    const NAME: &'static str = "kube_pod_conditions_v1";
+}
+
+/// Pod container statuses. (`kube_pod_containers_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePodContainersV1<'a> {
+    pub containers: BTreeMap<&'a str, ContainerStatusValue<'a>>,
+}
+
+impl<'a> KubePodContainersV1<'a> {
+    pub(crate) fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let statuses = pod.status.as_ref()?.container_statuses.as_ref()?;
+        let containers = ContainerStatusValue::from_statuses(statuses);
+        if containers.is_empty() {
+            return None;
+        }
+        Some(Self { containers })
+    }
+}
+
+impl Section for KubePodContainersV1<'_> {
+    const NAME: &'static str = "kube_pod_containers_v1";
+}
+
+/// Pod init-container statuses. (`kube_pod_init_containers_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubePodInitContainersV1<'a> {
+    pub containers: BTreeMap<&'a str, ContainerStatusValue<'a>>,
+}
+
+impl<'a> KubePodInitContainersV1<'a> {
+    pub(crate) fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let statuses = pod.status.as_ref()?.init_container_statuses.as_ref()?;
+        let containers = ContainerStatusValue::from_statuses(statuses);
+        if containers.is_empty() {
+            return None;
+        }
+        Some(Self { containers })
+    }
+}
+
+impl Section for KubePodInitContainersV1<'_> {
+    const NAME: &'static str = "kube_pod_init_containers_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use k8s_openapi::api::core::v1::{
+        ContainerState, ContainerStateRunning, ContainerStateTerminated, ContainerStateWaiting,
+        ContainerStatus,
+    };
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+    use k8s_openapi::jiff::Timestamp;
+
     use crate::test_support::{host_settings, owner_graph, owner_ref, pod, pod_prefilled, s};
+
+    fn condition(type_: &str, status: &str, reason: &str, message: &str) -> PodCondition {
+        let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
+        PodCondition {
+            type_: type_.to_string(),
+            status: status.to_string(),
+            reason: Some(reason.to_string()),
+            message: Some(message.to_string()),
+            last_transition_time: Some(Time(timestamp)),
+            ..Default::default()
+        }
+    }
+
+    fn container_status(name: &str, state: ContainerState) -> ContainerStatus {
+        ContainerStatus {
+            container_id: Some(format!("containerd://{name}")),
+            image_id: format!("{name}-image-id"),
+            name: name.to_string(),
+            image: format!("{name}:latest"),
+            ready: true,
+            state: Some(state),
+            restart_count: 0,
+            ..Default::default()
+        }
+    }
+
+    fn timestamp(s: &str) -> Time {
+        let timestamp: Timestamp = s.parse().unwrap();
+        Time(timestamp)
+    }
 
     #[test]
     fn kube_pod_lifecycle_v1() {
@@ -290,5 +457,156 @@ mod tests {
             &running, &pending, &succeeded, &failed, &unknown, &running2, &failed2,
         ]);
         insta::assert_json_snapshot!(section);
+    }
+
+    #[test]
+    fn kube_pod_conditions_v1() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status.get_or_insert_with(Default::default).conditions = Some(vec![
+            condition("PodScheduled", "True", "", ""),
+            condition("Initialized", "True", "", ""),
+            condition(
+                "Ready",
+                "False",
+                "ContainersNotReady",
+                "containers not ready",
+            ),
+        ]);
+        insta::assert_json_snapshot!(KubePodConditionsV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_conditions_v1_ignores_unknown_condition_types() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status.get_or_insert_with(Default::default).conditions = Some(vec![
+            condition("PodScheduled", "True", "", ""),
+            condition("SomeFutureCondition", "True", "", ""),
+        ]);
+        insta::assert_json_snapshot!(KubePodConditionsV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_conditions_v1_without_scheduled() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status.get_or_insert_with(Default::default).conditions =
+            Some(vec![condition("Initialized", "True", "", "")]);
+        assert!(KubePodConditionsV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_conditions_v1_without_conditions() {
+        assert!(KubePodConditionsV1::from_pod(&pod("my-pod", None)).is_none());
+    }
+
+    #[test]
+    fn kube_pod_containers_v1() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![
+            container_status(
+                "nginx",
+                ContainerState {
+                    running: Some(ContainerStateRunning {
+                        started_at: Some(timestamp("2024-06-19 15:22:45-04")),
+                    }),
+                    ..Default::default()
+                },
+            ),
+            container_status(
+                "sidecar",
+                ContainerState {
+                    waiting: Some(ContainerStateWaiting {
+                        reason: Some("PodInitializing".to_string()),
+                        message: None,
+                    }),
+                    ..Default::default()
+                },
+            ),
+        ]);
+        insta::assert_json_snapshot!(KubePodContainersV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_terminated() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![container_status(
+            "nginx",
+            ContainerState {
+                terminated: Some(ContainerStateTerminated {
+                    exit_code: 1,
+                    started_at: Some(timestamp("2024-06-19 15:22:45-04")),
+                    finished_at: Some(timestamp("2024-06-19 15:23:00-04")),
+                    reason: Some("Error".to_string()),
+                    message: Some("boom".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        )]);
+        insta::assert_json_snapshot!(KubePodContainersV1::from_pod(&pod));
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_without_state() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![ContainerStatus {
+            state: None,
+            ..container_status("nginx", ContainerState::default())
+        }]);
+        assert!(KubePodContainersV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_running_without_started_at_is_skipped() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .container_statuses = Some(vec![container_status(
+            "nginx",
+            ContainerState {
+                running: Some(ContainerStateRunning { started_at: None }),
+                ..Default::default()
+            },
+        )]);
+        assert!(KubePodContainersV1::from_pod(&pod).is_none());
+    }
+
+    #[test]
+    fn kube_pod_containers_v1_without_containers() {
+        assert!(KubePodContainersV1::from_pod(&pod("my-pod", None)).is_none());
+    }
+
+    #[test]
+    fn kube_pod_init_containers_v1() {
+        let mut pod = pod_prefilled("my-pod");
+        pod.status
+            .get_or_insert_with(Default::default)
+            .init_container_statuses = Some(vec![
+            container_status(
+                "init-a",
+                ContainerState {
+                    running: Some(ContainerStateRunning {
+                        started_at: Some(timestamp("2024-06-19 15:22:45-04")),
+                    }),
+                    ..Default::default()
+                },
+            ),
+            container_status(
+                "init-b",
+                ContainerState {
+                    waiting: Some(ContainerStateWaiting {
+                        reason: Some("PodInitializing".to_string()),
+                        message: None,
+                    }),
+                    ..Default::default()
+                },
+            ),
+        ]);
+        insta::assert_json_snapshot!(KubePodInitContainersV1::from_pod(&pod));
     }
 }

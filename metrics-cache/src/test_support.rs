@@ -1,14 +1,16 @@
 #![cfg(test)]
 
-use k8s_openapi::api::apps::v1::ReplicaSet;
+use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec, ReplicaSet};
 use k8s_openapi::api::batch::v1::{CronJob, CronJobSpec, Job};
 use k8s_openapi::api::core::v1::{
-    Container, Namespace, Node, NodeAddress, NodeStatus, NodeSystemInfo, PersistentVolumeClaim,
-    PersistentVolumeClaimSpec, PersistentVolumeClaimStatus, Pod, PodSpec,
+    Container, ContainerStatus, Namespace, Node, NodeAddress, NodeStatus, NodeSystemInfo,
+    PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimStatus, Pod, PodSpec,
     VolumeResourceRequirements,
 };
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference, Time};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
+    LabelSelector, LabelSelectorRequirement, ObjectMeta, OwnerReference, Time,
+};
 use k8s_openapi::jiff::Timestamp;
 use std::collections::{BTreeMap, HashMap};
 
@@ -64,6 +66,53 @@ pub fn pod_owned_by(name: &str, uid: &str, owner: OwnerReference) -> Pod {
     pod.metadata.uid = Some(uid.to_string());
     pod.metadata.owner_references = Some(vec![owner]);
     pod
+}
+
+/// A Pod whose status reports the given `(name, image)` containers.
+pub fn pod_with_container_statuses(name: &str, containers: &[(&str, &str)]) -> Pod {
+    let mut pod = pod(name, Some("node01"));
+    let status = pod.status.get_or_insert_with(Default::default);
+    status.container_statuses = Some(
+        containers
+            .iter()
+            .map(|(name, image)| ContainerStatus {
+                name: name.to_string(),
+                image: image.to_string(),
+                ..Default::default()
+            })
+            .collect(),
+    );
+    pod
+}
+
+/// A Deployment, with a selector using both match forms.
+pub fn deployment(name: &str) -> Deployment {
+    let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
+    Deployment {
+        metadata: ObjectMeta {
+            name: Some(name.to_string()),
+            namespace: Some(s("the-namespace-of-all-namespaces")),
+            creation_timestamp: Some(Time(timestamp)),
+            labels: Some(BTreeMap::from([(s("app"), name.to_string())])),
+            annotations: Some(BTreeMap::from([
+                (s("example.com/cool-animal"), s("monkeys")),
+                (s("checkmk.com/promote-to-host"), s("true")),
+            ])),
+            ..Default::default()
+        },
+        spec: Some(DeploymentSpec {
+            selector: LabelSelector {
+                match_labels: Some(BTreeMap::from([(s("app"), name.to_string())])),
+                match_expressions: Some(vec![LabelSelectorRequirement {
+                    key: s("tier"),
+                    operator: s("In"),
+                    values: Some(vec![s("backend"), s("frontend")]),
+                }]),
+            },
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
 }
 
 /// A ReplicaSet owned by a particular [`OwnerReference`].

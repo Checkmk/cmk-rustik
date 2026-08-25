@@ -1,0 +1,9 @@
+---
+source: metrics-cache/src/section/update_strategy.rs
+expression: "KubeUpdateStrategyV1::from_deployment(&deployment)"
+---
+{
+  "strategy": {
+    "type_": "Recreate"
+  }
+}

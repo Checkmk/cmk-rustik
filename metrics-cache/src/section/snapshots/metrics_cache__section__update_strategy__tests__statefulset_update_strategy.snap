@@ -1,0 +1,11 @@
+---
+source: metrics-cache/src/section/update_strategy.rs
+expression: "KubeUpdateStrategyV1::from_statefulset(&statefulset)"
+---
+{
+  "strategy": {
+    "type_": "StatefulSetRollingUpdate",
+    "partition": 1,
+    "max_unavailable": 1
+  }
+}
