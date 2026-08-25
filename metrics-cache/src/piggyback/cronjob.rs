@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
-use crate::section::cronjob::{KubeCronJobInfoV1, KubeCronJobLatestJobV1};
+use crate::section::cronjob::{KubeCronJobInfoV1, KubeCronJobLatestJobV1, KubeCronJobStatusV1};
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
@@ -65,6 +65,11 @@ impl PiggybackHost for CronJob<'_> {
         {
             out.push(WriteableSection::of(&me, &kube_cron_job_info_v1));
         }
+        let jobs = self.snapshot.owner_graph.jobs_by_controller(self.uid);
+        out.push(WriteableSection::of(
+            &me,
+            &KubeCronJobStatusV1::from_cron_job(self.api, jobs),
+        ));
         out.extend(self.aggregation_sections(&me));
         if let Some(kube_cron_job_latest_job_v1) = self.latest_job_section() {
             out.push(WriteableSection::of(&me, &kube_cron_job_latest_job_v1));

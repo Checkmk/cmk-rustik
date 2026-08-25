@@ -1,0 +1,10 @@
+---
+source: metrics-cache/src/section/cronjob.rs
+expression: "KubeCronJobStatusV1::from_cron_job(&cron_job, &jobs)"
+---
+{
+  "active_jobs_count": 2,
+  "last_duration": 40.0,
+  "last_successful_time": 1718825400.0,
+  "last_schedule_time": 1718827200.0
+}

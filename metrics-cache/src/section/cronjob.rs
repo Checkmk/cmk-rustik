@@ -2,6 +2,7 @@ use k8s_openapi::api::batch::v1::{CronJob, Job, JobCondition as ApiJobCondition}
 use k8s_openapi::api::core::v1::Pod;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashSet};
+use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::section::Section;
@@ -188,19 +189,95 @@ impl Section for KubeCronJobLatestJobV1<'_> {
     const NAME: &'static str = "kube_cron_job_latest_job_v1";
 }
 
+/// The newest Job owned by this CronJob whose
+/// `status.completion_time` is set.
+fn last_completed_job(jobs: &[Arc<Job>]) -> Option<&Arc<Job>> {
+    jobs.iter()
+        .filter(|job| {
+            job.status
+                .as_ref()
+                .and_then(|s| s.completion_time.as_ref())
+                .is_some()
+        })
+        .max_by_key(|job| {
+            job.metadata
+                .creation_timestamp
+                .as_ref()
+                .map(|t| t.0.as_millisecond())
+        })
+}
+
+fn job_duration(job: &Job) -> Option<f64> {
+    let status = job.status.as_ref()?;
+    let completion_time = status.completion_time.as_ref()?;
+    let start_time = status.start_time.as_ref()?;
+    Some((completion_time.0.as_millisecond() - start_time.0.as_millisecond()) as f64 / 1000.0)
+}
+
+/// CronJob status. (`kube_cron_job_status_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubeCronJobStatusV1 {
+    pub active_jobs_count: Option<i32>,
+    pub last_duration: Option<f64>,
+    pub last_successful_time: Option<f64>,
+    pub last_schedule_time: Option<f64>,
+}
+
+impl KubeCronJobStatusV1 {
+    pub fn from_cron_job(cron_job: &CronJob, jobs: &[Arc<Job>]) -> Self {
+        let status = cron_job.status.as_ref();
+        Self {
+            active_jobs_count: status
+                .and_then(|s| s.active.as_ref())
+                .filter(|active| !active.is_empty())
+                .map(|active| active.len() as i32),
+            last_duration: last_completed_job(jobs).and_then(|job| job_duration(job)),
+            last_successful_time: status
+                .and_then(|s| s.last_successful_time.as_ref())
+                .map(|t| t.0.as_millisecond() as f64 / 1000.0),
+            last_schedule_time: status
+                .and_then(|s| s.last_schedule_time.as_ref())
+                .map(|t| t.0.as_millisecond() as f64 / 1000.0),
+        }
+    }
+}
+
+impl Section for KubeCronJobStatusV1 {
+    const NAME: &'static str = "kube_cron_job_status_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k8s_openapi::api::batch::v1::{JobCondition as ApiJobCondition, JobStatus as ApiJobStatus};
+    use k8s_openapi::api::batch::v1::{
+        CronJobStatus, JobCondition as ApiJobCondition, JobStatus as ApiJobStatus,
+    };
     use k8s_openapi::api::core::v1::{
-        ContainerState, ContainerStateRunning, ContainerStateWaiting, ContainerStatus, PodStatus,
+        ContainerState, ContainerStateRunning, ContainerStateWaiting, ContainerStatus,
+        ObjectReference, PodStatus,
     };
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
     use k8s_openapi::jiff::Timestamp;
     use regex::Regex;
 
     use crate::host_settings::AnnotationKeyPattern;
-    use crate::test_support::{cron_job, host_settings};
+    use crate::test_support::{cron_job, host_settings, job_owned_by, owner_ref};
+
+    fn timestamp(s: &str) -> Time {
+        let timestamp: Timestamp = s.parse().unwrap();
+        Time(timestamp)
+    }
+
+    fn completed_job(name: &str, created_at: &str, started_at: &str, completed_at: &str) -> Job {
+        let mut job = job_owned_by(name, name, owner_ref("CronJob", "important-job", "cj-uid"));
+        job.metadata.creation_timestamp = Some(timestamp(created_at));
+        job.status = Some(ApiJobStatus {
+            start_time: Some(timestamp(started_at)),
+            completion_time: Some(timestamp(completed_at)),
+            ..Default::default()
+        });
+        job
+    }
 
     fn container_status(name: &str, state: ContainerState) -> ContainerStatus {
         ContainerStatus {
@@ -296,5 +373,99 @@ mod tests {
         };
 
         insta::assert_json_snapshot!(KubeCronJobLatestJobV1::from_job(&job, [&pod].into_iter()));
+    }
+
+    #[test]
+    fn kube_cron_job_status_v1() {
+        let mut cron_job = cron_job("important-job");
+        cron_job.status = Some(CronJobStatus {
+            active: Some(vec![ObjectReference::default(), ObjectReference::default()]),
+            last_schedule_time: Some(timestamp("2024-06-19 16:00:00-04")),
+            last_successful_time: Some(timestamp("2024-06-19 15:30:00-04")),
+        });
+        let jobs: [Arc<Job>; 2] = [
+            completed_job(
+                "job-1",
+                "2024-06-19 15:00:00-04",
+                "2024-06-19 15:00:05-04",
+                "2024-06-19 15:00:35-04",
+            )
+            .into(),
+            completed_job(
+                "job-2",
+                "2024-06-19 15:30:00-04",
+                "2024-06-19 15:30:05-04",
+                "2024-06-19 15:30:45-04",
+            )
+            .into(),
+        ];
+        insta::assert_json_snapshot!(KubeCronJobStatusV1::from_cron_job(&cron_job, &jobs));
+    }
+
+    /// Regression test for the fix of CMK-36468.
+    #[test]
+    fn kube_cron_job_status_v1_picks_newest_completed_job_not_oldest() {
+        let cron_job = cron_job("important-job");
+        let older = completed_job(
+            "older-job",
+            "2024-06-19 15:00:00-04",
+            "2024-06-19 15:00:00-04",
+            "2024-06-19 15:00:10-04",
+        ); // 10s duration
+        let newer = completed_job(
+            "newer-job",
+            "2024-06-19 15:30:00-04",
+            "2024-06-19 15:30:00-04",
+            "2024-06-19 15:31:40-04",
+        ); // 100s duration
+        let jobs: [Arc<Job>; 2] = [newer.into(), older.into()];
+        let status = KubeCronJobStatusV1::from_cron_job(&cron_job, &jobs);
+        assert_eq!(status.last_duration, Some(100.0));
+    }
+
+    #[test]
+    fn kube_cron_job_status_v1_ignores_incomplete_jobs() {
+        let cron_job = cron_job("important-job");
+        let completed = completed_job(
+            "completed-job",
+            "2024-06-19 15:00:00-04",
+            "2024-06-19 15:00:00-04",
+            "2024-06-19 15:00:10-04",
+        ); // 10s duration
+        let mut incomplete = job_owned_by(
+            "incomplete-job",
+            "incomplete-job",
+            owner_ref("CronJob", "important-job", "cj-uid"),
+        );
+        incomplete.metadata.creation_timestamp = Some(timestamp("2024-06-19 15:30:00-04"));
+        incomplete.status = Some(ApiJobStatus {
+            start_time: Some(timestamp("2024-06-19 15:30:00-04")),
+            completion_time: None,
+            ..Default::default()
+        });
+        let jobs: [Arc<Job>; 2] = [incomplete.into(), completed.into()];
+        let status = KubeCronJobStatusV1::from_cron_job(&cron_job, &jobs);
+        assert_eq!(status.last_duration, Some(10.0));
+    }
+
+    #[test]
+    fn kube_cron_job_status_v1_active_jobs_count_zero_is_none() {
+        let mut cron_job = cron_job("important-job");
+        cron_job.status = Some(CronJobStatus {
+            active: Some(vec![]),
+            ..Default::default()
+        });
+        let status = KubeCronJobStatusV1::from_cron_job(&cron_job, &[]);
+        assert_eq!(status.active_jobs_count, None);
+    }
+
+    #[test]
+    fn kube_cron_job_status_v1_without_status_or_jobs() {
+        let cron_job = cron_job("important-job");
+        let status = KubeCronJobStatusV1::from_cron_job(&cron_job, &[]);
+        assert_eq!(status.active_jobs_count, None);
+        assert_eq!(status.last_duration, None);
+        assert_eq!(status.last_successful_time, None);
+        assert_eq!(status.last_schedule_time, None);
     }
 }
