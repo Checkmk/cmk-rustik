@@ -1,10 +1,12 @@
-use k8s_openapi::api::batch::v1::CronJob;
+use k8s_openapi::api::batch::v1::{CronJob, Job, JobCondition as ApiJobCondition};
+use k8s_openapi::api::core::v1::Pod;
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use crate::host_settings::HostSettings;
 use crate::section::Section;
 use crate::section::common::LabelRef;
+use crate::section::container::ContainerStatusValue;
 
 /// CronJob info. (`kube_cron_job_info_v1`)
 #[derive(Serialize)]
@@ -71,13 +73,146 @@ impl Section for KubeCronJobInfoV1<'_> {
     const NAME: &'static str = "kube_cron_job_info_v1";
 }
 
+/// The most recently created Job belonging to a CronJob.
+/// (`kube_cron_job_latest_job_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubeCronJobLatestJobV1<'a> {
+    status: JobStatus,
+    pods: Vec<JobPod<'a>>,
+}
+
+#[derive(Serialize)]
+struct JobStatus {
+    conditions: Vec<JobCondition>,
+    start_time: Option<f64>,
+    completion_time: Option<f64>,
+}
+
+#[derive(Serialize)]
+struct JobCondition {
+    type_: String,
+    status: String,
+}
+
+#[derive(Serialize)]
+struct JobPod<'a> {
+    init_containers: BTreeMap<&'a str, ContainerStatusValue<'a>>,
+    containers: BTreeMap<&'a str, ContainerStatusValue<'a>>,
+    lifecycle: PodLifecycle,
+}
+
+#[derive(Serialize)]
+struct PodLifecycle {
+    phase: String,
+}
+
+impl<'a> KubeCronJobLatestJobV1<'a> {
+    pub(crate) fn from_job(job: &'a Job, pods: impl Iterator<Item = &'a Pod>) -> Option<Self> {
+        let status = job.status.as_ref()?;
+        let conditions =
+            JobCondition::from_conditions(status.conditions.as_deref().unwrap_or_default());
+        let pods = pods.filter_map(JobPod::from_pod).collect();
+
+        Some(Self {
+            status: JobStatus {
+                conditions,
+                start_time: status
+                    .start_time
+                    .as_ref()
+                    .map(|time| time.0.as_millisecond() as f64 / 1000.0),
+                completion_time: status
+                    .completion_time
+                    .as_ref()
+                    .map(|time| time.0.as_millisecond() as f64 / 1000.0),
+            },
+            pods,
+        })
+    }
+}
+
+impl JobCondition {
+    fn from_conditions(conditions: &[ApiJobCondition]) -> Vec<Self> {
+        let mut seen = HashSet::new();
+        conditions
+            .iter()
+            .filter(|condition| {
+                seen.insert((
+                    condition.type_.as_str(),
+                    condition
+                        .last_probe_time
+                        .as_ref()
+                        .map(|time| time.0.to_string()),
+                ))
+            })
+            .map(|condition| Self {
+                type_: capitalize(&condition.type_),
+                status: capitalize(&condition.status),
+            })
+            .collect()
+    }
+}
+
+fn capitalize(value: &str) -> String {
+    let mut chars = value.chars();
+    match chars.next() {
+        Some(first) => first
+            .to_uppercase()
+            .chain(chars.flat_map(char::to_lowercase))
+            .collect(),
+        None => String::new(),
+    }
+}
+
+impl<'a> JobPod<'a> {
+    fn from_pod(pod: &'a Pod) -> Option<Self> {
+        let status = pod.status.as_ref()?;
+        Some(Self {
+            init_containers: status
+                .init_container_statuses
+                .as_deref()
+                .map(ContainerStatusValue::from_statuses)
+                .unwrap_or_default(),
+            containers: status
+                .container_statuses
+                .as_deref()
+                .map(ContainerStatusValue::from_statuses)
+                .unwrap_or_default(),
+            lifecycle: PodLifecycle {
+                phase: status.phase.as_deref()?.to_lowercase(),
+            },
+        })
+    }
+}
+
+impl Section for KubeCronJobLatestJobV1<'_> {
+    const NAME: &'static str = "kube_cron_job_latest_job_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use k8s_openapi::api::batch::v1::{JobCondition as ApiJobCondition, JobStatus as ApiJobStatus};
+    use k8s_openapi::api::core::v1::{
+        ContainerState, ContainerStateRunning, ContainerStateWaiting, ContainerStatus, PodStatus,
+    };
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+    use k8s_openapi::jiff::Timestamp;
     use regex::Regex;
 
     use crate::host_settings::AnnotationKeyPattern;
     use crate::test_support::{cron_job, host_settings};
+
+    fn container_status(name: &str, state: ContainerState) -> ContainerStatus {
+        ContainerStatus {
+            container_id: Some(format!("containerd://{name}")),
+            image_id: format!("{name}-image-id"),
+            name: name.into(),
+            image: format!("{name}:latest"),
+            ready: true,
+            state: Some(state),
+            ..Default::default()
+        }
+    }
 
     #[test]
     fn kube_cron_job_info_v1() {
@@ -115,5 +250,51 @@ mod tests {
                 .len(),
             2
         );
+    }
+
+    #[test]
+    fn kube_cron_job_latest_job_v1() {
+        let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
+        let job = Job {
+            status: Some(ApiJobStatus {
+                conditions: Some(vec![ApiJobCondition {
+                    type_: "Complete".into(),
+                    status: "True".into(),
+                    ..Default::default()
+                }]),
+                start_time: Some(Time(timestamp.clone())),
+                completion_time: Some(Time(timestamp)),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let pod = Pod {
+            status: Some(PodStatus {
+                phase: Some("Succeeded".into()),
+                init_container_statuses: Some(vec![container_status(
+                    "init",
+                    ContainerState {
+                        running: Some(ContainerStateRunning {
+                            started_at: Some(Time("2024-06-19 15:22:46-04".parse().unwrap())),
+                        }),
+                        ..Default::default()
+                    },
+                )]),
+                container_statuses: Some(vec![container_status(
+                    "main",
+                    ContainerState {
+                        waiting: Some(ContainerStateWaiting {
+                            reason: Some("PodInitializing".into()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                )]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        insta::assert_json_snapshot!(KubeCronJobLatestJobV1::from_job(&job, [&pod].into_iter()));
     }
 }

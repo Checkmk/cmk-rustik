@@ -1,0 +1,52 @@
+---
+source: metrics-cache/src/section/cronjob.rs
+expression: "KubeCronJobLatestJobV1::from_job(&job, [&pod].into_iter())"
+---
+{
+  "status": {
+    "conditions": [
+      {
+        "type_": "Complete",
+        "status": "True"
+      }
+    ],
+    "start_time": 1718824965.0,
+    "completion_time": 1718824965.0
+  },
+  "pods": [
+    {
+      "init_containers": {
+        "init": {
+          "container_id": "containerd://init",
+          "image_id": "init-image-id",
+          "name": "init",
+          "image": "init:latest",
+          "ready": true,
+          "state": {
+            "type": "running",
+            "start_time": 1718824966
+          },
+          "restart_count": 0
+        }
+      },
+      "containers": {
+        "main": {
+          "container_id": "containerd://main",
+          "image_id": "main-image-id",
+          "name": "main",
+          "image": "main:latest",
+          "ready": true,
+          "state": {
+            "type": "waiting",
+            "reason": "PodInitializing",
+            "detail": null
+          },
+          "restart_count": 0
+        }
+      },
+      "lifecycle": {
+        "phase": "succeeded"
+      }
+    }
+  ]
+}
