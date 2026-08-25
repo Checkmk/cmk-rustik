@@ -11,6 +11,7 @@ pub mod pvc;
 pub mod resource;
 pub mod resource_quota;
 pub mod self_health;
+pub mod update_strategy;
 pub mod writeable;
 
 use serde::Serialize;
