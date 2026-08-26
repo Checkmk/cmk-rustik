@@ -1,0 +1,24 @@
+---
+source: metrics-cache/src/section/deployment.rs
+expression: "KubeDeploymentConditionsV1::from_deployment(&deployment)"
+---
+{
+  "available": {
+    "status": "True",
+    "last_transition_time": 1718824965.0,
+    "reason": "MinimumReplicasAvailable",
+    "message": "ready"
+  },
+  "progressing": {
+    "status": "True",
+    "last_transition_time": 1718824965.0,
+    "reason": "NewReplicaSetAvailable",
+    "message": "complete"
+  },
+  "replicafailure": {
+    "status": "False",
+    "last_transition_time": 1718824965.0,
+    "reason": "",
+    "message": ""
+  }
+}

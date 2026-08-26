@@ -1,4 +1,4 @@
-use k8s_openapi::api::apps::v1::Deployment;
+use k8s_openapi::api::apps::v1::{Deployment, DeploymentCondition};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -87,13 +87,84 @@ impl Section for KubeDeploymentReplicasV1 {
     const NAME: &'static str = "kube_deployment_replicas_v1";
 }
 
+#[derive(Serialize)]
+struct DeploymentConditionValue<'a> {
+    status: &'a str,
+    last_transition_time: f64,
+    reason: &'a str,
+    message: &'a str,
+}
+
+impl<'a> DeploymentConditionValue<'a> {
+    fn from_condition(condition: &'a DeploymentCondition) -> Option<Self> {
+        let last_transition_time = condition.last_transition_time.as_ref()?;
+        Some(Self {
+            status: &condition.status,
+            last_transition_time: last_transition_time.0.as_millisecond() as f64 / 1000.0,
+            reason: condition.reason.as_deref()?,
+            message: condition.message.as_deref()?,
+        })
+    }
+}
+
+/// Deployment conditions. (`kube_deployment_conditions_v1`)
+#[derive(Default, Serialize)]
+pub(crate) struct KubeDeploymentConditionsV1<'a> {
+    available: Option<DeploymentConditionValue<'a>>,
+    progressing: Option<DeploymentConditionValue<'a>>,
+    replicafailure: Option<DeploymentConditionValue<'a>>,
+}
+
+impl<'a> KubeDeploymentConditionsV1<'a> {
+    pub(crate) fn from_deployment(deployment: &'a Deployment) -> Option<Self> {
+        let conditions = deployment.status.as_ref()?.conditions.as_deref()?;
+        if conditions.is_empty() {
+            return None;
+        }
+
+        let mut section = Self::default();
+        for condition in conditions {
+            let target = if condition.type_.eq_ignore_ascii_case("Available") {
+                &mut section.available
+            } else if condition.type_.eq_ignore_ascii_case("Progressing") {
+                &mut section.progressing
+            } else if condition.type_.eq_ignore_ascii_case("ReplicaFailure") {
+                &mut section.replicafailure
+            } else {
+                continue;
+            };
+            *target = Some(DeploymentConditionValue::from_condition(condition)?);
+        }
+        Some(section)
+    }
+}
+
+impl Section for KubeDeploymentConditionsV1<'_> {
+    const NAME: &'static str = "kube_deployment_conditions_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k8s_openapi::api::apps::v1::DeploymentStatus;
+    use k8s_openapi::api::apps::v1::{DeploymentCondition, DeploymentStatus};
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+    use k8s_openapi::jiff::Timestamp;
     use std::sync::Arc;
 
     use crate::test_support::{deployment, host_settings, pod_with_container_statuses};
+
+    fn condition(type_: &str, status: &str, reason: &str, message: &str) -> DeploymentCondition {
+        DeploymentCondition {
+            type_: type_.to_owned(),
+            status: status.to_owned(),
+            last_transition_time: Some(Time(
+                "2024-06-19 15:22:45-04".parse::<Timestamp>().unwrap(),
+            )),
+            reason: Some(reason.to_owned()),
+            message: Some(message.to_owned()),
+            ..Default::default()
+        }
+    }
 
     #[test]
     fn kube_deployment_info_v1() {
@@ -155,5 +226,28 @@ mod tests {
             (0, 0, 0)
         );
         assert_eq!(replicas.terminating, None);
+    }
+
+    #[test]
+    fn kube_deployment_conditions_v1() {
+        let mut deployment = deployment("nginx");
+        deployment.status = Some(DeploymentStatus {
+            conditions: Some(vec![
+                condition("Available", "True", "MinimumReplicasAvailable", "ready"),
+                condition("progressing", "True", "NewReplicaSetAvailable", "complete"),
+                condition("ReplicaFailure", "False", "", ""),
+            ]),
+            ..Default::default()
+        });
+
+        insta::assert_json_snapshot!(KubeDeploymentConditionsV1::from_deployment(&deployment));
+    }
+
+    #[test]
+    fn kube_deployment_conditions_v1_without_conditions() {
+        let mut deployment = deployment("nginx");
+        deployment.status = Some(DeploymentStatus::default());
+
+        assert!(KubeDeploymentConditionsV1::from_deployment(&deployment).is_none());
     }
 }
