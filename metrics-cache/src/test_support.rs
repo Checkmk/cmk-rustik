@@ -1,6 +1,8 @@
 #![cfg(test)]
 
-use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec, ReplicaSet};
+use k8s_openapi::api::apps::v1::{
+    DaemonSet, DaemonSetSpec, Deployment, DeploymentSpec, ReplicaSet,
+};
 use k8s_openapi::api::batch::v1::{CronJob, CronJobSpec, Job};
 use k8s_openapi::api::core::v1::{
     Container, ContainerStatus, Namespace, Node, NodeAddress, NodeStatus, NodeSystemInfo,
@@ -101,6 +103,36 @@ pub fn deployment(name: &str) -> Deployment {
             ..Default::default()
         },
         spec: Some(DeploymentSpec {
+            selector: LabelSelector {
+                match_labels: Some(BTreeMap::from([(s("app"), name.to_string())])),
+                match_expressions: Some(vec![LabelSelectorRequirement {
+                    key: s("tier"),
+                    operator: s("In"),
+                    values: Some(vec![s("backend"), s("frontend")]),
+                }]),
+            },
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+/// A DaemonSet, with a selector using both match forms.
+pub fn daemonset(name: &str) -> DaemonSet {
+    let timestamp: Timestamp = "2024-06-19 15:22:45-04".parse().unwrap();
+    DaemonSet {
+        metadata: ObjectMeta {
+            name: Some(name.to_string()),
+            namespace: Some(s("the-namespace-of-all-namespaces")),
+            creation_timestamp: Some(Time(timestamp)),
+            labels: Some(BTreeMap::from([(s("app"), name.to_string())])),
+            annotations: Some(BTreeMap::from([
+                (s("example.com/cool-animal"), s("monkeys")),
+                (s("checkmk.com/promote-to-host"), s("true")),
+            ])),
+            ..Default::default()
+        },
+        spec: Some(DaemonSetSpec {
             selector: LabelSelector {
                 match_labels: Some(BTreeMap::from([(s("app"), name.to_string())])),
                 match_expressions: Some(vec![LabelSelectorRequirement {

@@ -1,0 +1,46 @@
+---
+source: metrics-cache/src/section/daemonset.rs
+expression: "KubeDaemonSetInfoV1::from_daemonset(&daemonset,\nThinContainers::from_pods(pods.iter()), &host_settings(),)"
+---
+{
+  "name": "node-agent",
+  "namespace": "the-namespace-of-all-namespaces",
+  "creation_timestamp": 1718824965.0,
+  "labels": {
+    "app": {
+      "name": "app",
+      "value": "node-agent"
+    }
+  },
+  "annotations": {
+    "checkmk.com/promote-to-host": "true",
+    "example.com/cool-animal": "monkeys"
+  },
+  "selector": {
+    "match_labels": {
+      "app": "node-agent"
+    },
+    "match_expressions": [
+      {
+        "key": "tier",
+        "operator": "In",
+        "values": [
+          "backend",
+          "frontend"
+        ]
+      }
+    ]
+  },
+  "containers": {
+    "images": [
+      "agent:1.0",
+      "sidecar:2.0"
+    ],
+    "names": [
+      "agent",
+      "sidecar"
+    ]
+  },
+  "cluster": "the-cluster",
+  "kubernetes_cluster_hostname": "cluster.host.tld"
+}

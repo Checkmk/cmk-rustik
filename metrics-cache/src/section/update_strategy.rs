@@ -83,11 +83,12 @@ impl Section for KubeUpdateStrategyV1 {
 mod tests {
     use super::*;
     use k8s_openapi::api::apps::v1::{
-        DaemonSetSpec, DaemonSetUpdateStrategy, DeploymentSpec, DeploymentStrategy,
-        RollingUpdateDaemonSet, RollingUpdateStatefulSetStrategy, StatefulSetSpec,
-        StatefulSetUpdateStrategy,
+        DaemonSetUpdateStrategy, DeploymentSpec, DeploymentStrategy, RollingUpdateDaemonSet,
+        RollingUpdateStatefulSetStrategy, StatefulSetSpec, StatefulSetUpdateStrategy,
     };
     use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
+
+    use crate::test_support::daemonset;
 
     #[test]
     fn deployment_update_strategy() {
@@ -107,19 +108,14 @@ mod tests {
 
     #[test]
     fn daemonset_update_strategy() {
-        let daemonset = DaemonSet {
-            spec: Some(DaemonSetSpec {
-                update_strategy: Some(DaemonSetUpdateStrategy {
-                    type_: Some("RollingUpdate".to_owned()),
-                    rolling_update: Some(RollingUpdateDaemonSet {
-                        max_surge: Some(IntOrString::Int(0)),
-                        max_unavailable: Some(IntOrString::Int(1)),
-                    }),
-                }),
-                ..Default::default()
+        let mut daemonset = daemonset("node-agent");
+        daemonset.spec.as_mut().unwrap().update_strategy = Some(DaemonSetUpdateStrategy {
+            type_: Some("RollingUpdate".to_owned()),
+            rolling_update: Some(RollingUpdateDaemonSet {
+                max_surge: Some(IntOrString::Int(0)),
+                max_unavailable: Some(IntOrString::Int(1)),
             }),
-            ..Default::default()
-        };
+        });
 
         insta::assert_json_snapshot!(KubeUpdateStrategyV1::from_daemonset(&daemonset));
     }
