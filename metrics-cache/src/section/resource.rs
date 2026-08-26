@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{Node, Pod};
 use serde::Serialize;
 use std::ops::Add;
 
@@ -185,13 +185,66 @@ impl Section for KubeCpuResourcesV1 {
     const NAME: &'static str = "kube_cpu_resources_v1";
 }
 
+#[derive(Serialize)]
+enum Context {
+    #[serde(rename = "cluster")]
+    Cluster,
+    #[serde(rename = "node")]
+    Node,
+}
+
+#[derive(Serialize)]
+pub struct KubeAllocatableCpuResourceV1 {
+    context: Context,
+    value: f64,
+}
+
+fn allocatable_cpu(node: &Node) -> f64 {
+    node.status
+        .as_ref()
+        .and_then(|status| status.allocatable.as_ref())
+        .and_then(|allocatable| allocatable.get("cpu"))
+        .and_then(|quantity| parse_quantity(&quantity.0))
+        .map_or(0.0, |value| (value * 1000.0).ceil() / 1000.0)
+}
+
+impl KubeAllocatableCpuResourceV1 {
+    pub fn from_node(node: &Node) -> Self {
+        Self {
+            context: Context::Node,
+            value: allocatable_cpu(node),
+        }
+    }
+
+    pub fn from_nodes<'a>(nodes: impl IntoIterator<Item = &'a Node>) -> Self {
+        Self {
+            context: Context::Cluster,
+            value: nodes.into_iter().map(allocatable_cpu).sum(),
+        }
+    }
+}
+
+impl Section for KubeAllocatableCpuResourceV1 {
+    const NAME: &'static str = "kube_allocatable_cpu_resource_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k8s_openapi::api::core::v1::ResourceRequirements;
+    use k8s_openapi::api::core::v1::{NodeStatus, ResourceRequirements};
     use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
+    use std::collections::BTreeMap;
 
     use crate::test_support::*;
+
+    fn node_with_allocatable_cpu(cpu: &str) -> Node {
+        let mut node = node("worker-1");
+        node.status = Some(NodeStatus {
+            allocatable: Some(BTreeMap::from([(s("cpu"), Quantity(s(cpu)))])),
+            ..Default::default()
+        });
+        node
+    }
 
     /// Build a [`ResourceRequirements`] from (key, quantity) pairs. An empty
     /// slice means the requests/limits are not specified at all.
@@ -446,5 +499,29 @@ mod tests {
         };
 
         assert_eq!(ra1 + ra2, expected);
+    }
+
+    #[test]
+    fn kube_allocatable_cpu_resource_v1() {
+        insta::assert_json_snapshot!(KubeAllocatableCpuResourceV1::from_node(
+            &node_with_allocatable_cpu("2")
+        ));
+    }
+
+    #[test]
+    fn kube_allocatable_cpu_resource_v1_without_status_is_zero() {
+        let section = KubeAllocatableCpuResourceV1::from_node(&node("worker-1"));
+        assert_eq!(section.value, 0.0);
+    }
+
+    #[test]
+    fn kube_allocatable_cpu_resource_v1_sums_across_nodes() {
+        let nodes = [
+            node_with_allocatable_cpu("2"),
+            node_with_allocatable_cpu("0.5m"),
+            node_with_allocatable_cpu("0.5m"),
+        ];
+
+        insta::assert_json_snapshot!(KubeAllocatableCpuResourceV1::from_nodes(&nodes));
     }
 }
