@@ -1,0 +1,8 @@
+---
+source: metrics-cache/src/section/resource.rs
+expression: "KubeAllocatableMemoryResourceV1::from_nodes(&nodes)"
+---
+{
+  "context": "cluster",
+  "value": 1073741826.0
+}

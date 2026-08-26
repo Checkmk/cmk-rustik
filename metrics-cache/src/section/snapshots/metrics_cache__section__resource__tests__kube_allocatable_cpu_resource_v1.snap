@@ -1,6 +1,6 @@
 ---
 source: metrics-cache/src/section/resource.rs
-expression: "KubeAllocatableCpuResourceV1::from_node(&node_with_allocatable_cpu(\"2\"))"
+expression: "KubeAllocatableCpuResourceV1::from_node(&node_with_allocatable(\"cpu\", \"2\"))"
 ---
 {
   "context": "node",

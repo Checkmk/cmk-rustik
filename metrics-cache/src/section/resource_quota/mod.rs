@@ -6,28 +6,8 @@ use serde::Serialize;
 use crate::section::Section;
 use crate::section::common::parse_quantity;
 use crate::section::performance::{KubePerformanceCpuV1, KubePerformanceMemoryV1};
+use crate::section::resource::ResourceAxis;
 use crate::snapshot::indexes::Indexes;
-
-enum Axis {
-    Cpu,
-    Memory,
-}
-
-impl Axis {
-    fn to_key(&self) -> &str {
-        match self {
-            Self::Cpu => "cpu",
-            Self::Memory => "memory",
-        }
-    }
-
-    fn round(&self, value: f64) -> f64 {
-        match self {
-            Self::Cpu => (value * 1000.0).ceil() / 1000.0,
-            Self::Memory => value.ceil(),
-        }
-    }
-}
 
 #[derive(Serialize)]
 struct ResourceQuotaSection {
@@ -36,20 +16,23 @@ struct ResourceQuotaSection {
 }
 
 impl ResourceQuotaSection {
-    fn from_resource_quota(quota: &ResourceQuota, axis: Axis) -> Option<ResourceQuotaSection> {
+    fn from_resource_quota(
+        quota: &ResourceQuota,
+        axis: ResourceAxis,
+    ) -> Option<ResourceQuotaSection> {
         let hard = quota.spec.as_ref()?.hard.as_ref()?;
-        let axis_key = axis.to_key();
+        let axis_key = axis.key();
 
         let limit = hard
             .get(&format!("limits.{axis_key}"))
             .and_then(|q| parse_quantity(&q.0))
-            .map(|value| axis.round(value));
+            .map(|value| axis.round_quantity(value));
 
         let request = hard
             .get(&format!("requests.{axis_key}"))
             .or_else(|| hard.get(axis_key))
             .and_then(|q| parse_quantity(&q.0))
-            .map(|value| axis.round(value));
+            .map(|value| axis.round_quantity(value));
 
         match (limit, request) {
             (None, None) => None,
@@ -70,7 +53,7 @@ impl KubeResourceQuotaMemoryResourcesV1 {
         let namespace_name = namespace.metadata.name.as_deref()?;
         let quota = indexes.resource_quota(namespace_name)?;
         Some(Self {
-            body: ResourceQuotaSection::from_resource_quota(quota, Axis::Memory)?,
+            body: ResourceQuotaSection::from_resource_quota(quota, ResourceAxis::Memory)?,
         })
     }
 }
@@ -91,7 +74,7 @@ impl KubeResourceQuotaCpuResourcesV1 {
         let namespace_name = namespace.metadata.name.as_deref()?;
         let quota = indexes.resource_quota(namespace_name)?;
         Some(Self {
-            body: ResourceQuotaSection::from_resource_quota(quota, Axis::Cpu)?,
+            body: ResourceQuotaSection::from_resource_quota(quota, ResourceAxis::Cpu)?,
         })
     }
 }
