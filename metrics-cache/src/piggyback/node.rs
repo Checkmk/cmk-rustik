@@ -6,7 +6,7 @@ use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
 use crate::section::node::{KubeAllocatablePodsV1, KubeNodeContainerCountV1, KubeNodeInfoV1};
 use crate::section::node_kubelet::KubeNodeKubeletV1;
-use crate::section::resource::KubeAllocatableCpuResourceV1;
+use crate::section::resource::{KubeAllocatableCpuResourceV1, KubeAllocatableMemoryResourceV1};
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
@@ -79,6 +79,10 @@ impl PiggybackHost for Node<'_> {
         out.push(WriteableSection::of(
             &me,
             &KubeAllocatableCpuResourceV1::from_node(self.api),
+        ));
+        out.push(WriteableSection::of(
+            &me,
+            &KubeAllocatableMemoryResourceV1::from_node(self.api),
         ));
         out.extend(self.aggregation_sections(&me));
         out

@@ -11,6 +11,22 @@ pub enum ResourceAxis {
     Memory,
 }
 
+impl ResourceAxis {
+    pub(crate) fn key(&self) -> &str {
+        match self {
+            Self::Cpu => "cpu",
+            Self::Memory => "memory",
+        }
+    }
+
+    pub(crate) fn round_quantity(&self, value: f64) -> f64 {
+        match self {
+            Self::Cpu => (value * 1000.0).ceil() / 1000.0,
+            Self::Memory => value.ceil(),
+        }
+    }
+}
+
 /// Aggregated resource requests and limits for a single axis (CPU or memory),
 /// summed over some set of pods.
 ///
@@ -64,10 +80,7 @@ impl ResourceAccumulator {
     /// resulting instance. Otherwise the sum of the requests of all the
     /// containers in the pod is used. Similarly for limits.
     pub fn from_pod(pod: &Pod, axis: ResourceAxis) -> Self {
-        let (key, round): (&str, fn(f64) -> f64) = match axis {
-            ResourceAxis::Cpu => ("cpu", |v| (v * 1000.0).ceil() / 1000.0),
-            ResourceAxis::Memory => ("memory", f64::ceil),
-        };
+        let key = axis.key();
         let mut ra: ResourceAccumulator = Default::default();
         let Some(ref spec) = pod.spec else {
             // If there's somehow no spec, just return the zeroed accumulator.
@@ -81,7 +94,7 @@ impl ResourceAccumulator {
             .and_then(|r| r.requests.as_ref())
             .and_then(|r| r.get(key))
             .and_then(|q| parse_quantity(&q.0))
-            .map(round)
+            .map(|value| axis.round_quantity(value))
             && request > 0.0
         {
             // The pod has specified pod-level requests > 0 (0 is unlimited).
@@ -100,7 +113,7 @@ impl ResourceAccumulator {
                     .and_then(|r| r.requests.as_ref())
                     .and_then(|r| r.get(key))
                     .and_then(|q| parse_quantity(&q.0))
-                    .map(round)
+                    .map(|value| axis.round_quantity(value))
                 {
                     ra.request += request;
                 } else {
@@ -116,7 +129,7 @@ impl ResourceAccumulator {
             .and_then(|r| r.limits.as_ref())
             .and_then(|r| r.get(key))
             .and_then(|q| parse_quantity(&q.0))
-            .map(round)
+            .map(|value| axis.round_quantity(value))
             && limit > 0.0
         {
             // The pod has specified pod-level limits > 0 (0 is unlimited).
@@ -133,7 +146,7 @@ impl ResourceAccumulator {
                     .and_then(|r| r.limits.as_ref())
                     .and_then(|r| r.get(key))
                     .and_then(|q| parse_quantity(&q.0))
-                    .map(round)
+                    .map(|value| axis.round_quantity(value))
                 {
                     ra.limit += limit;
                     if limit == 0.0 {
@@ -199,33 +212,65 @@ pub struct KubeAllocatableCpuResourceV1 {
     value: f64,
 }
 
-fn allocatable_cpu(node: &Node) -> f64 {
+fn allocatable(node: &Node, axis: ResourceAxis) -> f64 {
     node.status
         .as_ref()
         .and_then(|status| status.allocatable.as_ref())
-        .and_then(|allocatable| allocatable.get("cpu"))
+        .and_then(|allocatable| allocatable.get(axis.key()))
         .and_then(|quantity| parse_quantity(&quantity.0))
-        .map_or(0.0, |value| (value * 1000.0).ceil() / 1000.0)
+        .map_or(0.0, |value| axis.round_quantity(value))
 }
 
 impl KubeAllocatableCpuResourceV1 {
     pub fn from_node(node: &Node) -> Self {
         Self {
             context: Context::Node,
-            value: allocatable_cpu(node),
+            value: allocatable(node, ResourceAxis::Cpu),
         }
     }
 
     pub fn from_nodes<'a>(nodes: impl IntoIterator<Item = &'a Node>) -> Self {
         Self {
             context: Context::Cluster,
-            value: nodes.into_iter().map(allocatable_cpu).sum(),
+            value: nodes
+                .into_iter()
+                .map(|node| allocatable(node, ResourceAxis::Cpu))
+                .sum(),
         }
     }
 }
 
 impl Section for KubeAllocatableCpuResourceV1 {
     const NAME: &'static str = "kube_allocatable_cpu_resource_v1";
+}
+
+#[derive(Serialize)]
+pub struct KubeAllocatableMemoryResourceV1 {
+    context: Context,
+    value: f64,
+}
+
+impl KubeAllocatableMemoryResourceV1 {
+    pub fn from_node(node: &Node) -> Self {
+        Self {
+            context: Context::Node,
+            value: allocatable(node, ResourceAxis::Memory),
+        }
+    }
+
+    pub fn from_nodes<'a>(nodes: impl IntoIterator<Item = &'a Node>) -> Self {
+        Self {
+            context: Context::Cluster,
+            value: nodes
+                .into_iter()
+                .map(|node| allocatable(node, ResourceAxis::Memory))
+                .sum(),
+        }
+    }
+}
+
+impl Section for KubeAllocatableMemoryResourceV1 {
+    const NAME: &'static str = "kube_allocatable_memory_resource_v1";
 }
 
 #[cfg(test)]
@@ -237,10 +282,10 @@ mod tests {
 
     use crate::test_support::*;
 
-    fn node_with_allocatable_cpu(cpu: &str) -> Node {
+    fn node_with_allocatable(axis: &str, value: &str) -> Node {
         let mut node = node("worker-1");
         node.status = Some(NodeStatus {
-            allocatable: Some(BTreeMap::from([(s("cpu"), Quantity(s(cpu)))])),
+            allocatable: Some(BTreeMap::from([(s(axis), Quantity(s(value)))])),
             ..Default::default()
         });
         node
@@ -504,7 +549,7 @@ mod tests {
     #[test]
     fn kube_allocatable_cpu_resource_v1() {
         insta::assert_json_snapshot!(KubeAllocatableCpuResourceV1::from_node(
-            &node_with_allocatable_cpu("2")
+            &node_with_allocatable("cpu", "2")
         ));
     }
 
@@ -517,11 +562,29 @@ mod tests {
     #[test]
     fn kube_allocatable_cpu_resource_v1_sums_across_nodes() {
         let nodes = [
-            node_with_allocatable_cpu("2"),
-            node_with_allocatable_cpu("0.5m"),
-            node_with_allocatable_cpu("0.5m"),
+            node_with_allocatable("cpu", "2"),
+            node_with_allocatable("cpu", "0.5m"),
+            node_with_allocatable("cpu", "0.5m"),
         ];
 
         insta::assert_json_snapshot!(KubeAllocatableCpuResourceV1::from_nodes(&nodes));
+    }
+
+    #[test]
+    fn kube_allocatable_memory_resource_v1() {
+        insta::assert_json_snapshot!(KubeAllocatableMemoryResourceV1::from_node(
+            &node_with_allocatable("memory", "1Gi")
+        ));
+    }
+
+    #[test]
+    fn kube_allocatable_memory_resource_v1_sums_across_nodes() {
+        let nodes = [
+            node_with_allocatable("memory", "1Gi"),
+            node_with_allocatable("memory", "0.5"),
+            node_with_allocatable("memory", "0.5"),
+        ];
+
+        insta::assert_json_snapshot!(KubeAllocatableMemoryResourceV1::from_nodes(&nodes));
     }
 }

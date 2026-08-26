@@ -1,0 +1,8 @@
+---
+source: metrics-cache/src/section/resource.rs
+expression: "KubeAllocatableMemoryResourceV1::from_node(&node_with_allocatable(\"memory\",\n\"1Gi\"))"
+---
+{
+  "context": "node",
+  "value": 1073741824.0
+}
