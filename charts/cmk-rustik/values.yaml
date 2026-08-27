@@ -239,6 +239,13 @@ namespaceFilter:
   # excludePatterns suppresses resources from matching namespaces.
   excludePatterns: []
 
+# podHosts configures which Pods may become standalone piggyback hosts.
+podHosts:
+  # includeCronJobPods permits Pods owned by CronJobs to become hosts. It has
+  # no effect unless the Pod is otherwise selected by emitAll.pods or its
+  # checkmk.com/promote-to-host annotation.
+  includeCronJobPods: false
+
 # emitAll allows you to set which kinds have ALL of their resources turned into
 # piggyback hosts in Checkmk. Resources not enabled here can be opted in via an
 # annotation (checkmk.com/promote-to-host: "true"). By default, pods are not

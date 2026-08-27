@@ -272,6 +272,10 @@ pub struct CliArgs {
     #[arg(long)]
     pub all_pods: bool,
 
+    /// Allow Pods owned by CronJobs to become standalone piggyback hosts
+    #[arg(long)]
+    pub include_cronjob_pods: bool,
+
     /// Emit all Namespace resources rather than only annotated ones
     #[arg(long)]
     pub all_namespaces: bool,

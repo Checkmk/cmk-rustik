@@ -60,6 +60,7 @@ impl AppState<Client> {
                 args.namespace_exclude_patterns.clone(),
             ),
             always_emitted: AlwaysEmitted::from_cli_args(args),
+            include_cronjob_pods: args.include_cronjob_pods,
             emit_pvc_sections: args.all_pvcs,
             cluster_version,
         };

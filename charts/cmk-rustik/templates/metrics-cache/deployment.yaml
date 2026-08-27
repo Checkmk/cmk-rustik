@@ -67,6 +67,9 @@ spec:
             {{- range .Values.namespaceFilter.excludePatterns }}
             - {{ printf "--namespace-exclude-patterns=%s" . | quote }}
             {{- end }}
+            {{- if .Values.podHosts.includeCronJobPods }}
+            - --include-cronjob-pods
+            {{- end }}
             {{- if .Values.hostLabels.importAllAnnotations }}
             {{- if .Values.hostLabels.importKeyPattern }}
             {{ fail "hostLabels.importKeyPattern should not be set while hostLabels.importAllAnnotations is true" }}

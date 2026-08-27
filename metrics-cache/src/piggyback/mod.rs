@@ -8,8 +8,10 @@ pub mod node;
 pub mod pod;
 pub mod statefulset;
 
+use k8s_openapi::api::core::v1;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use k8s_openapi::{ClusterResourceScope, NamespaceResourceScope};
+use std::collections::HashSet;
 use tracing::warn;
 
 use crate::host_settings::{HostSettings, NamespaceFilter};
@@ -174,12 +176,33 @@ fn collect<A, H: PiggybackHost>(
         .collect()
 }
 
+fn is_pod_host_candidate(pod: &v1::Pod, excluded_uids: &HashSet<&str>) -> bool {
+    pod.metadata
+        .uid
+        .as_deref()
+        .is_none_or(|uid| !excluded_uids.contains(uid))
+}
+
 pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSection> {
     let always = &settings.always_emitted;
     let namespace_filter = &settings.namespace_filter;
+    let cronjob_pod_uids = if settings.include_cronjob_pods {
+        HashSet::new()
+    } else {
+        snap.stores
+            .cronjobs
+            .iter()
+            .filter_map(|cronjob| cronjob.metadata.uid.as_deref())
+            .flat_map(|uid| snap.owner_graph.pods_by_controller(uid))
+            .filter_map(|pod| pod.metadata.uid.as_deref())
+            .collect()
+    };
     let mut out = Vec::new();
     out.extend(collect(
-        snap.stores.pods.iter(),
+        snap.stores
+            .pods
+            .iter()
+            .filter(|pod| is_pod_host_candidate(pod, &cronjob_pod_uids)),
         always.pods,
         namespace_filter,
         |p| Pod::new(p, snap, settings),
@@ -234,6 +257,7 @@ mod tests {
     use regex::Regex;
     use serde::Serialize;
     use std::assert_matches;
+    use std::sync::Arc;
 
     use crate::section::Section;
     use crate::test_support::*;
@@ -315,6 +339,41 @@ mod tests {
             )))
             .is_empty()
         );
+    }
+
+    #[test]
+    fn cronjob_pods_are_excluded_from_pod_hosts() {
+        let mut cronjob_pod = pod("cronjob-pod", Some("node01"));
+        cronjob_pod.metadata.uid = Some(s("cronjob-pod-uid"));
+        let mut other_pod = pod("other-pod", Some("node01"));
+        other_pod.metadata.uid = Some(s("other-pod-uid"));
+        let mut graph = owner_graph(&[]);
+        graph
+            .pods_by_controller
+            .insert("cronjob-uid".into(), vec![Arc::new(cronjob_pod)]);
+        graph
+            .pods_by_controller
+            .insert("other-uid".into(), vec![Arc::new(other_pod)]);
+
+        let uids = graph
+            .pods_by_controller("cronjob-uid")
+            .iter()
+            .filter_map(|pod| pod.metadata.uid.as_deref())
+            .collect();
+
+        assert_eq!(uids, HashSet::from(["cronjob-pod-uid"]));
+        assert!(!is_pod_host_candidate(
+            &graph.pods_by_controller("cronjob-uid")[0],
+            &uids
+        ));
+        assert!(is_pod_host_candidate(
+            &graph.pods_by_controller("other-uid")[0],
+            &uids
+        ));
+        assert!(is_pod_host_candidate(
+            &graph.pods_by_controller("cronjob-uid")[0],
+            &HashSet::new()
+        ));
     }
 
     /// Namespace-scoped resources with no namespace are rejected by our [`Meta`].

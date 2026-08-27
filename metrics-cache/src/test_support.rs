@@ -316,6 +316,7 @@ pub fn host_settings() -> HostSettings {
         excluded_node_role_patterns: Vec::new(),
         namespace_filter: NamespaceFilter::default(),
         always_emitted: AlwaysEmitted::default(),
+        include_cronjob_pods: false,
         emit_pvc_sections: false,
         cluster_version: s("v1.36.1"),
     }

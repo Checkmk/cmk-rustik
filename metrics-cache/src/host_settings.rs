@@ -100,6 +100,8 @@ pub struct HostSettings {
     pub excluded_node_role_patterns: Vec<Regex>,
     pub namespace_filter: NamespaceFilter,
     pub always_emitted: AlwaysEmitted,
+    /// Whether CronJob-owned Pods may become standalone piggyback hosts.
+    pub include_cronjob_pods: bool,
     /// Whether to emit PVC-related sections on Pods and workload hosts.
     pub emit_pvc_sections: bool,
     // Not configuration but belongs with other static facts about the cluster
