@@ -9,7 +9,7 @@ pub async fn livez() -> StatusCode {
 }
 
 pub async fn readyz(State(state): State<AppState<impl TokenValidator>>) -> StatusCode {
-    if state.readiness.is_ready() {
+    if state.stores.is_ready() {
         StatusCode::OK
     } else {
         StatusCode::SERVICE_UNAVAILABLE
@@ -32,7 +32,7 @@ mod tests {
             StatusCode::SERVICE_UNAVAILABLE
         );
 
-        state.readiness.mark_ready();
+        state.stores.mark_ready();
 
         assert_eq!(readyz(State(state)).await, StatusCode::OK);
     }

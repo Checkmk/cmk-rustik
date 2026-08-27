@@ -1,7 +1,6 @@
 use kube::Client;
 use moka::future::Cache;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::sync::watch::Receiver;
 use tokio::task::JoinSet;
@@ -21,34 +20,6 @@ use crate::snapshot::self_health::MetricsFetcherDaemonSet;
 // Used for the size of the various metrics-fetcher caches.
 const MAX_SUPPORTED_KUBERNETES_NODES: u64 = 5000;
 
-/// One-way readiness state, set after all reflectors have initialized.
-#[derive(Clone, Default)]
-pub(crate) struct Readiness(Arc<AtomicBool>);
-
-impl Readiness {
-    fn from_stores(stores: Stores) -> Self {
-        let readiness = Readiness::default();
-        let readiness_waiter = readiness.clone();
-        let _readiness_task = tokio::spawn(async move {
-            match stores.wait_until_all_ready().await {
-                Ok(()) => readiness_waiter.mark_ready(),
-                Err(error) => {
-                    tracing::error!(?error, "failed waiting for reflectors to initialize")
-                }
-            }
-        });
-        readiness
-    }
-
-    pub(crate) fn is_ready(&self) -> bool {
-        self.0.load(Ordering::Acquire)
-    }
-
-    pub(crate) fn mark_ready(&self) {
-        self.0.store(true, Ordering::Release);
-    }
-}
-
 #[derive(Clone)]
 pub struct AppState<V: TokenValidator> {
     pub client: V,
@@ -61,7 +32,6 @@ pub struct AppState<V: TokenValidator> {
     pub host_settings: Arc<HostSettings>,
     pub api_health_receiver: Receiver<ApiHealthUpdate>,
     pub metrics_fetcher_daemonset: Option<MetricsFetcherDaemonSet>,
-    pub(crate) readiness: Readiness,
 }
 
 impl AppState<Client> {
@@ -98,7 +68,7 @@ impl AppState<Client> {
 
         let state = Self {
             client,
-            stores: stores.clone(),
+            stores,
             reader_allowlist: args.reader_allowlist.clone(),
             writer_allowlist: args.writer_allowlist.clone(),
             kubelet_stats_summary_cache: Cache::builder()
@@ -120,7 +90,6 @@ impl AppState<Client> {
                 .clone()
                 .zip(args.metrics_fetcher_daemonset_name.clone())
                 .map(|(namespace, name)| MetricsFetcherDaemonSet { namespace, name }),
-            readiness: Readiness::from_stores(stores),
         };
         Ok(state)
     }
@@ -188,7 +157,6 @@ pub mod tests {
             host_settings: host_settings().into(),
             api_health_receiver: rx,
             metrics_fetcher_daemonset: None,
-            readiness: Readiness::default(),
         }
     }
 

@@ -63,6 +63,15 @@ macro_rules! define_reflectors {
                 self.healths.freeze()
             }
 
+            pub(crate) fn is_ready(&self) -> bool {
+                self.healths.all_initialized()
+            }
+
+            #[cfg(test)]
+            pub(crate) fn mark_ready(&self) {
+                self.healths.mark_all_initialized()
+            }
+
             pub(crate) async fn wait_until_all_ready(&self) -> Result<(), WriterDropped> {
                 tokio::try_join!(
                     $(
@@ -109,6 +118,18 @@ macro_rules! define_reflectors {
                         $field: self.$field.freeze(),
                     )*
                 }
+            }
+
+            fn all_initialized(&self) -> bool {
+                true $(&& self.$field.freeze().has_been_initialized)*
+            }
+
+            #[cfg(test)]
+            fn mark_all_initialized(&self) {
+                $(
+                    self.$field
+                        .observe::<$resource>(&Ok(watcher::Event::InitDone));
+                )*
             }
         }
 
@@ -268,6 +289,21 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stores_are_ready_only_after_every_reflector_initializes() {
+        let stores = Stores::default();
+        assert!(!stores.is_ready());
+
+        stores
+            .healths
+            .pods
+            .observe::<Pod>(&Ok(watcher::Event::InitDone));
+        assert!(!stores.is_ready());
+
+        stores.mark_ready();
+        assert!(stores.is_ready());
+    }
 
     #[test]
     fn reflector_health_handle_default() {
