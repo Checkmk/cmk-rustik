@@ -150,6 +150,39 @@ spec:
               name: pull
             - containerPort: {{ .Values.metricsCache.intraClusterPort }}
               name: intra-cluster
+          {{- if .Values.metricsCache.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: pull
+              scheme: {{ if .Values.pull.encryption.enabled }}HTTPS{{ else }}HTTP{{ end }}
+            initialDelaySeconds: {{ .Values.metricsCache.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.metricsCache.startupProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.metricsCache.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.metricsCache.startupProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.metricsCache.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: pull
+              scheme: {{ if .Values.pull.encryption.enabled }}HTTPS{{ else }}HTTP{{ end }}
+            initialDelaySeconds: {{ .Values.metricsCache.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.metricsCache.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.metricsCache.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.metricsCache.livenessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.metricsCache.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: pull
+              scheme: {{ if .Values.pull.encryption.enabled }}HTTPS{{ else }}HTTP{{ end }}
+            initialDelaySeconds: {{ .Values.metricsCache.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.metricsCache.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.metricsCache.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.metricsCache.readinessProbe.failureThreshold }}
+          {{- end }}
           {{- with .Values.metricsCache.extraVolumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

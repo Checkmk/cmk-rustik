@@ -96,6 +96,32 @@ metricsCache:
   # from metrics-fetcher. The ingestion Service targets this port.
   intraClusterPort: 10049
 
+  # startupProbe allows metrics-cache time to initialize and bind its
+  # listeners before Kubernetes begins checking liveness.
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 0
+    periodSeconds: 2
+    timeoutSeconds: 1
+    failureThreshold: 30
+
+  # livenessProbe restarts metrics-cache if its HTTP server stops responding.
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  # readinessProbe removes metrics-cache from its Services until all Kubernetes
+  # reflectors have completed their initial synchronization.
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 0
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+
   # logLevel controls how verbose metrics-cache is when writing to stderr.
   # Inherits top-level logLevel by default.
   logLevel: ""
