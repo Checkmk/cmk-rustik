@@ -8,11 +8,13 @@ pub mod node;
 pub mod pod;
 pub mod statefulset;
 
+use k8s_openapi::api::core::v1;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use k8s_openapi::{ClusterResourceScope, NamespaceResourceScope};
+use std::collections::HashSet;
 use tracing::warn;
 
-use crate::host_settings::HostSettings;
+use crate::host_settings::{HostSettings, NamespaceFilter};
 pub(crate) use crate::piggyback::aggregation_host::AggregationHost;
 use crate::piggyback::cluster::Cluster;
 use crate::piggyback::cronjob::CronJob;
@@ -84,6 +86,12 @@ pub(crate) trait PiggybackHost {
     fn kind(&self) -> &str;
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>>;
 
+    /// The namespace used to decide whether this host is filtered. Cluster
+    /// resources return `None` and are unaffected by namespace filtering.
+    fn namespace_for_filtering(&self) -> Option<&str> {
+        self.metadata()?.namespace.as_deref()
+    }
+
     /// Answers the question: Does an annotation request this resource become
     /// a piggyback host?
     ///
@@ -137,18 +145,26 @@ pub(crate) trait PiggybackHost {
     }
 }
 
-fn should_emit<H: PiggybackHost>(resource: &H, always_emit: bool) -> bool {
-    resource.annotation_emit_override().unwrap_or(always_emit)
+fn should_emit<H: PiggybackHost>(
+    resource: &H,
+    always_emit: bool,
+    namespace_filter: &NamespaceFilter,
+) -> bool {
+    resource
+        .namespace_for_filtering()
+        .is_none_or(|namespace| namespace_filter.is_included(namespace))
+        && resource.annotation_emit_override().unwrap_or(always_emit)
 }
 
 fn collect<A, H: PiggybackHost>(
     items: impl Iterator<Item = A>,
     always_emit: bool,
+    namespace_filter: &NamespaceFilter,
     make: impl Fn(A) -> Option<H>,
 ) -> Vec<WriteableSection> {
     items
         .filter_map(make)
-        .filter(|host| should_emit(host, always_emit))
+        .filter(|host| should_emit(host, always_emit, namespace_filter))
         .flat_map(|host| host.emit())
         .filter_map(|r| match r {
             Ok(section) => Some(section),
@@ -160,41 +176,76 @@ fn collect<A, H: PiggybackHost>(
         .collect()
 }
 
+fn is_pod_host_candidate(pod: &v1::Pod, excluded_uids: &HashSet<&str>) -> bool {
+    pod.metadata
+        .uid
+        .as_deref()
+        .is_none_or(|uid| !excluded_uids.contains(uid))
+}
+
 pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSection> {
     let always = &settings.always_emitted;
+    let namespace_filter = &settings.namespace_filter;
+    let cronjob_pod_uids = if settings.include_cronjob_pods {
+        HashSet::new()
+    } else {
+        snap.stores
+            .cronjobs
+            .iter()
+            .filter_map(|cronjob| cronjob.metadata.uid.as_deref())
+            .flat_map(|uid| snap.owner_graph.pods_by_controller(uid))
+            .filter_map(|pod| pod.metadata.uid.as_deref())
+            .collect()
+    };
     let mut out = Vec::new();
-    out.extend(collect(snap.stores.pods.iter(), always.pods, |p| {
-        Pod::new(p, snap, settings)
-    }));
+    out.extend(collect(
+        snap.stores
+            .pods
+            .iter()
+            .filter(|pod| is_pod_host_candidate(pod, &cronjob_pod_uids)),
+        always.pods,
+        namespace_filter,
+        |p| Pod::new(p, snap, settings),
+    ));
     out.extend(collect(
         snap.stores.namespaces.iter(),
         always.namespaces,
+        namespace_filter,
         |n| Namespace::new(n, snap, settings),
     ));
-    out.extend(collect(snap.stores.nodes.iter(), always.nodes, |n| {
-        Node::new(n, snap, settings)
-    }));
+    out.extend(collect(
+        snap.stores.nodes.iter(),
+        always.nodes,
+        namespace_filter,
+        |n| Node::new(n, snap, settings),
+    ));
     out.extend(collect(
         snap.stores.deployments.iter(),
         always.deployments,
+        namespace_filter,
         |n| Deployment::new(n, snap, settings),
     ));
     out.extend(collect(
         snap.stores.daemonsets.iter(),
         always.daemonsets,
+        namespace_filter,
         |n| DaemonSet::new(n, snap, settings),
     ));
     out.extend(collect(
         snap.stores.statefulsets.iter(),
         always.statefulsets,
+        namespace_filter,
         |n| StatefulSet::new(n, snap, settings),
     ));
-    out.extend(collect(snap.stores.cronjobs.iter(), always.cronjobs, |n| {
-        CronJob::new(n, snap, settings)
-    }));
+    out.extend(collect(
+        snap.stores.cronjobs.iter(),
+        always.cronjobs,
+        namespace_filter,
+        |n| CronJob::new(n, snap, settings),
+    ));
 
     // Cluster is a special snowflake, there aren't any reflectors to iterate
-    out.extend(collect(std::iter::once(()), true, |()| {
+    out.extend(collect(std::iter::once(()), true, namespace_filter, |()| {
         Some(Cluster::new(snap, settings))
     }));
     out
@@ -203,8 +254,10 @@ pub fn emit_all(snap: &Snapshot, settings: &HostSettings) -> Vec<WriteableSectio
 #[cfg(test)]
 mod tests {
     use super::*;
+    use regex::Regex;
     use serde::Serialize;
     use std::assert_matches;
+    use std::sync::Arc;
 
     use crate::section::Section;
     use crate::test_support::*;
@@ -261,14 +314,66 @@ mod tests {
             (true, Some(meta_with_annotation("false")), 0),
         ] {
             assert_eq!(
-                collect(std::iter::once(()), always, |()| Some(FakeHost(
-                    meta.clone()
-                )))
+                collect(
+                    std::iter::once(()),
+                    always,
+                    &NamespaceFilter::default(),
+                    |()| Some(FakeHost(meta.clone()))
+                )
                 .len(),
                 emitted_count,
                 "always={always:?}, meta={meta:?}"
             );
         }
+    }
+
+    #[test]
+    fn namespace_filtering_precedes_annotation_promotion() {
+        let mut metadata = meta_with_annotation("true");
+        metadata.namespace = Some("development".to_string());
+        let filter = NamespaceFilter::new(vec![Regex::new("^production$").unwrap()], vec![]);
+
+        assert!(
+            collect(std::iter::once(()), false, &filter, |()| Some(FakeHost(
+                Some(metadata.clone())
+            )))
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn cronjob_pods_are_excluded_from_pod_hosts() {
+        let mut cronjob_pod = pod("cronjob-pod", Some("node01"));
+        cronjob_pod.metadata.uid = Some(s("cronjob-pod-uid"));
+        let mut other_pod = pod("other-pod", Some("node01"));
+        other_pod.metadata.uid = Some(s("other-pod-uid"));
+        let mut graph = owner_graph(&[]);
+        graph
+            .pods_by_controller
+            .insert("cronjob-uid".into(), vec![Arc::new(cronjob_pod)]);
+        graph
+            .pods_by_controller
+            .insert("other-uid".into(), vec![Arc::new(other_pod)]);
+
+        let uids = graph
+            .pods_by_controller("cronjob-uid")
+            .iter()
+            .filter_map(|pod| pod.metadata.uid.as_deref())
+            .collect();
+
+        assert_eq!(uids, HashSet::from(["cronjob-pod-uid"]));
+        assert!(!is_pod_host_candidate(
+            &graph.pods_by_controller("cronjob-uid")[0],
+            &uids
+        ));
+        assert!(is_pod_host_candidate(
+            &graph.pods_by_controller("other-uid")[0],
+            &uids
+        ));
+        assert!(is_pod_host_candidate(
+            &graph.pods_by_controller("cronjob-uid")[0],
+            &HashSet::new()
+        ));
     }
 
     /// Namespace-scoped resources with no namespace are rejected by our [`Meta`].
