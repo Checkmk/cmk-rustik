@@ -91,7 +91,8 @@ mod tests {
     use bytes::Bytes;
     use std::time::Instant;
 
-    use crate::ingest::{MetricsFetcherIngestion, SystemAgentOutput};
+    use crate::ingest::MetricsFetcherIngestion;
+    use crate::ingest::system_agent::SystemAgentOutput;
     use crate::section::writeable::SectionBody;
     use crate::state::tests::test_app_state;
     use crate::test_support;

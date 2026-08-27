@@ -2,7 +2,8 @@ use moka::future::Cache;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::ingest::{MetricsFetcherIngestion, SystemAgentOutput};
+use crate::ingest::MetricsFetcherIngestion;
+use crate::ingest::system_agent::SystemAgentOutput;
 
 type Ingestion = Arc<MetricsFetcherIngestion<SystemAgentOutput>>;
 

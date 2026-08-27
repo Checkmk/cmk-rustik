@@ -1,9 +1,9 @@
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
 use crate::ingest::MetricsFetcherIngestion;
-use crate::ingest::SystemAgentOutput;
 use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
+use crate::ingest::system_agent::SystemAgentOutput;
 use axum::body::Bytes;
 use axum::extract::Path;
 use axum::{Json, extract::State};

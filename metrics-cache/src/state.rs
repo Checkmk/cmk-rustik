@@ -10,11 +10,11 @@ use crate::cli_args::CliArgs;
 use crate::error::{Error, Result};
 use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings};
 use crate::ingest::MetricsFetcherIngestion;
-use crate::ingest::SystemAgentOutput;
 use crate::ingest::api_health::ApiHealthUpdate;
 use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::Stores;
+use crate::ingest::system_agent::SystemAgentOutput;
 
 // Used for the size of the various metrics-fetcher caches.
 const MAX_SUPPORTED_KUBERNETES_NODES: u64 = 5000;

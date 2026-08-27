@@ -11,11 +11,12 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::watch::Receiver;
 
+use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::api_health::ApiHealthUpdate;
 use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::{FrozenStores, Stores};
-use crate::ingest::{MetricsFetcherIngestion, SystemAgentOutput};
+use crate::ingest::system_agent::SystemAgentOutput;
 use crate::snapshot::indexes::Indexes;
 use crate::snapshot::kubelet_health::KubeletHealths;
 use crate::snapshot::metric_tables::MetricTables;
