@@ -1,0 +1,46 @@
+---
+source: metrics-cache/src/section/statefulset.rs
+expression: "KubeStatefulSetInfoV1::from_statefulset(&statefulset,\nThinContainers::from_pods(pods.iter()), &host_settings(),)"
+---
+{
+  "name": "database",
+  "namespace": "the-namespace-of-all-namespaces",
+  "creation_timestamp": 1718824965.0,
+  "labels": {
+    "app": {
+      "name": "app",
+      "value": "database"
+    }
+  },
+  "annotations": {
+    "checkmk.com/promote-to-host": "true",
+    "example.com/cool-animal": "monkeys"
+  },
+  "selector": {
+    "match_labels": {
+      "app": "database"
+    },
+    "match_expressions": [
+      {
+        "key": "tier",
+        "operator": "In",
+        "values": [
+          "backend",
+          "frontend"
+        ]
+      }
+    ]
+  },
+  "containers": {
+    "images": [
+      "postgres-exporter:0.15",
+      "postgres:16"
+    ],
+    "names": [
+      "postgres",
+      "exporter"
+    ]
+  },
+  "cluster": "the-cluster",
+  "kubernetes_cluster_hostname": "cluster.host.tld"
+}

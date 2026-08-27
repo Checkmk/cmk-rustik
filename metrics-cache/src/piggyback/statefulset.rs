@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
+use crate::section::common::ThinContainers;
 use crate::section::controller_spec::KubeControllerSpecV1;
+use crate::section::statefulset::KubeStatefulSetInfoV1;
 use crate::section::update_strategy::KubeUpdateStrategyV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -79,6 +81,14 @@ impl PiggybackHost for StatefulSet<'_> {
         {
             out.extend(self.pvc_sections(&me, namespace));
         }
+
+        let containers = ThinContainers::from_pods(self.pods());
+        if let Some(kube_statefulset_info_v1) =
+            KubeStatefulSetInfoV1::from_statefulset(self.api, containers, self.settings)
+        {
+            out.push(WriteableSection::of(&me, &kube_statefulset_info_v1));
+        }
+
         out
     }
 }
