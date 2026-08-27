@@ -74,6 +74,11 @@ impl PiggybackHost for StatefulSet<'_> {
             &KubeControllerSpecV1::new(min_ready_seconds),
         ));
         out.extend(self.aggregation_sections(&me));
+        if self.settings.emit_pvc_sections
+            && let Some(namespace) = self.meta.namespace
+        {
+            out.extend(self.pvc_sections(&me, namespace));
+        }
         out
     }
 }

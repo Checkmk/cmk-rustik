@@ -163,9 +163,10 @@ impl<'a> KubePvcV1<'a> {
     /// Only PVCs are kept, any other kind of volume is discarded.
     ///
     /// This is a convenience wrapper over [`Self::pod_pvc_claim_names()`].
-    #[allow(dead_code)]
-    pub fn workload_pvc_claim_names(pods: &[Arc<Pod>]) -> HashSet<&str> {
-        pods.iter()
+    pub fn workload_pvc_claim_names<'p>(
+        pods: impl IntoIterator<Item = &'p Arc<Pod>>,
+    ) -> HashSet<&'p str> {
+        pods.into_iter()
             .flat_map(|p| Self::pod_pvc_claim_names(p))
             .collect()
     }
@@ -320,6 +321,8 @@ mod tests {
     use super::*;
     use std::assert_matches;
 
+    use k8s_openapi::api::core::v1::{PersistentVolumeClaimVolumeSource, Volume};
+
     use crate::snapshot::metric_tables::VolumeSample;
     use crate::test_support::*;
 
@@ -376,6 +379,34 @@ mod tests {
         assert_matches!(
             KubePvcV1::from_claim_names(&indexes, "ANOTHER-namespace", ["pvc-1", "pvc-2"]),
             None
+        );
+    }
+
+    #[test]
+    fn workload_pvc_claim_names_are_deduplicated() {
+        let mut first = pod("first", None);
+        first.spec.as_mut().unwrap().volumes = Some(vec![Volume {
+            name: s("first-volume"),
+            persistent_volume_claim: Some(PersistentVolumeClaimVolumeSource {
+                claim_name: s("claim"),
+                read_only: Some(false),
+            }),
+            ..Default::default()
+        }]);
+        let mut second = pod("second", None);
+        second.spec.as_mut().unwrap().volumes = Some(vec![Volume {
+            name: s("second-volume"),
+            persistent_volume_claim: Some(PersistentVolumeClaimVolumeSource {
+                claim_name: s("claim"),
+                read_only: Some(false),
+            }),
+            ..Default::default()
+        }]);
+        let pods = [Arc::new(first), Arc::new(second)];
+
+        assert_eq!(
+            KubePvcV1::workload_pvc_claim_names(pods.iter()),
+            HashSet::from(["claim"])
         );
     }
 

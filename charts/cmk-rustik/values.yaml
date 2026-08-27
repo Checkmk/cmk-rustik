@@ -226,7 +226,8 @@ hostLabels:
 # emitAll allows you to set which kinds have ALL of their resources turned into
 # piggyback hosts in Checkmk. Resources not enabled here can be opted in via an
 # annotation (checkmk.com/promote-to-host: "true"). By default, pods are not
-# emitted by default, everything else is.
+# emitted by default, everything else is. PVCs are not piggyback hosts; their
+# setting controls PVC-related sections on Pods and workload hosts.
 emitAll:
   pods: false
   namespaces: true
@@ -235,6 +236,7 @@ emitAll:
   daemonsets: true
   statefulsets: true
   cronjobs: true
+  pvcs: false
 
 # intraClusterCommunication configures communication between metrics-fetcher
 # and metrics-cache. Encryption is enabled by default.

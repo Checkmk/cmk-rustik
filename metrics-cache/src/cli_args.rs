@@ -280,6 +280,10 @@ pub struct CliArgs {
     /// Emit all CronJob resources rather than only annotated ones
     #[arg(long)]
     pub all_cronjobs: bool,
+
+    /// Emit PVC sections on Pod and workload resources
+    #[arg(long)]
+    pub all_pvcs: bool,
 }
 
 impl CliArgs {

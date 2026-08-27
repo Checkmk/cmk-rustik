@@ -54,6 +54,7 @@ impl AppState<Client> {
             ),
             excluded_node_role_patterns: args.excluded_node_role_patterns.clone(),
             always_emitted: AlwaysEmitted::from_cli_args(args),
+            emit_pvc_sections: args.all_pvcs,
             cluster_version,
         };
         let state = Self {

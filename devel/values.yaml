@@ -45,3 +45,6 @@ pull:
   enabled: true
   authentication:
     enabled: false
+
+emitAll:
+  pvcs: true

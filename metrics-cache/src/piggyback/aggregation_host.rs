@@ -6,6 +6,7 @@ use crate::section::performance::{
     KubePerformanceCpuV1, KubePerformanceMemorySwapV1, KubePerformanceMemoryV1,
 };
 use crate::section::pod::KubePodResourcesV1;
+use crate::section::pvc::{KubePvcPvsV1, KubePvcV1, KubePvcVolumesV1};
 use crate::section::resource::{
     KubeCpuResourcesV1, KubeMemoryResourcesV1, ResourceAccumulator, ResourceAxis,
 };
@@ -93,6 +94,49 @@ pub(crate) trait AggregationHost {
         }
         if let Some(swap_perf) = &self.swap_performance() {
             out.push(WriteableSection::of(me, swap_perf));
+        }
+        out
+    }
+
+    /// Emit PVC sections for claims referenced by this host's Pods.
+    ///
+    /// The legacy agent emits these sections on Pod, Deployment, DaemonSet,
+    /// and StatefulSet hosts when PVC monitoring is enabled. This is an output
+    /// placement compatibility rule, not an inherent data limitation:
+    /// Namespace and CronJob hosts could also provide the data, but the legacy
+    /// agent does not associate PVC services with them. Cluster and Node hosts
+    /// additionally have no single namespace in which to resolve a claim.
+    /// Therefore this deliberately stays separate from
+    /// [`Self::aggregation_sections()`], whose sections apply to every
+    /// aggregation host.
+    fn pvc_sections(
+        &self,
+        me: &str,
+        namespace: &str,
+    ) -> Vec<Result<WriteableSection, SectionError>> {
+        let claim_names = KubePvcV1::workload_pvc_claim_names(self.pods());
+        let mut out = Vec::new();
+
+        if let Some(section) = KubePvcV1::from_claim_names(
+            &self.snapshot().indexes,
+            namespace,
+            claim_names.iter().copied(),
+        ) {
+            out.push(WriteableSection::of(me, &section));
+        }
+        if let Some(section) = KubePvcVolumesV1::from_claim_names(
+            &self.snapshot().metrics,
+            namespace,
+            claim_names.iter().copied(),
+        ) {
+            out.push(WriteableSection::of(me, &section));
+        }
+        if let Some(section) = KubePvcPvsV1::from_claim_names(
+            &self.snapshot().indexes,
+            namespace,
+            claim_names.iter().copied(),
+        ) {
+            out.push(WriteableSection::of(me, &section));
         }
         out
     }

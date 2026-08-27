@@ -8,7 +8,6 @@ use crate::section::pod::{
     KubePodConditionsV1, KubePodContainerSpecsV1, KubePodContainersV1, KubePodInfoV1,
     KubePodInitContainerSpecsV1, KubePodInitContainersV1, KubePodLifecycleV1, KubeStartTimeV1,
 };
-use crate::section::pvc::{KubePvcPvsV1, KubePvcV1, KubePvcVolumesV1};
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
 
@@ -37,31 +36,6 @@ impl<'a> Pod<'a> {
     fn info(&'a self) -> Option<KubePodInfoV1<'a>> {
         let owner_graph = &self.snapshot.owner_graph;
         KubePodInfoV1::from_pod(self.api, owner_graph, self.settings)
-    }
-
-    /// Generate the section `kube_pvc_v1`, which includes each volume attached
-    /// to the pod which has a corresponding PVC in the snapshot.
-    fn pvcs(&'a self) -> Option<KubePvcV1<'a>> {
-        let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
-        KubePvcV1::from_claim_names(&self.snapshot.indexes, self.meta.namespace?, claim_names)
-    }
-
-    /// Generate the section `kube_pvc_volumes_v1` which extends PVC information
-    /// with live usage metrics (capacity/free space).
-    fn pvc_volumes(&'a self) -> Option<KubePvcVolumesV1<'a>> {
-        let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
-        KubePvcVolumesV1::from_claim_names(
-            &self.snapshot.metrics,
-            self.meta.namespace?,
-            claim_names,
-        )
-    }
-
-    /// Generate the section `kube_pvc_pvs_v1` which extends PVC information
-    /// with PV information.
-    fn pvs(&'a self) -> Option<KubePvcPvsV1<'a>> {
-        let claim_names = KubePvcV1::pod_pvc_claim_names(self.api);
-        KubePvcPvsV1::from_claim_names(&self.snapshot.indexes, self.meta.namespace?, claim_names)
     }
 }
 
@@ -93,14 +67,10 @@ impl PiggybackHost for Pod<'_> {
             out.push(WriteableSection::of(&me, kube_pod_info_v1));
         }
 
-        if let Some(kube_pvc_v1) = &self.pvcs() {
-            out.push(WriteableSection::of(&me, kube_pvc_v1));
-        }
-        if let Some(kube_pvc_volumes_v1) = &self.pvc_volumes() {
-            out.push(WriteableSection::of(&me, kube_pvc_volumes_v1));
-        }
-        if let Some(kube_pvc_pvs_v1) = &self.pvs() {
-            out.push(WriteableSection::of(&me, kube_pvc_pvs_v1));
+        if self.settings.emit_pvc_sections
+            && let Some(namespace) = self.meta.namespace
+        {
+            out.extend(self.pvc_sections(&me, namespace));
         }
         if let Some(phase) = &self.api.status.as_ref().and_then(|s| s.phase.as_deref()) {
             out.push(WriteableSection::of(&me, &KubePodLifecycleV1::new(phase)));

@@ -86,6 +86,11 @@ impl PiggybackHost for Deployment<'_> {
             &KubeControllerSpecV1::new(min_ready_seconds),
         ));
         out.extend(self.aggregation_sections(&me));
+        if self.settings.emit_pvc_sections
+            && let Some(namespace) = self.meta.namespace
+        {
+            out.extend(self.pvc_sections(&me, namespace));
+        }
         if let Some(kube_deployment_replicas_v1) =
             KubeDeploymentReplicasV1::from_deployment(self.api)
         {
