@@ -22,6 +22,11 @@ pub struct CliArgs {
     #[arg(long, env = "NAMESPACE")]
     pub namespace: Option<String>,
 
+    /// Name of the metrics-fetcher DaemonSet whose scheduled Pods are expected
+    /// to report metrics
+    #[arg(long, requires = "namespace")]
+    pub metrics_fetcher_daemonset_name: Option<String>,
+
     /// IP address to bind to for intra-cluster ingest
     #[arg(long, default_value = "127.0.0.1")]
     pub ingest_address: String,

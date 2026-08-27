@@ -21,7 +21,7 @@ use crate::snapshot::indexes::Indexes;
 use crate::snapshot::kubelet_health::KubeletHealths;
 use crate::snapshot::metric_tables::MetricTables;
 use crate::snapshot::owner_graph::OwnerGraph;
-use crate::snapshot::self_health::SelfHealth;
+use crate::snapshot::self_health::{MetricsFetcherDaemonSet, SelfHealth};
 use crate::snapshot::system_agent::SystemAgentOutputs;
 
 /// Represents a single, static snapshot of the state of the cluster as it
@@ -60,6 +60,7 @@ impl Snapshot {
         kubelet_health_cache: Cache<String, Arc<MetricsFetcherIngestion<KubeletHealth>>>,
         system_agent_cache: Cache<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
         api_health_receiver: Receiver<ApiHealthUpdate>,
+        metrics_fetcher_daemonset: Option<&MetricsFetcherDaemonSet>,
     ) -> Self {
         let instant = Instant::now();
         let reflector_healths = stores.freeze_healths();
@@ -67,9 +68,14 @@ impl Snapshot {
         let owner_graph = OwnerGraph::from_frozen_stores(&stores);
         let metrics = MetricTables::from_cache(&kubelet_stats_summary_cache);
         let indexes = Indexes::from_frozen_stores(&stores);
+        let expected_metrics_fetcher_nodes = SelfHealth::expected_node_names(
+            &stores.daemonsets,
+            &owner_graph,
+            metrics_fetcher_daemonset,
+        );
         let self_health = SelfHealth::new(
             instant,
-            &stores.nodes,
+            &expected_metrics_fetcher_nodes,
             reflector_healths,
             &kubelet_stats_summary_cache,
             &kubelet_health_cache,

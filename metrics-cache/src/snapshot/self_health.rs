@@ -1,6 +1,6 @@
-use k8s_openapi::api::core::v1::Node;
+use k8s_openapi::api::apps::v1::DaemonSet;
 use moka::future::Cache;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -9,6 +9,7 @@ use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::{self, FrozenReflectorHealths};
 use crate::ingest::system_agent::SystemAgentOutput;
+use crate::snapshot::owner_graph::OwnerGraph;
 
 /// A point-in-time view of the health of cmk-rustik and its components:
 /// metrics-cache and metrics-fetcher.
@@ -17,19 +18,10 @@ use crate::ingest::system_agent::SystemAgentOutput;
 /// cluster-level sections for alerting about the state of rustik, such as when
 /// a node last reported in (metrics-fetcher), or if the reflectors had errors.
 ///
-/// When constructing this (with [`SelfHealth::new()`]), you must supply a slice
-/// of [`Arc<Node>`]s. This is because we need a source of truth that is _not_
-/// the cache data for determining which nodes _should_ be present. The cache
-/// data can come and go at any time (expiring TTLs, for example). And nodes can
-/// come and go as they join and leave a cluster. We need to account for these
-/// situations somehow: If we relied only on the cache data, and a node's TTL
-/// expired, we would not know if the node went offline due to a problem or if
-/// it were removed from the cluster and now expected to be absent.
-///
-/// The cluster API _knows_ if a node should be present or not. So we use that
-/// as the source of truth. Then in the monitoring/Checkmk side, we can alert on
-/// "Kubernetes said the node should be there, it's missing from the cache data,
-/// that means it stopped reporting at some point, CRIT!"
+/// Scheduled Pods belonging to the metrics-fetcher DaemonSet are the source of
+/// truth for which nodes should report. This accounts for nodes on which the
+/// DaemonSet is intentionally not scheduled while still retaining missing
+/// cache entries for broken metrics-fetcher Pods.
 #[derive(Debug, Default)]
 pub struct SelfHealth {
     /// Health data for each of the payloads sent by metrics-fetcher, keyed by
@@ -53,6 +45,13 @@ pub struct MetricsFetcherIngestionHealth {
     pub last_heard_age: Option<Duration>,
     pub scrape_time: Option<Duration>,
     pub version: Option<String>,
+}
+
+/// Identifies the metrics-fetcher DaemonSet in the reflector store.
+#[derive(Clone, Debug)]
+pub struct MetricsFetcherDaemonSet {
+    pub namespace: String,
+    pub name: String,
 }
 
 #[derive(Debug, Default)]
@@ -87,15 +86,15 @@ impl ReflectorHealth {
 impl SelfHealth {
     pub(crate) fn new(
         now: Instant,
-        nodes: &[Arc<Node>],
+        expected_nodes: &BTreeSet<String>,
         reflector_healths: FrozenReflectorHealths,
         kubelet_stats_summary_cache: &Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
         kubelet_health_cache: &Cache<String, Arc<MetricsFetcherIngestion<KubeletHealth>>>,
         system_agent_cache: &Cache<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
     ) -> SelfHealth {
-        let kubelet_stats = Self::cache_health(now, nodes, kubelet_stats_summary_cache);
-        let mut kubelet_health = Self::cache_health(now, nodes, kubelet_health_cache);
-        let mut system_agent = Self::cache_health(now, nodes, system_agent_cache);
+        let kubelet_stats = Self::cache_health(now, expected_nodes, kubelet_stats_summary_cache);
+        let mut kubelet_health = Self::cache_health(now, expected_nodes, kubelet_health_cache);
+        let mut system_agent = Self::cache_health(now, expected_nodes, system_agent_cache);
         let node_metrics_fetchers = kubelet_stats
             .into_iter()
             .map(|(node, kubelet_stats)| {
@@ -118,19 +117,45 @@ impl SelfHealth {
         }
     }
 
+    pub(crate) fn expected_node_names(
+        daemonsets: &[Arc<DaemonSet>],
+        owner_graph: &OwnerGraph,
+        identity: Option<&MetricsFetcherDaemonSet>,
+    ) -> BTreeSet<String> {
+        let Some(identity) = identity else {
+            return BTreeSet::new();
+        };
+        let Some(uid) = daemonsets
+            .iter()
+            .find(|daemonset| {
+                daemonset.metadata.namespace.as_deref() == Some(&identity.namespace)
+                    && daemonset.metadata.name.as_deref() == Some(&identity.name)
+            })
+            .and_then(|daemonset| daemonset.metadata.uid.as_deref())
+        else {
+            return BTreeSet::new();
+        };
+
+        owner_graph
+            .pods_by_controller(uid)
+            .iter()
+            .filter_map(|pod| pod.spec.as_ref()?.node_name.clone())
+            .collect()
+    }
+
     /// Given an `Instant` representing _the moment the `Snapshot` is being
-    /// taken_, a collection of nodes, and a cache of metrics-fetcher ingestions
-    /// from nodes, calculate how long it has been since the node reported in
-    /// and collect the results, keyed on the node name.
+    /// taken_, a collection of expected node names, and a cache of
+    /// metrics-fetcher ingestions, calculate how long it has been since each
+    /// node reported in and collect the results, keyed on the node name.
     ///
-    /// The collection of nodes is taken as the source of truth for "which nodes
-    /// _are supposed to be_ present?" and anything that is not in the cache but
-    /// is in the collection of nodes is returned with empty health data, with
+    /// The node names are taken as the source of truth for "which nodes are
+    /// supposed to be present?" Anything that is not in the cache but is in
+    /// this collection is returned with empty health data, with
     /// the expectation that monitoring reports the node as having stopped
     /// reporting its metrics.
     fn cache_health<T>(
         now: Instant,
-        nodes: &[Arc<Node>],
+        nodes: &BTreeSet<String>,
         cache: impl IntoIterator<Item = (Arc<String>, Arc<MetricsFetcherIngestion<T>>)>,
     ) -> BTreeMap<String, MetricsFetcherIngestionHealth> {
         let mut intermediary: HashMap<String, MetricsFetcherIngestionHealth> = cache
@@ -148,12 +173,9 @@ impl SelfHealth {
             .collect();
 
         let mut map = BTreeMap::new();
-        for node in nodes {
-            let Some(node_name) = node.metadata.name.clone() else {
-                continue;
-            };
-            let health = intermediary.remove(&node_name).unwrap_or_default();
-            map.insert(node_name, health);
+        for node_name in nodes {
+            let health = intermediary.remove(node_name).unwrap_or_default();
+            map.insert(node_name.clone(), health);
         }
         map
     }
@@ -193,12 +215,8 @@ mod tests {
     #[test]
     fn cache_health() {
         let now = Instant::now();
-        let nodes = &[
-            node("node1334").into(),
-            node("node1335").into(),
-            node("node1336").into(),
-            node("node1337").into(),
-        ];
+        let nodes =
+            BTreeSet::from(["node1334", "node1335", "node1336", "node1337"].map(str::to_string));
         let cache = [
             (
                 s("node1334").into(),
@@ -217,7 +235,7 @@ mod tests {
                 ingestion(now - Duration::from_mins(29)),
             ),
         ];
-        let healths = SelfHealth::cache_health(now, nodes, cache);
+        let healths = SelfHealth::cache_health(now, &nodes, cache);
 
         assert_eq!(healths.len(), nodes.len());
         assert_eq!(
@@ -233,11 +251,37 @@ mod tests {
             Some(Duration::from_secs(26))
         );
 
-        // Node in nodes store but not in cache gets added to the result as None
+        // Expected node not in cache gets added to the result as None
         assert!(healths["node1337"].last_heard_age.is_none());
 
-        // A node in the cache but not in the nodes store is not added
+        // A node in the cache but not in the expected set is not added
         assert!(!healths.contains_key("decommissioned01"));
+    }
+
+    #[test]
+    fn expected_nodes_are_scheduled_metrics_fetcher_pods() {
+        let mut daemonset = daemonset("metrics-fetcher");
+        daemonset.metadata.uid = Some(s("daemonset-uid"));
+        let owner_graph = OwnerGraph {
+            owner_ref_by_uid: HashMap::new(),
+            pods_by_controller: HashMap::from([(
+                "daemonset-uid".into(),
+                vec![
+                    Arc::new(pod("fetcher", Some("linux-node"))),
+                    Arc::new(pod("pending-fetcher", None)),
+                ],
+            )]),
+            jobs_by_controller: HashMap::new(),
+        };
+        let identity = MetricsFetcherDaemonSet {
+            namespace: s("the-namespace-of-all-namespaces"),
+            name: s("metrics-fetcher"),
+        };
+
+        let nodes =
+            SelfHealth::expected_node_names(&[Arc::new(daemonset)], &owner_graph, Some(&identity));
+
+        assert_eq!(nodes, BTreeSet::from([s("linux-node")]));
     }
 
     #[test]
@@ -255,7 +299,7 @@ mod tests {
 
         let health = SelfHealth::cache_health(
             now,
-            &[node("node01").into()],
+            &BTreeSet::from([s("node01")]),
             [(s("node01").into(), ingestion)],
         );
 

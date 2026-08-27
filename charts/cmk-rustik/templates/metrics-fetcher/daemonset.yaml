@@ -12,6 +12,10 @@ spec:
         app: {{ include "rustik.fullname" . }}-metrics-fetcher
     spec:
       serviceAccountName: {{ include "rustik.fullname" . }}-metrics-fetcher
+      {{- with .Values.metricsFetcher.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       # hostNetwork: true
       # dnsPolicy: ClusterFirstWithHostNet
       {{- if or .Values.metricsFetcher.extraVolumes .Values.intraClusterCommunication.encryption.enabled }}

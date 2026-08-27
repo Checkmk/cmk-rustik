@@ -121,6 +121,7 @@ mod tests {
             state.kubelet_health_cache,
             state.system_agent_cache,
             state.api_health_receiver,
+            state.metrics_fetcher_daemonset.as_ref(),
         );
         let node = Node::new(&api, &snapshot, &host_settings).unwrap();
 

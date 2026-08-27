@@ -150,6 +150,7 @@ mod tests {
             state.kubelet_health_cache,
             state.system_agent_cache,
             state.api_health_receiver,
+            state.metrics_fetcher_daemonset.as_ref(),
         );
         snapshot.stores.nodes = nodes;
         snapshot

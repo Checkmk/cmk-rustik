@@ -44,6 +44,11 @@ metricsFetcher:
   # Inherits top-level logLevel by default.
   logLevel: ""
 
+  # nodeSelector controls which nodes run metrics-fetcher. The default avoids
+  # scheduling the Linux-only image and Checkmk agent on Windows nodes.
+  nodeSelector:
+    kubernetes.io/os: linux
+
   # extraVolumes is volume definitions to add to the Pod in the Deployment.
   extraVolumes: []
   # extraVolumeMounts is volume mounts to mount in the metrics-fetcher container.

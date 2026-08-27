@@ -15,6 +15,7 @@ use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::Stores;
 use crate::ingest::system_agent::SystemAgentOutput;
+use crate::snapshot::self_health::MetricsFetcherDaemonSet;
 
 // Used for the size of the various metrics-fetcher caches.
 const MAX_SUPPORTED_KUBERNETES_NODES: u64 = 5000;
@@ -30,6 +31,7 @@ pub struct AppState<V: TokenValidator> {
     pub system_agent_cache: Cache<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
     pub host_settings: Arc<HostSettings>,
     pub api_health_receiver: Receiver<ApiHealthUpdate>,
+    pub metrics_fetcher_daemonset: Option<MetricsFetcherDaemonSet>,
 }
 
 impl AppState<Client> {
@@ -76,6 +78,11 @@ impl AppState<Client> {
                 .build(),
             host_settings: host_settings.into(),
             api_health_receiver,
+            metrics_fetcher_daemonset: args
+                .namespace
+                .clone()
+                .zip(args.metrics_fetcher_daemonset_name.clone())
+                .map(|(namespace, name)| MetricsFetcherDaemonSet { namespace, name }),
         };
         Ok(state)
     }
@@ -142,6 +149,7 @@ pub mod tests {
                 .build(),
             host_settings: host_settings().into(),
             api_health_receiver: rx,
+            metrics_fetcher_daemonset: None,
         }
     }
 
