@@ -19,7 +19,8 @@ pub fn pull_app<V: TokenValidator>(state: AppState<V>, pull: PullAgentMiddleware
     Router::new()
         .route("/", get(|| async { "foo" }))
         .nest("/pull", routes)
-        .route("/health", get(health::health))
+        .route("/livez", get(health::livez))
+        .route("/readyz", get(health::readyz))
         .layer(tower_http::compression::CompressionLayer::new())
         .with_state(state)
 }
@@ -55,6 +56,21 @@ mod tests {
 
     use super::*;
     use crate::state::tests::test_app_state;
+
+    #[tokio::test]
+    async fn health_routes_do_not_require_authentication() {
+        let app = pull_app(test_app_state(), PullAgentMiddlewareConfig::default());
+
+        for path in ["/livez", "/readyz"] {
+            let response = app
+                .clone()
+                .oneshot(Request::get(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+
+            assert!(!response.status().is_client_error());
+        }
+    }
 
     /// Sanity check that the ingest route is actually wired up behind the
     /// kubernetes-token middleware; handler-level behavior is covered in
