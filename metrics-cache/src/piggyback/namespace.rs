@@ -105,6 +105,10 @@ impl PiggybackHost for Namespace<'_> {
         &self.meta.kind
     }
 
+    fn namespace_for_filtering(&self) -> Option<&str> {
+        Some(self.meta.name)
+    }
+
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();

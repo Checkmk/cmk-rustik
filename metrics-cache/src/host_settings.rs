@@ -64,12 +64,41 @@ impl AlwaysEmitted {
     }
 }
 
+/// Controls which namespaces produce namespaced piggyback hosts.
+#[derive(Clone, Default)]
+pub struct NamespaceFilter {
+    include_patterns: Vec<Regex>,
+    exclude_patterns: Vec<Regex>,
+}
+
+impl NamespaceFilter {
+    pub fn new(include_patterns: Vec<Regex>, exclude_patterns: Vec<Regex>) -> Self {
+        Self {
+            include_patterns,
+            exclude_patterns,
+        }
+    }
+
+    pub fn is_included(&self, namespace: &str) -> bool {
+        (self.include_patterns.is_empty()
+            || self
+                .include_patterns
+                .iter()
+                .any(|pattern| pattern.is_match(namespace)))
+            && !self
+                .exclude_patterns
+                .iter()
+                .any(|pattern| pattern.is_match(namespace))
+    }
+}
+
 #[derive(Clone)]
 pub struct HostSettings {
     pub cluster_name: String,
     pub cluster_host_name: String,
     pub annotation_key_pattern: AnnotationKeyPattern,
     pub excluded_node_role_patterns: Vec<Regex>,
+    pub namespace_filter: NamespaceFilter,
     pub always_emitted: AlwaysEmitted,
     /// Whether to emit PVC-related sections on Pods and workload hosts.
     pub emit_pvc_sections: bool,
@@ -137,6 +166,19 @@ mod tests {
             node_roles(&node).collect::<Vec<_>>(),
             vec!["control-plane", "worker"]
         );
+    }
+
+    #[test]
+    fn namespace_filter_uses_infix_patterns() {
+        let include = NamespaceFilter::new(vec![Regex::new("prod").unwrap()], vec![]);
+        assert!(include.is_included("my-production"));
+        assert!(!include.is_included("development"));
+
+        let exclude = NamespaceFilter::new(vec![], vec![Regex::new("^kube-").unwrap()]);
+        assert!(!exclude.is_included("kube-system"));
+        assert!(exclude.is_included("my-kube-project"));
+
+        assert!(NamespaceFilter::default().is_included("anything"));
     }
 
     #[test]

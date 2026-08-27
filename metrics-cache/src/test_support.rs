@@ -16,7 +16,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
 use k8s_openapi::jiff::Timestamp;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings};
+use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings, NamespaceFilter};
 use crate::snapshot::owner_graph::OwnerGraph;
 
 #[inline(always)]
@@ -314,6 +314,7 @@ pub fn host_settings() -> HostSettings {
         cluster_host_name: s("cluster.host.tld"),
         annotation_key_pattern: AnnotationKeyPattern::ImportAll,
         excluded_node_role_patterns: Vec::new(),
+        namespace_filter: NamespaceFilter::default(),
         always_emitted: AlwaysEmitted::default(),
         emit_pvc_sections: false,
         cluster_version: s("v1.36.1"),

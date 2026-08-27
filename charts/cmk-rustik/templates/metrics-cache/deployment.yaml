@@ -5,6 +5,9 @@
 }}
 {{- fail "pull.encryption.existingSecret is required when pull encryption is enabled and metricsCache.service.type is NodePort (the generated certificate only covers cluster-internal DNS names)" }}
 {{- end }}
+{{- if and .Values.namespaceFilter.includePatterns .Values.namespaceFilter.excludePatterns }}
+{{- fail "namespaceFilter.includePatterns and namespaceFilter.excludePatterns are mutually exclusive" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -58,6 +61,12 @@ spec:
             - --system-agent-cache-ttl={{ .Values.metricsCache.systemAgentCacheTtl }}
             - --kubelet-health-cache-ttl={{ .Values.metricsCache.kubeletHealthCacheTtl }}
             - --api-health-poll-interval={{ .Values.metricsCache.apiHealthPollInterval }}
+            {{- range .Values.namespaceFilter.includePatterns }}
+            - {{ printf "--namespace-include-patterns=%s" . | quote }}
+            {{- end }}
+            {{- range .Values.namespaceFilter.excludePatterns }}
+            - {{ printf "--namespace-exclude-patterns=%s" . | quote }}
+            {{- end }}
             {{- if .Values.hostLabels.importAllAnnotations }}
             {{- if .Values.hostLabels.importKeyPattern }}
             {{ fail "hostLabels.importKeyPattern should not be set while hostLabels.importAllAnnotations is true" }}

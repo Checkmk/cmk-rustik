@@ -241,6 +241,16 @@ pub struct CliArgs {
     #[arg(long, value_delimiter = ',')]
     pub excluded_node_role_patterns: Vec<Regex>,
 
+    /// Only emit piggyback hosts belonging to namespaces matching at least one
+    /// of these regex patterns
+    #[arg(long, conflicts_with = "namespace_exclude_patterns")]
+    pub namespace_include_patterns: Vec<Regex>,
+
+    /// Do not emit piggyback hosts belonging to namespaces matching any of
+    /// these regex patterns
+    #[arg(long, conflicts_with = "namespace_include_patterns")]
+    pub namespace_exclude_patterns: Vec<Regex>,
+
     /// Enable sending OTel metrics to the endpoint given
     #[arg(long)]
     pub otel_endpoint: Option<String>,

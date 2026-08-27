@@ -8,7 +8,7 @@ use tokio::task::JoinSet;
 use crate::auth::kubernetes::TokenValidator;
 use crate::cli_args::CliArgs;
 use crate::error::{Error, Result};
-use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings};
+use crate::host_settings::{AlwaysEmitted, AnnotationKeyPattern, HostSettings, NamespaceFilter};
 use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::api_health::ApiHealthUpdate;
 use crate::ingest::kubelet_health::KubeletHealth;
@@ -55,6 +55,10 @@ impl AppState<Client> {
                 args.annotation_key_pattern.clone(),
             ),
             excluded_node_role_patterns: args.excluded_node_role_patterns.clone(),
+            namespace_filter: NamespaceFilter::new(
+                args.namespace_include_patterns.clone(),
+                args.namespace_exclude_patterns.clone(),
+            ),
             always_emitted: AlwaysEmitted::from_cli_args(args),
             emit_pvc_sections: args.all_pvcs,
             cluster_version,
