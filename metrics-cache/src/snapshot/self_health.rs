@@ -5,8 +5,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::ingest::MetricsFetcherIngestion;
+use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::{self, FrozenReflectorHealths};
+use crate::ingest::system_agent::SystemAgentOutput;
 
 /// A point-in-time view of the health of cmk-rustik and its components:
 /// metrics-cache and metrics-fetcher.
@@ -30,10 +32,27 @@ use crate::ingest::reflectors::{self, FrozenReflectorHealths};
 /// that means it stopped reporting at some point, CRIT!"
 #[derive(Debug, Default)]
 pub struct SelfHealth {
-    /// Maps node names to the age of the last kubelet stats push from the node.
-    pub kubelet_stats_summary_age: BTreeMap<String, Option<Duration>>,
+    /// Health data for each of the payloads sent by metrics-fetcher, keyed by
+    /// node name.
+    pub node_metrics_fetchers: BTreeMap<String, NodeMetricsFetcherHealth>,
     /// Maps kind names to reflector states.
     pub(crate) reflector_healths: BTreeMap<&'static str, ReflectorHealth>,
+}
+
+/// Self-health data for the metrics-fetcher running on a single node.
+#[derive(Debug, Default)]
+pub struct NodeMetricsFetcherHealth {
+    pub kubelet_stats: MetricsFetcherIngestionHealth,
+    pub kubelet_health: MetricsFetcherIngestionHealth,
+    pub system_agent: MetricsFetcherIngestionHealth,
+}
+
+/// Freshness and metadata for one kind of metrics-fetcher ingestion.
+#[derive(Debug, Default)]
+pub struct MetricsFetcherIngestionHealth {
+    pub last_heard_age: Option<Duration>,
+    pub scrape_time: Option<Duration>,
+    pub version: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -71,11 +90,30 @@ impl SelfHealth {
         nodes: &[Arc<Node>],
         reflector_healths: FrozenReflectorHealths,
         kubelet_stats_summary_cache: &Cache<String, Arc<MetricsFetcherIngestion<StatsSummary>>>,
+        kubelet_health_cache: &Cache<String, Arc<MetricsFetcherIngestion<KubeletHealth>>>,
+        system_agent_cache: &Cache<String, Arc<MetricsFetcherIngestion<SystemAgentOutput>>>,
     ) -> SelfHealth {
-        let kubelet_stats_summary_age = Self::cache_age(now, nodes, kubelet_stats_summary_cache);
+        let kubelet_stats = Self::cache_health(now, nodes, kubelet_stats_summary_cache);
+        let mut kubelet_health = Self::cache_health(now, nodes, kubelet_health_cache);
+        let mut system_agent = Self::cache_health(now, nodes, system_agent_cache);
+        let node_metrics_fetchers = kubelet_stats
+            .into_iter()
+            .map(|(node, kubelet_stats)| {
+                let kubelet_health = kubelet_health.remove(&node).unwrap_or_default();
+                let system_agent = system_agent.remove(&node).unwrap_or_default();
+                (
+                    node,
+                    NodeMetricsFetcherHealth {
+                        kubelet_stats,
+                        kubelet_health,
+                        system_agent,
+                    },
+                )
+            })
+            .collect();
         let reflector_healths = Self::reflector_healths_from_frozen(now, reflector_healths);
         SelfHealth {
-            kubelet_stats_summary_age,
+            node_metrics_fetchers,
             reflector_healths,
         }
     }
@@ -87,17 +125,26 @@ impl SelfHealth {
     ///
     /// The collection of nodes is taken as the source of truth for "which nodes
     /// _are supposed to be_ present?" and anything that is not in the cache but
-    /// is in the collection of nodes is returned as `None` in the resulting map
-    /// with the expectation that monitoring reports the node as having stopped
+    /// is in the collection of nodes is returned with empty health data, with
+    /// the expectation that monitoring reports the node as having stopped
     /// reporting its metrics.
-    fn cache_age<T>(
+    fn cache_health<T>(
         now: Instant,
         nodes: &[Arc<Node>],
         cache: impl IntoIterator<Item = (Arc<String>, Arc<MetricsFetcherIngestion<T>>)>,
-    ) -> BTreeMap<String, Option<Duration>> {
-        let intermediary: HashMap<String, Duration> = cache
+    ) -> BTreeMap<String, MetricsFetcherIngestionHealth> {
+        let mut intermediary: HashMap<String, MetricsFetcherIngestionHealth> = cache
             .into_iter()
-            .map(|(name, ingestion)| (name.to_string(), now - ingestion.received_at))
+            .map(|(name, ingestion)| {
+                (
+                    name.to_string(),
+                    MetricsFetcherIngestionHealth {
+                        last_heard_age: Some(now.saturating_duration_since(ingestion.received_at)),
+                        scrape_time: ingestion.metadata.scrape_time,
+                        version: ingestion.metadata.version.clone(),
+                    },
+                )
+            })
             .collect();
 
         let mut map = BTreeMap::new();
@@ -105,8 +152,8 @@ impl SelfHealth {
             let Some(node_name) = node.metadata.name.clone() else {
                 continue;
             };
-            let since_update = intermediary.get(&node_name).copied();
-            map.insert(node_name, since_update);
+            let health = intermediary.remove(&node_name).unwrap_or_default();
+            map.insert(node_name, health);
         }
         map
     }
@@ -131,18 +178,20 @@ impl SelfHealth {
 mod tests {
     use super::*;
 
+    use crate::ingest::MetricsFetcherMetadata;
     use crate::test_support::*;
 
     fn ingestion(instant: Instant) -> Arc<MetricsFetcherIngestion<()>> {
         MetricsFetcherIngestion {
             received_at: instant,
+            metadata: MetricsFetcherMetadata::default(),
             payload: (),
         }
         .into()
     }
 
     #[test]
-    fn cache_age() {
+    fn cache_health() {
         let now = Instant::now();
         let nodes = &[
             node("node1334").into(),
@@ -168,18 +217,57 @@ mod tests {
                 ingestion(now - Duration::from_mins(29)),
             ),
         ];
-        let ages = SelfHealth::cache_age(now, nodes, cache);
+        let healths = SelfHealth::cache_health(now, nodes, cache);
 
-        assert_eq!(ages.len(), nodes.len());
-        assert_eq!(ages["node1334"].unwrap(), Duration::from_mins(5));
-        assert_eq!(ages["node1335"].unwrap(), Duration::from_mins(3));
-        assert_eq!(ages["node1336"].unwrap(), Duration::from_secs(26));
+        assert_eq!(healths.len(), nodes.len());
+        assert_eq!(
+            healths["node1334"].last_heard_age,
+            Some(Duration::from_mins(5))
+        );
+        assert_eq!(
+            healths["node1335"].last_heard_age,
+            Some(Duration::from_mins(3))
+        );
+        assert_eq!(
+            healths["node1336"].last_heard_age,
+            Some(Duration::from_secs(26))
+        );
 
         // Node in nodes store but not in cache gets added to the result as None
-        assert!(ages["node1337"].is_none());
+        assert!(healths["node1337"].last_heard_age.is_none());
 
         // A node in the cache but not in the nodes store is not added
-        assert!(!ages.contains_key("decommissioned01"));
+        assert!(!healths.contains_key("decommissioned01"));
+    }
+
+    #[test]
+    fn cache_health_preserves_ingestion_metadata() {
+        let now = Instant::now();
+        let metadata = MetricsFetcherMetadata {
+            scrape_time: Some(Duration::from_millis(945)),
+            version: Some(s("1.1000.0")),
+        };
+        let ingestion = Arc::new(MetricsFetcherIngestion {
+            received_at: now - Duration::from_secs(12),
+            metadata,
+            payload: (),
+        });
+
+        let health = SelfHealth::cache_health(
+            now,
+            &[node("node01").into()],
+            [(s("node01").into(), ingestion)],
+        );
+
+        assert_eq!(
+            health["node01"].last_heard_age,
+            Some(Duration::from_secs(12))
+        );
+        assert_eq!(
+            health["node01"].scrape_time,
+            Some(Duration::from_millis(945))
+        );
+        assert_eq!(health["node01"].version.as_deref(), Some("1.1000.0"));
     }
 
     #[test]

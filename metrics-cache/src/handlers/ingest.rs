@@ -1,22 +1,25 @@
 use crate::AppState;
 use crate::auth::kubernetes::TokenValidator;
-use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::system_agent::SystemAgentOutput;
+use crate::ingest::{MetricsFetcherIngestion, MetricsFetcherMetadata};
+use axum::Json;
 use axum::body::Bytes;
-use axum::extract::Path;
-use axum::{Json, extract::State};
+use axum::extract::{Path, State};
+use axum::http::header::HeaderMap;
 use std::sync::Arc;
 use std::time::Instant;
 
 pub async fn kubelet_stats_summary(
     State(state): State<AppState<impl TokenValidator>>,
+    headers: HeaderMap,
     Json(stats_summary): Json<StatsSummary>,
 ) -> Json<String> {
     let node_name = stats_summary.node.node_name.clone();
     let ingestion = MetricsFetcherIngestion {
         received_at: Instant::now(),
+        metadata: MetricsFetcherMetadata::from(&headers),
         payload: stats_summary,
     };
     state
@@ -29,10 +32,12 @@ pub async fn kubelet_stats_summary(
 pub async fn kubelet_health(
     State(state): State<AppState<impl TokenValidator>>,
     Path(node_name): Path<String>,
+    headers: HeaderMap,
     Json(health): Json<KubeletHealth>,
 ) -> Json<String> {
     let ingestion = MetricsFetcherIngestion {
         received_at: Instant::now(),
+        metadata: MetricsFetcherMetadata::from(&headers),
         payload: health,
     };
     state
@@ -50,10 +55,12 @@ pub async fn kubelet_health(
 pub async fn system_agent(
     State(state): State<AppState<impl TokenValidator>>,
     Path(node_name): Path<String>,
+    headers: HeaderMap,
     body: Bytes,
 ) -> Json<String> {
     let ingestion = MetricsFetcherIngestion {
         received_at: Instant::now(),
+        metadata: MetricsFetcherMetadata::from(&headers),
         payload: SystemAgentOutput(body),
     };
     state
@@ -65,10 +72,13 @@ pub async fn system_agent(
 
 #[cfg(test)]
 mod tests {
-    use axum::extract::{Path, State};
-
     use super::*;
+
+    use axum::extract::{Path, State};
+    use axum::http::header::HeaderValue;
+
     use crate::state::tests::test_app_state;
+    use crate::test_support::s;
 
     /// Exercises the handler directly (no router, no auth middleware) — this
     /// is about whether the handler does what's expected of it, not whether
@@ -77,10 +87,14 @@ mod tests {
     async fn system_agent_populates_cache_and_returns_ok() {
         let state = test_app_state();
         let cache = state.system_agent_cache.clone();
+        let mut headers = HeaderMap::new();
+        headers.insert("X-Scrape-Time-Ms", HeaderValue::from_static("945"));
+        headers.insert("X-Agent-Version", HeaderValue::from_static("3.0.0"));
 
         let Json(resp) = system_agent(
             State(state),
             Path("node-1".to_string()),
+            headers,
             Bytes::from_static(b"<<<check_mk>>>\nVersion: 2.5.0\n"),
         )
         .await;
@@ -90,6 +104,13 @@ mod tests {
         assert_eq!(
             cache.get("node-1").await.map(|v| v.payload.0.clone()),
             Some(Bytes::from_static(b"<<<check_mk>>>\nVersion: 2.5.0\n"))
+        );
+        assert_eq!(
+            cache
+                .get("node-1")
+                .await
+                .and_then(|v| v.metadata.version.clone()),
+            Some(s("3.0.0"))
         );
     }
 }

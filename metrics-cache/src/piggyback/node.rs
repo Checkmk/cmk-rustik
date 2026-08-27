@@ -106,6 +106,7 @@ mod tests {
                 "node-1".to_string(),
                 Arc::new(MetricsFetcherIngestion {
                     received_at: Instant::now(),
+                    metadata: Default::default(),
                     payload: SystemAgentOutput(Bytes::from_static(b"<<<check_mk>>>\n")),
                 }),
             )

@@ -72,6 +72,8 @@ impl Snapshot {
             &stores.nodes,
             reflector_healths,
             &kubelet_stats_summary_cache,
+            &kubelet_health_cache,
+            &system_agent_cache,
         );
         let kubelet_health = KubeletHealths::from_cache(&kubelet_health_cache);
         let system_agents = SystemAgentOutputs::from_cache(&system_agent_cache);

@@ -16,15 +16,48 @@ use crate::snapshot::self_health::SelfHealth;
 /// etc.). This is less useful for parsing later on, we want pure seconds, so
 /// this is used to teach serde how to serialize a cache map from the snapshot's
 /// [`SelfHealth`] in seconds.
-fn age_map_secs<S: Serializer>(
-    map: &&BTreeMap<String, Option<Duration>>,
-    ser: S,
-) -> Result<S::Ok, S::Error> {
-    ser.collect_map(map.iter().map(|(k, v)| (k, v.map(|d| d.as_secs_f64()))))
-}
-
 fn duration_to_secs<S: Serializer>(duration: &Option<Duration>, ser: S) -> Result<S::Ok, S::Error> {
     duration.map(|d| d.as_secs_f64()).serialize(ser)
+}
+
+#[derive(Debug, Serialize)]
+struct MetricsFetcherIngestionHealth<'a> {
+    #[serde(serialize_with = "duration_to_secs")]
+    last_heard_age_secs: Option<Duration>,
+    #[serde(serialize_with = "duration_to_secs")]
+    scrape_time_secs: Option<Duration>,
+    version: Option<&'a str>,
+}
+
+impl<'a> From<&'a crate::snapshot::self_health::MetricsFetcherIngestionHealth>
+    for MetricsFetcherIngestionHealth<'a>
+{
+    fn from(value: &'a crate::snapshot::self_health::MetricsFetcherIngestionHealth) -> Self {
+        Self {
+            last_heard_age_secs: value.last_heard_age,
+            scrape_time_secs: value.scrape_time,
+            version: value.version.as_deref(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct NodeMetricsFetcherHealth<'a> {
+    kubelet_stats: MetricsFetcherIngestionHealth<'a>,
+    kubelet_health: MetricsFetcherIngestionHealth<'a>,
+    system_agent: MetricsFetcherIngestionHealth<'a>,
+}
+
+impl<'a> From<&'a crate::snapshot::self_health::NodeMetricsFetcherHealth>
+    for NodeMetricsFetcherHealth<'a>
+{
+    fn from(value: &'a crate::snapshot::self_health::NodeMetricsFetcherHealth) -> Self {
+        Self {
+            kubelet_stats: MetricsFetcherIngestionHealth::from(&value.kubelet_stats),
+            kubelet_health: MetricsFetcherIngestionHealth::from(&value.kubelet_health),
+            system_agent: MetricsFetcherIngestionHealth::from(&value.system_agent),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -56,8 +89,7 @@ impl From<&crate::snapshot::self_health::ReflectorHealth> for ReflectorHealth {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct KubeRustikHealthV1<'a> {
-    #[serde(serialize_with = "age_map_secs")]
-    node_kubelet_stats_last_heard_secs: &'a BTreeMap<String, Option<Duration>>,
+    metrics_fetchers: BTreeMap<&'a str, NodeMetricsFetcherHealth<'a>>,
     reflector_healths: BTreeMap<&'static str, ReflectorHealth>,
 }
 
@@ -68,9 +100,14 @@ impl<'a> KubeRustikHealthV1<'a> {
             .iter()
             .map(|(k, v)| (*k, ReflectorHealth::from(v)))
             .collect();
+        let metrics_fetchers = self_health
+            .node_metrics_fetchers
+            .iter()
+            .map(|(node, health)| (node.as_str(), NodeMetricsFetcherHealth::from(health)))
+            .collect();
 
         KubeRustikHealthV1 {
-            node_kubelet_stats_last_heard_secs: &self_health.kubelet_stats_summary_age,
+            metrics_fetchers,
             reflector_healths,
         }
     }
@@ -89,11 +126,31 @@ mod tests {
 
     #[test]
     fn kube_rustik_health_v1() {
-        let kubelet_stats_summary_age = BTreeMap::from([
-            (s("node01"), Some(Duration::from_secs(26))),
-            (s("node02"), Some(Duration::from_mins(4))),
-            (s("node03"), Some(Duration::from_mins(2))),
-            (s("offline01"), None),
+        let node_metrics_fetchers = BTreeMap::from([
+            (
+                s("node01"),
+                snapshot::self_health::NodeMetricsFetcherHealth {
+                    kubelet_stats: snapshot::self_health::MetricsFetcherIngestionHealth {
+                        last_heard_age: Some(Duration::from_secs(26)),
+                        scrape_time: Some(Duration::from_millis(150)),
+                        version: Some(s("1.1000.0")),
+                    },
+                    kubelet_health: snapshot::self_health::MetricsFetcherIngestionHealth {
+                        last_heard_age: Some(Duration::from_secs(24)),
+                        scrape_time: Some(Duration::from_millis(45)),
+                        version: Some(s("1.1000.0")),
+                    },
+                    system_agent: snapshot::self_health::MetricsFetcherIngestionHealth {
+                        last_heard_age: None,
+                        scrape_time: None,
+                        version: None,
+                    },
+                },
+            ),
+            (
+                s("offline01"),
+                snapshot::self_health::NodeMetricsFetcherHealth::default(),
+            ),
         ]);
         let reflector_healths = BTreeMap::from([
             ("Pod", snapshot::self_health::ReflectorHealth::default()),
@@ -107,7 +164,7 @@ mod tests {
             ),
         ]);
         let self_health = SelfHealth {
-            kubelet_stats_summary_age,
+            node_metrics_fetchers,
             reflector_healths,
         };
         let section = KubeRustikHealthV1::from_self_health(&self_health);

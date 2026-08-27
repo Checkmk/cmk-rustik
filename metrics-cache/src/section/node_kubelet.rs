@@ -55,6 +55,7 @@ mod tests {
         for (name, health) in entries {
             let ingestion = MetricsFetcherIngestion {
                 received_at: Instant::now(),
+                metadata: Default::default(),
                 payload: health.clone(),
             };
             cache.insert(name.to_string(), Arc::new(ingestion)).await;

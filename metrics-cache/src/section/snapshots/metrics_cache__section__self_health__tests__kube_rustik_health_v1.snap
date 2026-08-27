@@ -3,11 +3,41 @@ source: metrics-cache/src/section/self_health.rs
 expression: section
 ---
 {
-  "node_kubelet_stats_last_heard_secs": {
-    "node01": 26.0,
-    "node02": 240.0,
-    "node03": 120.0,
-    "offline01": null
+  "metrics_fetchers": {
+    "node01": {
+      "kubelet_stats": {
+        "last_heard_age_secs": 26.0,
+        "scrape_time_secs": 0.15,
+        "version": "1.1000.0"
+      },
+      "kubelet_health": {
+        "last_heard_age_secs": 24.0,
+        "scrape_time_secs": 0.045,
+        "version": "1.1000.0"
+      },
+      "system_agent": {
+        "last_heard_age_secs": null,
+        "scrape_time_secs": null,
+        "version": null
+      }
+    },
+    "offline01": {
+      "kubelet_stats": {
+        "last_heard_age_secs": null,
+        "scrape_time_secs": null,
+        "version": null
+      },
+      "kubelet_health": {
+        "last_heard_age_secs": null,
+        "scrape_time_secs": null,
+        "version": null
+      },
+      "system_agent": {
+        "last_heard_age_secs": null,
+        "scrape_time_secs": null,
+        "version": null
+      }
+    }
   },
   "reflector_healths": {
     "DaemonSet": {

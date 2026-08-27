@@ -75,7 +75,7 @@ impl Payload {
                 "X-Scrape-Time-Ms",
                 scrape_time_ms_header_value(scrape_duration),
             )
-            .header("X-Rustik-Version", env!("CARGO_PKG_VERSION"))
+            .header("X-Agent-Version", env!("CARGO_PKG_VERSION"))
             .send()
             .await?;
         if response.status().is_success() {
