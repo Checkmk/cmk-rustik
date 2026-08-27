@@ -182,13 +182,52 @@ impl Section for KubeAllocatablePodsV1 {
     const NAME: &'static str = "kube_allocatable_pods_v1";
 }
 
+#[derive(Serialize)]
+pub(crate) struct NodeConditionValue<'a> {
+    type_: &'a str,
+    status: &'a str,
+    reason: Option<&'a str>,
+    message: Option<&'a str>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct KubeNodeConditionsV2<'a> {
+    conditions: Vec<NodeConditionValue<'a>>,
+}
+
+impl<'a> KubeNodeConditionsV2<'a> {
+    pub fn from_node(node: &'a Node) -> Self {
+        Self {
+            conditions: node
+                .status
+                .as_ref()
+                .and_then(|status| status.conditions.as_ref())
+                .into_iter()
+                .flatten()
+                .map(|condition| NodeConditionValue {
+                    type_: &condition.type_,
+                    status: &condition.status,
+                    reason: condition.reason.as_deref(),
+                    message: condition.message.as_deref(),
+                })
+                .collect(),
+        }
+    }
+}
+
+impl Section for KubeNodeConditionsV2<'_> {
+    const NAME: &'static str = "kube_node_conditions_v2";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use k8s_openapi::api::core::v1::{
         ContainerState, ContainerStateRunning, ContainerStateTerminated, ContainerStateWaiting,
-        ContainerStatus, NodeStatus,
+        ContainerStatus, NodeCondition, NodeStatus,
     };
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::Time;
+    use k8s_openapi::jiff::Timestamp;
     use regex::Regex;
 
     use crate::host_settings::AnnotationKeyPattern;
@@ -199,6 +238,15 @@ mod tests {
         node.status = Some(NodeStatus {
             capacity: Some(BTreeMap::from([(s("pods"), Quantity(s(capacity)))])),
             allocatable: Some(BTreeMap::from([(s("pods"), Quantity(s(allocatable)))])),
+            ..Default::default()
+        });
+        node
+    }
+
+    fn node_with_conditions(conditions: Vec<NodeCondition>) -> Node {
+        let mut node = node("worker-1");
+        node.status = Some(NodeStatus {
+            conditions: Some(conditions),
             ..Default::default()
         });
         node
@@ -337,5 +385,34 @@ mod tests {
 
         let section = KubeAllocatablePodsV1::from_nodes(&nodes);
         assert_eq!((section.capacity, section.allocatable), (1110, 361));
+    }
+
+    #[test]
+    fn kube_node_conditions_v2() {
+        let timestamp: Timestamp = "2026-08-07 15:22:45-04".parse().unwrap();
+        let node = node_with_conditions(vec![
+            NodeCondition {
+                type_: s("Ready"),
+                status: s("True"),
+                reason: Some(s("KubeletReady")),
+                message: Some(s("kubelet is posting ready status")),
+                last_heartbeat_time: Some(Time(timestamp)),
+                last_transition_time: Some(Time(timestamp)),
+            },
+            NodeCondition {
+                type_: s("MemoryPressure"),
+                status: s("False"),
+                ..Default::default()
+            },
+        ]);
+
+        insta::assert_json_snapshot!(KubeNodeConditionsV2::from_node(&node));
+    }
+
+    #[test]
+    fn kube_node_conditions_v2_without_conditions_is_empty() {
+        let node = node("worker-1");
+        let section = KubeNodeConditionsV2::from_node(&node);
+        assert!(section.conditions.is_empty());
     }
 }

@@ -1,0 +1,20 @@
+---
+source: metrics-cache/src/section/node.rs
+expression: "KubeNodeConditionsV2::from_node(&node)"
+---
+{
+  "conditions": [
+    {
+      "type_": "Ready",
+      "status": "True",
+      "reason": "KubeletReady",
+      "message": "kubelet is posting ready status"
+    },
+    {
+      "type_": "MemoryPressure",
+      "status": "False",
+      "reason": null,
+      "message": null
+    }
+  ]
+}

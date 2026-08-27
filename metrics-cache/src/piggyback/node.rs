@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
-use crate::section::node::{KubeAllocatablePodsV1, KubeNodeContainerCountV1, KubeNodeInfoV1};
+use crate::section::node::{
+    KubeAllocatablePodsV1, KubeNodeConditionsV2, KubeNodeContainerCountV1, KubeNodeInfoV1,
+};
 use crate::section::node_kubelet::KubeNodeKubeletV1;
 use crate::section::resource::{KubeAllocatableCpuResourceV1, KubeAllocatableMemoryResourceV1};
 use crate::section::writeable::{SectionError, WriteableSection};
@@ -83,6 +85,10 @@ impl PiggybackHost for Node<'_> {
         out.push(WriteableSection::of(
             &me,
             &KubeAllocatableMemoryResourceV1::from_node(self.api),
+        ));
+        out.push(WriteableSection::of(
+            &me,
+            &KubeNodeConditionsV2::from_node(self.api),
         ));
         out.extend(self.aggregation_sections(&me));
         out
