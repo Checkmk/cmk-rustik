@@ -7,7 +7,7 @@ use crate::host_settings::HostSettings;
 use crate::piggyback::{AggregationHost, Meta, PiggybackHost};
 use crate::section::common::ThinContainers;
 use crate::section::controller_spec::KubeControllerSpecV1;
-use crate::section::statefulset::KubeStatefulSetInfoV1;
+use crate::section::statefulset::{KubeStatefulSetInfoV1, KubeStatefulSetReplicasV1};
 use crate::section::update_strategy::KubeUpdateStrategyV1;
 use crate::section::writeable::{SectionError, WriteableSection};
 use crate::snapshot::Snapshot;
@@ -87,6 +87,12 @@ impl PiggybackHost for StatefulSet<'_> {
             KubeStatefulSetInfoV1::from_statefulset(self.api, containers, self.settings)
         {
             out.push(WriteableSection::of(&me, &kube_statefulset_info_v1));
+        }
+
+        if let Some(kube_statefulset_replicas_v1) =
+            KubeStatefulSetReplicasV1::from_statefulset(self.api)
+        {
+            out.push(WriteableSection::of(&me, &kube_statefulset_replicas_v1));
         }
 
         out

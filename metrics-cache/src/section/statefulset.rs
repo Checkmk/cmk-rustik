@@ -58,9 +58,36 @@ impl Section for KubeStatefulSetInfoV1<'_> {
     const NAME: &'static str = "kube_statefulset_info_v1";
 }
 
+/// StatefulSet replica counts. (`kube_statefulset_replicas_v1`)
+#[derive(Serialize)]
+pub(crate) struct KubeStatefulSetReplicasV1 {
+    available: i32,
+    desired: i32,
+    ready: i32,
+    updated: i32,
+}
+
+impl KubeStatefulSetReplicasV1 {
+    pub(crate) fn from_statefulset(statefulset: &StatefulSet) -> Option<Self> {
+        let spec = statefulset.spec.as_ref()?;
+        let status = statefulset.status.as_ref()?;
+        Some(Self {
+            available: status.available_replicas.unwrap_or(0),
+            desired: spec.replicas?,
+            ready: status.ready_replicas.unwrap_or(0),
+            updated: status.updated_replicas.unwrap_or(0),
+        })
+    }
+}
+
+impl Section for KubeStatefulSetReplicasV1 {
+    const NAME: &'static str = "kube_statefulset_replicas_v1";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use k8s_openapi::api::apps::v1::StatefulSetStatus;
     use std::sync::Arc;
 
     use crate::test_support::{host_settings, pod_with_container_statuses, statefulset};
@@ -95,5 +122,33 @@ mod tests {
             )
             .is_none()
         )
+    }
+
+    #[test]
+    fn kube_statefulset_replicas_v1() {
+        let mut statefulset = statefulset("database");
+        statefulset.spec.as_mut().unwrap().replicas = Some(5);
+        statefulset.status = Some(StatefulSetStatus {
+            available_replicas: Some(4),
+            ready_replicas: Some(3),
+            replicas: 99,
+            updated_replicas: Some(2),
+            ..Default::default()
+        });
+
+        insta::assert_json_snapshot!(KubeStatefulSetReplicasV1::from_statefulset(&statefulset));
+    }
+
+    #[test]
+    fn statefulset_replicas_default_missing_status_counts() {
+        let mut statefulset = statefulset("database");
+        statefulset.spec.as_mut().unwrap().replicas = Some(0);
+        statefulset.status = Some(StatefulSetStatus::default());
+
+        let replicas = KubeStatefulSetReplicasV1::from_statefulset(&statefulset).unwrap();
+        assert_eq!(
+            (replicas.available, replicas.ready, replicas.updated),
+            (0, 0, 0)
+        );
     }
 }
