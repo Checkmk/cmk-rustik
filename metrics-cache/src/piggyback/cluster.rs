@@ -150,14 +150,7 @@ mod tests {
 
     fn snapshot_with_nodes(nodes: Vec<Arc<Node>>) -> Snapshot {
         let state = test_app_state();
-        let mut snapshot = Snapshot::new(
-            state.stores,
-            state.kubelet_stats_summary_cache,
-            state.kubelet_health_cache,
-            state.system_agent_cache,
-            state.api_health_receiver,
-            state.metrics_fetcher_daemonset.as_ref(),
-        );
+        let mut snapshot = state.snapshot();
         snapshot.stores.nodes = nodes;
         snapshot
     }

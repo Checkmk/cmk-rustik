@@ -125,14 +125,7 @@ mod tests {
 
         let api = test_support::node("node-1");
         let host_settings = state.host_settings.clone();
-        let snapshot = Snapshot::new(
-            state.stores,
-            state.kubelet_stats_summary_cache,
-            state.kubelet_health_cache,
-            state.system_agent_cache,
-            state.api_health_receiver,
-            state.metrics_fetcher_daemonset.as_ref(),
-        );
+        let snapshot = state.snapshot();
         let node = Node::new(&api, &snapshot, &host_settings).unwrap();
 
         let raw_section = node

@@ -15,6 +15,7 @@ use crate::ingest::kubelet_health::KubeletHealth;
 use crate::ingest::kubelet_stats::StatsSummary;
 use crate::ingest::reflectors::Stores;
 use crate::ingest::system_agent::SystemAgentOutput;
+use crate::snapshot::Snapshot;
 use crate::snapshot::self_health::MetricsFetcherDaemonSet;
 
 // Used for the size of the various metrics-fetcher caches.
@@ -111,6 +112,20 @@ impl AppState<Client> {
         config.connect_timeout = Some(connect_timeout);
 
         Ok(Client::try_from(config)?)
+    }
+}
+
+impl<V: TokenValidator> AppState<V> {
+    /// Create a [`Snapshot`] from the current [`AppState`].
+    pub fn snapshot(&self) -> Snapshot {
+        Snapshot::new(
+            self.stores.clone(),
+            self.kubelet_stats_summary_cache.clone(),
+            self.kubelet_health_cache.clone(),
+            self.system_agent_cache.clone(),
+            self.api_health_receiver.clone(),
+            self.metrics_fetcher_daemonset.as_ref(),
+        )
     }
 }
 

@@ -17,7 +17,6 @@ use crate::piggyback::emit_all;
 use crate::push::client::CheckmkPushClient;
 use crate::push::register::CheckmkPushRegistration;
 use crate::section::writeable::frame;
-use crate::snapshot::Snapshot;
 use crate::state::AppState;
 
 #[derive(Error, Debug)]
@@ -41,20 +40,14 @@ pub enum Error {
 ///
 /// This is what actually generates the sections, compresses them, and pushes
 /// them to Checkmk using the push client. It runs once per push interval,
-/// called via [`push_loop()`], and builds a [`Snapshot`], emits all sections,
-/// zlib-compresses them, and pushes via the [`CheckmkPushClient`].
+/// called via [`push_loop()`], and builds a [`crate::snapshot::Snapshot`],
+/// emits all sections, zlib-compresses them, and pushes via the
+/// [`CheckmkPushClient`].
 async fn push_cycle(
     client: &CheckmkPushClient,
     state: &AppState<impl TokenValidator>,
 ) -> anyhow::Result<()> {
-    let snap = Snapshot::new(
-        state.stores.clone(),
-        state.kubelet_stats_summary_cache.clone(),
-        state.kubelet_health_cache.clone(),
-        state.system_agent_cache.clone(),
-        state.api_health_receiver.clone(),
-        state.metrics_fetcher_daemonset.as_ref(),
-    );
+    let snap = state.snapshot();
     let sections = emit_all(&snap, &state.host_settings);
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
     frame(&mut encoder, sections).context("framing push data")?;

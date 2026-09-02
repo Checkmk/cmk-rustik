@@ -111,14 +111,7 @@ mod tests {
     #[test]
     fn pod_omits_pod_resources_rollup() {
         let state = test_app_state();
-        let snapshot = Snapshot::new(
-            state.stores,
-            state.kubelet_stats_summary_cache,
-            state.kubelet_health_cache,
-            state.system_agent_cache,
-            state.api_health_receiver,
-            None,
-        );
+        let snapshot = state.snapshot();
         let api = Arc::new(pod_prefilled("pod-1"));
         let settings = host_settings();
         let Some(pod) = Pod::new(&api, &snapshot, &settings) else {
