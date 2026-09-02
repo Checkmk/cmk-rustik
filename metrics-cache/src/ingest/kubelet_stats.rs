@@ -25,6 +25,7 @@ pub struct Pod {
 pub struct PodReference {
     pub name: String,
     pub namespace: String,
+    pub uid: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -86,6 +87,10 @@ mod tests {
         assert_eq!(
             parsed.pods[3].pod_ref.name,
             "metrics-cache-5d466b6446-jdjt8"
+        );
+        assert_eq!(
+            parsed.pods[3].pod_ref.uid,
+            "b9dd99aa-5cc4-46dc-8f63-1741c27f2b58"
         );
         assert_eq!(parsed.pods[3].containers[0].name, "metrics-cache");
         assert_matches!(

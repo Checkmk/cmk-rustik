@@ -14,8 +14,7 @@
 //! `metrics-fetchers` (DaemonSet, one instance per node). `metrics-fetcher`
 //! periodically POSTs its collected kubelet metric data to `metrics-cache`
 //! (this crate) whose Axum handler stores it in a Moka (in-memory) cache stored
-//! in the [`AppState`]. This cache constitutes the primary (and, with very few
-//! exceptions, the _only_) input for the `otel` modules to function.
+//! in the [`AppState`].
 //!
 //! In `main.rs`, an [`OtelClient`] is constructed and passed to [`otel_loop()`]
 //! along with a copy of the [`AppState`].
@@ -56,6 +55,7 @@ use tracing::{debug, error};
 use crate::auth::kubernetes::TokenValidator;
 use crate::otel::client::OtelClient;
 use crate::otel::collect::collect_entities;
+use crate::snapshot::owner_graph::OwnerGraph;
 use crate::state::AppState;
 
 /// Run the OTel export loop forever.
@@ -75,7 +75,13 @@ pub async fn otel_loop(
     loop {
         interval.tick().await; // note: The very first tick() is no-op
         let stat_summaries = state.kubelet_stats_summary_cache.iter().map(|(_, v)| v);
-        let entities = collect_entities(stat_summaries, &state.host_settings.cluster_name);
+        let stores = state.stores.freeze();
+        let owner_graph = OwnerGraph::from_frozen_stores(&stores);
+        let entities = collect_entities(
+            stat_summaries,
+            &state.host_settings.cluster_name,
+            &owner_graph,
+        );
         let resources = entities.len();
         match client.export(entities.into_iter().collect()).await {
             Ok(()) => debug!(resources, "exported metrics to OTel collector"),

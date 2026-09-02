@@ -9,6 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::ingest::MetricsFetcherIngestion;
 use crate::ingest::kubelet_stats::{Container, Pod, StatsSummary};
 use crate::otel::wire::{Attribute, KubeEntity, KubeGauge, Value};
+use crate::snapshot::owner_graph::OwnerGraph;
 
 /// Extract a container's samples as (memory working set bytes, CPU cores).
 /// `None` where the kubelet reported no sample.
@@ -26,9 +27,34 @@ fn container_samples(container: &Container) -> (Option<i64>, Option<f64>) {
     (bytes, cores)
 }
 
+fn owner_attributes(owner_graph: &OwnerGraph, pod_uid: &str) -> Vec<Arc<Attribute>> {
+    owner_graph
+        .walk_up(pod_uid)
+        .into_iter()
+        .flat_map(|owner| match owner.kind.as_str() {
+            "ReplicaSet" => vec![Attribute::new("k8s.replicaset.name", owner.name.clone())],
+            "Deployment" => vec![Attribute::new("k8s.deployment.name", owner.name.clone())],
+            "StatefulSet" => vec![Attribute::new("k8s.statefulset.name", owner.name.clone())],
+            "DaemonSet" => vec![Attribute::new("k8s.daemonset.name", owner.name.clone())],
+            "Job" => vec![Attribute::new("k8s.job.name", owner.name.clone())],
+            "CronJob" => vec![Attribute::new("k8s.cronjob.name", owner.name.clone())],
+            _ => vec![
+                Attribute::new("k8s.owner.kind", owner.kind.clone()),
+                Attribute::new("k8s.owner.name", owner.name.clone()),
+            ],
+        })
+        .map(Arc::new)
+        .collect()
+}
+
 /// The identity attributes shared by a pod and its containers.
-fn pod_attributes(cluster: &str, node: &str, pod: &Pod) -> Vec<Arc<Attribute>> {
-    vec![
+fn pod_attributes(
+    cluster: &str,
+    node: &str,
+    pod: &Pod,
+    owner_graph: &OwnerGraph,
+) -> Vec<Arc<Attribute>> {
+    let mut attributes = vec![
         Arc::new(Attribute::new(
             "k8s.namespace.name",
             pod.pod_ref.namespace.clone(),
@@ -36,7 +62,9 @@ fn pod_attributes(cluster: &str, node: &str, pod: &Pod) -> Vec<Arc<Attribute>> {
         Arc::new(Attribute::new("k8s.pod.name", pod.pod_ref.name.clone())),
         Arc::new(Attribute::new("k8s.node.name", node.to_string())),
         Arc::new(Attribute::new("k8s.cluster.name", cluster.to_string())),
-    ]
+    ];
+    attributes.extend(owner_attributes(owner_graph, &pod.pod_ref.uid));
+    attributes
 }
 
 fn epoch_nanos() -> u64 {
@@ -55,13 +83,19 @@ fn epoch_nanos() -> u64 {
 pub(super) fn collect_entities(
     stat_summaries: impl IntoIterator<Item = Arc<MetricsFetcherIngestion<StatsSummary>>>,
     cluster_name: &str,
+    owner_graph: &OwnerGraph,
 ) -> Vec<KubeEntity> {
     let mut out: Vec<KubeEntity> = Vec::new();
     let now = epoch_nanos();
     for summary in stat_summaries {
         for pod in &summary.payload.pods {
             // Attributes for the pod *and* its containers
-            let p_attributes = pod_attributes(cluster_name, &summary.payload.node.node_name, pod);
+            let p_attributes = pod_attributes(
+                cluster_name,
+                &summary.payload.node.node_name,
+                pod,
+                owner_graph,
+            );
 
             // Pod aggregations. `None` until some container reports a sample.
             let mut p_working_set_bytes: Option<i64> = None;
@@ -125,4 +159,55 @@ pub(super) fn collect_entities(
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::collections::BTreeMap;
+
+    use crate::ingest::kubelet_stats::PodReference;
+    use crate::test_support::{owner_graph, owner_ref};
+
+    fn attribute_map(attributes: &[Arc<Attribute>]) -> BTreeMap<&str, &str> {
+        attributes
+            .iter()
+            .map(|attribute| (attribute.key, attribute.value.as_str()))
+            .collect()
+    }
+
+    #[test]
+    fn owner_chain_attributes() {
+        let graph = owner_graph(&[
+            ("pod-uid", owner_ref("ReplicaSet", "web-abc", "rs-uid")),
+            ("rs-uid", owner_ref("Deployment", "web", "deployment-uid")),
+        ]);
+        let pod = Pod {
+            pod_ref: PodReference {
+                name: "web-abc-123".into(),
+                namespace: "default".into(),
+                uid: "pod-uid".into(),
+            },
+            containers: Vec::new(),
+            volume: None,
+        };
+
+        insta::assert_json_snapshot!(attribute_map(&pod_attributes(
+            "my-cluster",
+            "worker-1",
+            &pod,
+            &graph,
+        )));
+    }
+
+    #[test]
+    fn unknown_owner_attributes() {
+        let graph = owner_graph(&[(
+            "pod-uid",
+            owner_ref("ExampleController", "example", "controller-uid"),
+        )]);
+
+        insta::assert_json_snapshot!(attribute_map(&owner_attributes(&graph, "pod-uid")));
+    }
 }

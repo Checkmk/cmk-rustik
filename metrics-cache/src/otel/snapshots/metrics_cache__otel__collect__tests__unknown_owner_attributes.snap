@@ -1,0 +1,8 @@
+---
+source: metrics-cache/src/otel/collect.rs
+expression: "attribute_map(&owner_attributes(&graph, \"pod-uid\"))"
+---
+{
+  "k8s.owner.kind": "ExampleController",
+  "k8s.owner.name": "example"
+}

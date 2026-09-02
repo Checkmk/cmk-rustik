@@ -1,0 +1,12 @@
+---
+source: metrics-cache/src/otel/collect.rs
+expression: "attribute_map(&pod_attributes(\"my-cluster\", \"worker-1\", &pod, &graph,))"
+---
+{
+  "k8s.cluster.name": "my-cluster",
+  "k8s.deployment.name": "web",
+  "k8s.namespace.name": "default",
+  "k8s.node.name": "worker-1",
+  "k8s.pod.name": "web-abc-123",
+  "k8s.replicaset.name": "web-abc"
+}
