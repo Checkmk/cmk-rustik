@@ -78,11 +78,19 @@ pub(crate) trait AggregationHost {
         ))
     }
 
-    /// Emit all possible resources and performance sections for the pod set
+    /// Emit performance and resource utilization sections for the pod set
     /// returned by [`Self::pods()`].
-    fn aggregation_sections(&self, me: &str) -> Vec<Result<WriteableSection, SectionError>> {
+    ///
+    /// Note that this does *not* include [`KubePodResourcesV1`], because we do
+    /// not emit that section for pods. So [`crate::piggyback::pod::Pod`] emits
+    /// from this function, and every *other* `AggregationHost` calls
+    /// [`Self::aggregation_sections()`] instead, which includes this subset along
+    /// with [`KubePodResourcesV1`].
+    fn performance_and_resource_util_sections(
+        &self,
+        me: &str,
+    ) -> Vec<Result<WriteableSection, SectionError>> {
         let mut out = vec![
-            WriteableSection::of(me, &self.pod_resources()),
             WriteableSection::of(me, &self.cpu_resources()),
             WriteableSection::of(me, &self.memory_resources()),
         ];
@@ -95,6 +103,16 @@ pub(crate) trait AggregationHost {
         if let Some(swap_perf) = &self.swap_performance() {
             out.push(WriteableSection::of(me, swap_perf));
         }
+        out
+    }
+
+    /// Emit all possible resources and performance sections for the pod set
+    /// returned by [`Self::pods()`]. This includes everything that
+    /// [`Self::performance_and_resource_util_sections()`] returns plus
+    /// [`KubePodResourcesV1`].
+    fn aggregation_sections(&self, me: &str) -> Vec<Result<WriteableSection, SectionError>> {
+        let mut out = self.performance_and_resource_util_sections(me);
+        out.push(WriteableSection::of(me, &self.pod_resources()));
         out
     }
 

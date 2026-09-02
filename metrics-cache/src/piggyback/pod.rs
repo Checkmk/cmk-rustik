@@ -61,7 +61,7 @@ impl PiggybackHost for Pod<'_> {
     fn emit(&self) -> Vec<Result<WriteableSection, SectionError>> {
         let me = self.meta.piggyback_hostname(&self.settings.cluster_name);
         let mut out = Vec::new();
-        out.extend(self.aggregation_sections(&me));
+        out.extend(self.performance_and_resource_util_sections(&me));
 
         if let Some(kube_pod_info_v1) = &self.info() {
             out.push(WriteableSection::of(&me, kube_pod_info_v1));
@@ -97,5 +97,46 @@ impl PiggybackHost for Pod<'_> {
         }
 
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::section::writeable::SectionBody;
+    use crate::state::tests::test_app_state;
+    use crate::test_support::{host_settings, pod_prefilled};
+
+    #[test]
+    fn pod_omits_pod_resources_rollup() {
+        let state = test_app_state();
+        let snapshot = Snapshot::new(
+            state.stores,
+            state.kubelet_stats_summary_cache,
+            state.kubelet_health_cache,
+            state.system_agent_cache,
+            state.api_health_receiver,
+            None,
+        );
+        let api = Arc::new(pod_prefilled("pod-1"));
+        let settings = host_settings();
+        let Some(pod) = Pod::new(&api, &snapshot, &settings) else {
+            panic!("valid test Pod should become a piggyback host");
+        };
+
+        let sections = pod.emit();
+        assert!(sections.iter().all(Result::is_ok));
+        let has_section = |expected| {
+            sections.iter().any(|section| {
+                matches!(section, Ok(WriteableSection {
+                    body: SectionBody::Json { name, .. },
+                    ..
+                }) if *name == expected)
+            })
+        };
+        assert!(has_section("kube_cpu_resources_v1"));
+        assert!(has_section("kube_memory_resources_v1"));
+        assert!(!has_section("kube_pod_resources_v1"));
     }
 }
