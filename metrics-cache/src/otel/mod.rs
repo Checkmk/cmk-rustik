@@ -79,7 +79,7 @@ pub async fn otel_loop(
         let resources = entities.len();
         match client.export(entities.into_iter().collect()).await {
             Ok(()) => debug!(resources, "exported metrics to OTel collector"),
-            Err(err) => error!(%err, "failed to export metrics to OTel collector"),
+            Err(err) => error!(?err, "failed to export metrics to OTel collector"),
         }
     }
 }
