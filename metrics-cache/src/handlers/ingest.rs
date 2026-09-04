@@ -17,6 +17,9 @@ pub async fn kubelet_stats_summary(
     Json(stats_summary): Json<StatsSummary>,
 ) -> Json<String> {
     let node_name = stats_summary.node.node_name.clone();
+    let previous = state.kubelet_stats_summary_cache.get(&node_name).await;
+    let stats_summary =
+        stats_summary.with_cpu_rates_from(previous.as_deref().map(|entry| &entry.payload));
     let ingestion = MetricsFetcherIngestion {
         received_at: Instant::now(),
         metadata: MetricsFetcherMetadata::from(&headers),
