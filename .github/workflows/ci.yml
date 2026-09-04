@@ -28,9 +28,14 @@ jobs:
     # Only release the helm chart once images have been successfully pushed
     needs: images
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    strategy:
+      matrix:
+        version:
+          - 0.0.0-master
+          - "3.0"
     uses: ./.github/workflows/helm-release-reusable.yml
     permissions:
       contents: read
       packages: write
     with:
-      version: 0.0.0-master
+      version: ${{ matrix.version }}
