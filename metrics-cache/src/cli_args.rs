@@ -263,6 +263,16 @@ pub struct CliArgs {
     )]
     pub otel_push_interval: Duration,
 
+    /// Username for basic-auth against the OTel collector. A username
+    /// without a password is allowed
+    #[arg(long, env = "RUSTIK_OTEL_USERNAME")]
+    pub otel_username: Option<String>,
+
+    /// Password for basic-auth against the OTel collector. Requires a
+    /// username
+    #[arg(long, env = "RUSTIK_OTEL_PASSWORD", hide_env_values = true)]
+    pub otel_password: Option<String>,
+
     /// How often (seconds) to query the Kubernetes API health endpoints /readyz
     /// and /livez
     #[arg(long, value_parser = parse_interval, default_value = "45")]
@@ -512,5 +522,13 @@ mod tests {
             configured.push_certificate_renewal_threshold,
             Duration::from_hours(24 * 30)
         );
+    }
+
+    #[test]
+    fn otel_password_without_username_parses() {
+        let args = parse(&["--otel-password", "McBobberson"])
+            .expect("a password alone is rejected later, not by clap");
+        assert_eq!(args.otel_username, None);
+        assert_eq!(args.otel_password.as_deref(), Some("McBobberson"));
     }
 }

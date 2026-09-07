@@ -46,6 +46,8 @@ pub enum Error {
         status: reqwest::StatusCode,
         body: String,
     },
+    #[error("a basic-auth password was given without a username")]
+    MissingUsername,
 }
 
 use std::time::Duration;
