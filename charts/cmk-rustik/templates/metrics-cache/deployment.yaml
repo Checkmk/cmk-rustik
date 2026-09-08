@@ -32,7 +32,7 @@ spec:
           image: {{ .Values.metricsCache.image.repository }}:{{ .Values.metricsCache.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.metricsCache.image.pullPolicy }}
           args:
-            - --pull-address=0.0.0.0
+            - --pull-address={{ .Values.metricsCache.pullAddress }}
             - --pull-port={{ .Values.metricsCache.pullPort }}
             {{- if .Values.pull.encryption.enabled }}
             - --pull-tls-secret={{ include "rustik.pullTLSSecretName" . }}
@@ -42,7 +42,7 @@ spec:
             - --pull-service-name={{ include "rustik.fullname" . }}-metrics-cache-pull
             {{- end }}
             {{- end }}
-            - --ingest-address=0.0.0.0
+            - --ingest-address={{ .Values.metricsCache.intraClusterAddress }}
             - --ingest-port={{ .Values.metricsCache.intraClusterPort }}
             {{- if .Values.intraClusterCommunication.encryption.enabled }}
             - --ingest-tls-secret={{ include "rustik.intraClusterTLSSecretName" . }}

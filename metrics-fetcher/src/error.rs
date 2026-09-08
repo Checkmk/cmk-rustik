@@ -16,6 +16,12 @@ pub(crate) enum Error {
         #[source]
         source: std::env::VarError,
     },
+    #[error("invalid node IP address {value}")]
+    InvalidNodeIp {
+        value: String,
+        #[source]
+        source: std::net::AddrParseError,
+    },
     #[error("check_mk_agent timed out after {0:?}")]
     AgentTimeout(std::time::Duration),
     #[error("check_mk_agent exited with {status}: {stderr}")]

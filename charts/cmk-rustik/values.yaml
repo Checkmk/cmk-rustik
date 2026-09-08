@@ -88,9 +88,20 @@ metricsCache:
       cpu: 150m
       memory: 200Mi
 
+  # pullAddress is the address to bind to for pull mode. By default it binds to
+  # all available IPv4 interfaces (0.0.0.0). For an IPv6-only cluster, you might
+  # need to change it, for example to "::".
+  pullAddress: 0.0.0.0
+
   # pullPort is the container port on which metrics-cache serves pull requests.
   # The pull Service targets this port.
   pullPort: 10050
+
+  # intraClusterAddress is the address metrics-cache binds to, to accept data
+  # from metrics-fetcher. By default it binds to all available IPv4 interfaces
+  # (0.0.0.0). For an IPv6-only cluster, you might need to change it, for
+  # example to "::".
+  intraClusterAddress: 0.0.0.0
 
   # intraClusterPort is the container port on which metrics-cache accepts data
   # from metrics-fetcher. The ingestion Service targets this port.

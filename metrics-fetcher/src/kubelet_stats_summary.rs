@@ -4,6 +4,7 @@ use tracing::{debug, error, trace};
 
 use crate::cli_args::CliArgs;
 use crate::error::{Error, Result};
+use crate::kubelet;
 use crate::payload::Payload;
 use crate::scraper::Scraper;
 
@@ -59,7 +60,7 @@ impl Scraper for KubeletStatsSummaryScraper {
         debug!("fetching Kubelet /stats/summary");
         let response = self
             .scrape_client
-            .get(format!("https://{node_ip}:10250/stats/summary"))
+            .get(kubelet::url(&node_ip, "/stats/summary")?)
             .bearer_auth(token.trim())
             .send()
             .await?;

@@ -1,5 +1,6 @@
 mod cli_args;
 mod error;
+mod kubelet;
 mod kubelet_health;
 mod kubelet_stats_summary;
 mod linux_agent;
