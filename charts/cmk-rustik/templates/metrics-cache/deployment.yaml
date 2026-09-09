@@ -62,13 +62,13 @@ spec:
             - --kubelet-health-cache-ttl={{ .Values.metricsCache.kubeletHealthCacheTtl }}
             - --api-health-poll-interval={{ .Values.metricsCache.apiHealthPollInterval }}
             {{- range .Values.clusterAggregation.excludedNodeRolePatterns }}
-            - {{ printf "--excluded-node-role-patterns=%s" . | quote }}
+            - {{ printf "--excluded-node-role-pattern=%s" . | quote }}
             {{- end }}
             {{- range .Values.namespaceFilter.includePatterns }}
-            - {{ printf "--namespace-include-patterns=%s" . | quote }}
+            - {{ printf "--namespace-include-pattern=%s" . | quote }}
             {{- end }}
             {{- range .Values.namespaceFilter.excludePatterns }}
-            - {{ printf "--namespace-exclude-patterns=%s" . | quote }}
+            - {{ printf "--namespace-exclude-pattern=%s" . | quote }}
             {{- end }}
             {{- if .Values.podHosts.includeCronJobPods }}
             - --include-cronjob-pods
