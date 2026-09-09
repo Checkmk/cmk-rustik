@@ -6,6 +6,7 @@ use tracing::{debug, warn};
 
 use crate::cli_args::CliArgs;
 use crate::error::{Error, Result};
+use crate::kubelet;
 use crate::payload::Payload;
 use crate::scraper::Scraper;
 
@@ -58,7 +59,7 @@ impl Scraper for KubeletHealthScraper {
             tokio::fs::read_to_string("/var/run/secrets/kubernetes.io/serviceaccount/token")
                 .await?;
 
-        let url = format!("https://{node_ip}:10250/healthz");
+        let url = kubelet::url(&node_ip, "/healthz")?;
         let response = self
             .scrape_client
             .get(&url)

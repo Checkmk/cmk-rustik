@@ -121,9 +121,9 @@ pub fn node_roles(node: &Node) -> impl Iterator<Item = &str> {
 impl HostSettings {
     /// Given a node, determine if it should be excluded from cluster metrics.
     ///
-    /// This is primarily based on the roles the node has. We allow for a
-    /// command-line argument `--excluded-node-role-patterns` which is a list of
-    /// role substrings we exclude for nodes in cluster-level computations.
+    /// This is primarily based on the roles the node has. The repeatable
+    /// `--excluded-node-role-pattern` argument specifies role substrings to
+    /// exclude from cluster-level computations.
     pub fn is_node_excluded(&self, node: &Node) -> bool {
         // If no filter was given, don't exclude any nodes
         if self.excluded_node_role_patterns.is_empty() {

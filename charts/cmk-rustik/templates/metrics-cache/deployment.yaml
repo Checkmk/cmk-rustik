@@ -32,7 +32,7 @@ spec:
           image: {{ .Values.metricsCache.image.repository }}:{{ .Values.metricsCache.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.metricsCache.image.pullPolicy }}
           args:
-            - --pull-address=0.0.0.0
+            - --pull-address={{ .Values.metricsCache.pullAddress }}
             - --pull-port={{ .Values.metricsCache.pullPort }}
             {{- if .Values.pull.encryption.enabled }}
             - --pull-tls-secret={{ include "rustik.pullTLSSecretName" . }}
@@ -42,7 +42,7 @@ spec:
             - --pull-service-name={{ include "rustik.fullname" . }}-metrics-cache-pull
             {{- end }}
             {{- end }}
-            - --ingest-address=0.0.0.0
+            - --ingest-address={{ .Values.metricsCache.intraClusterAddress }}
             - --ingest-port={{ .Values.metricsCache.intraClusterPort }}
             {{- if .Values.intraClusterCommunication.encryption.enabled }}
             - --ingest-tls-secret={{ include "rustik.intraClusterTLSSecretName" . }}
@@ -61,11 +61,14 @@ spec:
             - --system-agent-cache-ttl={{ .Values.metricsCache.systemAgentCacheTtl }}
             - --kubelet-health-cache-ttl={{ .Values.metricsCache.kubeletHealthCacheTtl }}
             - --api-health-poll-interval={{ .Values.metricsCache.apiHealthPollInterval }}
+            {{- range .Values.clusterAggregation.excludedNodeRolePatterns }}
+            - {{ printf "--excluded-node-role-pattern=%s" . | quote }}
+            {{- end }}
             {{- range .Values.namespaceFilter.includePatterns }}
-            - {{ printf "--namespace-include-patterns=%s" . | quote }}
+            - {{ printf "--namespace-include-pattern=%s" . | quote }}
             {{- end }}
             {{- range .Values.namespaceFilter.excludePatterns }}
-            - {{ printf "--namespace-exclude-patterns=%s" . | quote }}
+            - {{ printf "--namespace-exclude-pattern=%s" . | quote }}
             {{- end }}
             {{- if .Values.podHosts.includeCronJobPods }}
             - --include-cronjob-pods

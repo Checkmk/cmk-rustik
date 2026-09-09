@@ -236,19 +236,25 @@ pub struct CliArgs {
     #[arg(long, default_value_t = false)]
     pub push_registration_insecure_skip_site_ca_verification: bool,
 
-    /// Excluded node role (infix) patterns for cluster-level aggregations,
-    /// comma-separated
-    #[arg(long, value_delimiter = ',')]
+    /// Excluded node role (infix) pattern for cluster-level aggregations.
+    /// May be specified multiple times
+    #[arg(long = "excluded-node-role-pattern")]
     pub excluded_node_role_patterns: Vec<Regex>,
 
     /// Only emit piggyback hosts belonging to namespaces matching at least one
-    /// of these regex patterns
-    #[arg(long, conflicts_with = "namespace_exclude_patterns")]
+    /// of these regex patterns. May be specified multiple times
+    #[arg(
+        long = "namespace-include-pattern",
+        conflicts_with = "namespace_exclude_patterns"
+    )]
     pub namespace_include_patterns: Vec<Regex>,
 
     /// Do not emit piggyback hosts belonging to namespaces matching any of
-    /// these regex patterns
-    #[arg(long, conflicts_with = "namespace_include_patterns")]
+    /// these regex patterns. May be specified multiple times
+    #[arg(
+        long = "namespace-exclude-pattern",
+        conflicts_with = "namespace_include_patterns"
+    )]
     pub namespace_exclude_patterns: Vec<Regex>,
 
     /// Enable sending OTel metrics to the endpoint given
@@ -466,6 +472,28 @@ mod tests {
         assert_eq!(args.kubelet_stats_cache_ttl, Duration::from_secs(120));
         assert_eq!(args.system_agent_cache_ttl, Duration::from_secs(120));
         assert_eq!(args.kubelet_health_cache_ttl, Duration::from_secs(120));
+    }
+
+    #[test]
+    fn filter_patterns_are_repeatable_and_not_comma_delimited() {
+        let args = parse(&[
+            "--excluded-node-role-pattern",
+            "worker-[0-9]{1,3}",
+            "--excluded-node-role-pattern",
+            "infra",
+            "--namespace-include-pattern",
+            "production",
+        ])
+        .expect("valid filter patterns should parse");
+
+        assert_eq!(
+            args.excluded_node_role_patterns
+                .iter()
+                .map(Regex::as_str)
+                .collect::<Vec<_>>(),
+            ["worker-[0-9]{1,3}", "infra"]
+        );
+        assert_eq!(args.namespace_include_patterns[0].as_str(), "production");
     }
 
     #[test]
