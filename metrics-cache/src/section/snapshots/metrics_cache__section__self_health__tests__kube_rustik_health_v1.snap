@@ -8,34 +8,40 @@ expression: section
       "kubelet_stats": {
         "last_heard_age_secs": 26.0,
         "scrape_time_secs": 0.15,
-        "version": "1.1000.0"
+        "version": "1.1000.0",
+        "git_sha": "39ead942a6da3e42c8b0fb37810eca12344a56c7"
       },
       "kubelet_health": {
         "last_heard_age_secs": 24.0,
         "scrape_time_secs": 0.045,
-        "version": "1.1000.0"
+        "version": "1.1000.0",
+        "git_sha": "39ead942a6da3e42c8b0fb37810eca12344a56c7"
       },
       "system_agent": {
         "last_heard_age_secs": null,
         "scrape_time_secs": null,
-        "version": null
+        "version": null,
+        "git_sha": null
       }
     },
     "offline01": {
       "kubelet_stats": {
         "last_heard_age_secs": null,
         "scrape_time_secs": null,
-        "version": null
+        "version": null,
+        "git_sha": null
       },
       "kubelet_health": {
         "last_heard_age_secs": null,
         "scrape_time_secs": null,
-        "version": null
+        "version": null,
+        "git_sha": null
       },
       "system_agent": {
         "last_heard_age_secs": null,
         "scrape_time_secs": null,
-        "version": null
+        "version": null,
+        "git_sha": null
       }
     }
   },
@@ -64,5 +70,9 @@ expression: section
       "last_error_age_secs": null,
       "errors_total": 0
     }
+  },
+  "metrics_cache": {
+    "version": "1.1000.1",
+    "git_sha": "40abc123a6da3e42c8b0fb37810eca54321a56a1"
   }
 }

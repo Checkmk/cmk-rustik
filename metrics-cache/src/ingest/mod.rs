@@ -27,6 +27,7 @@ pub struct MetricsFetcherIngestion<T> {
 pub struct MetricsFetcherMetadata {
     pub scrape_time: Option<Duration>,
     pub version: Option<String>,
+    pub git_sha: Option<String>,
 }
 
 impl From<&HeaderMap> for MetricsFetcherMetadata {
@@ -39,6 +40,10 @@ impl From<&HeaderMap> for MetricsFetcherMetadata {
                 .map(Duration::from_millis),
             version: headers
                 .get("X-Agent-Version")
+                .and_then(|v| v.to_str().ok())
+                .map(String::from),
+            git_sha: headers
+                .get("X-Agent-Git")
                 .and_then(|v| v.to_str().ok())
                 .map(String::from),
         }

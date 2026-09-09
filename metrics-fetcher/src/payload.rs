@@ -76,6 +76,10 @@ impl Payload {
                 scrape_time_ms_header_value(scrape_duration),
             )
             .header("X-Agent-Version", env!("CARGO_PKG_VERSION"))
+            .header(
+                "X-Agent-Git",
+                option_env!("RUSTIK_GIT_SHA").unwrap_or("unknown"),
+            )
             .send()
             .await?;
         if response.status().is_success() {

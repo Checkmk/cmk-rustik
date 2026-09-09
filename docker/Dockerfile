@@ -11,6 +11,7 @@ WORKDIR /src
 COPY --from=planner /src/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json --target "$(uname -m)-unknown-linux-musl"
 COPY . .
+ARG RUSTIK_GIT_SHA
 RUN cargo build --release --target "$(uname -m)-unknown-linux-musl"
 
 FROM alpine:3.23 AS metrics-fetcher

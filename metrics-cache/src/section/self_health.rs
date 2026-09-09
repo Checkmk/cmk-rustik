@@ -27,6 +27,7 @@ struct MetricsFetcherIngestionHealth<'a> {
     #[serde(serialize_with = "duration_to_secs")]
     scrape_time_secs: Option<Duration>,
     version: Option<&'a str>,
+    git_sha: Option<&'a str>,
 }
 
 impl<'a> From<&'a crate::snapshot::self_health::MetricsFetcherIngestionHealth>
@@ -37,6 +38,7 @@ impl<'a> From<&'a crate::snapshot::self_health::MetricsFetcherIngestionHealth>
             last_heard_age_secs: value.last_heard_age,
             scrape_time_secs: value.scrape_time,
             version: value.version.as_deref(),
+            git_sha: value.git_sha.as_deref(),
         }
     }
 }
@@ -88,9 +90,22 @@ impl From<&crate::snapshot::self_health::ReflectorHealth> for ReflectorHealth {
 }
 
 #[derive(Debug, Serialize)]
+struct MetricsCacheMetadata<'a> {
+    version: &'a str,
+    git_sha: Option<&'a str>,
+}
+
+impl<'a> MetricsCacheMetadata<'a> {
+    fn new(version: &'a str, git_sha: Option<&'a str>) -> Self {
+        Self { version, git_sha }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub(crate) struct KubeRustikHealthV1<'a> {
     metrics_fetchers: BTreeMap<&'a str, NodeMetricsFetcherHealth<'a>>,
     reflector_healths: BTreeMap<&'static str, ReflectorHealth>,
+    metrics_cache: MetricsCacheMetadata<'a>,
 }
 
 impl<'a> KubeRustikHealthV1<'a> {
@@ -109,6 +124,10 @@ impl<'a> KubeRustikHealthV1<'a> {
         KubeRustikHealthV1 {
             metrics_fetchers,
             reflector_healths,
+            metrics_cache: MetricsCacheMetadata::new(
+                self_health.metrics_cache_build_info.version,
+                self_health.metrics_cache_build_info.git_sha,
+            ),
         }
     }
 }
@@ -122,6 +141,7 @@ mod tests {
     use super::*;
 
     use crate::snapshot;
+    use crate::snapshot::self_health::MetricsCacheBuildInfo;
     use crate::test_support::*;
 
     #[test]
@@ -134,16 +154,19 @@ mod tests {
                         last_heard_age: Some(Duration::from_secs(26)),
                         scrape_time: Some(Duration::from_millis(150)),
                         version: Some(s("1.1000.0")),
+                        git_sha: Some(s("39ead942a6da3e42c8b0fb37810eca12344a56c7")),
                     },
                     kubelet_health: snapshot::self_health::MetricsFetcherIngestionHealth {
                         last_heard_age: Some(Duration::from_secs(24)),
                         scrape_time: Some(Duration::from_millis(45)),
                         version: Some(s("1.1000.0")),
+                        git_sha: Some(s("39ead942a6da3e42c8b0fb37810eca12344a56c7")),
                     },
                     system_agent: snapshot::self_health::MetricsFetcherIngestionHealth {
                         last_heard_age: None,
                         scrape_time: None,
                         version: None,
+                        git_sha: None,
                     },
                 },
             ),
@@ -163,9 +186,14 @@ mod tests {
                 snapshot::self_health::ReflectorHealth::default(),
             ),
         ]);
+        let metrics_cache_build_info = MetricsCacheBuildInfo {
+            version: "1.1000.1",
+            git_sha: Some("40abc123a6da3e42c8b0fb37810eca54321a56a1"),
+        };
         let self_health = SelfHealth {
             node_metrics_fetchers,
             reflector_healths,
+            metrics_cache_build_info,
         };
         let section = KubeRustikHealthV1::from_self_health(&self_health);
         insta::assert_json_snapshot!(section);

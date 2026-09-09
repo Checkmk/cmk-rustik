@@ -29,6 +29,8 @@ pub struct SelfHealth {
     pub node_metrics_fetchers: BTreeMap<String, NodeMetricsFetcherHealth>,
     /// Maps kind names to reflector states.
     pub(crate) reflector_healths: BTreeMap<&'static str, ReflectorHealth>,
+    /// Build information about metrics-cache.
+    pub metrics_cache_build_info: MetricsCacheBuildInfo,
 }
 
 /// Self-health data for the metrics-fetcher running on a single node.
@@ -45,6 +47,7 @@ pub struct MetricsFetcherIngestionHealth {
     pub last_heard_age: Option<Duration>,
     pub scrape_time: Option<Duration>,
     pub version: Option<String>,
+    pub git_sha: Option<String>,
 }
 
 /// Identifies the metrics-fetcher DaemonSet in the reflector store.
@@ -62,6 +65,12 @@ pub(crate) struct ReflectorHealth {
     pub(crate) relist_duration: Option<Duration>,
     pub(crate) last_error_age: Option<Duration>,
     pub(crate) errors_total: u64,
+}
+
+#[derive(Debug, Default)]
+pub struct MetricsCacheBuildInfo {
+    pub version: &'static str,
+    pub git_sha: Option<&'static str>,
 }
 
 impl ReflectorHealth {
@@ -111,9 +120,14 @@ impl SelfHealth {
             })
             .collect();
         let reflector_healths = Self::reflector_healths_from_frozen(now, reflector_healths);
+        let metrics_cache_build_info = MetricsCacheBuildInfo {
+            version: env!("CARGO_PKG_VERSION"),
+            git_sha: option_env!("RUSTIK_GIT_SHA"),
+        };
         SelfHealth {
             node_metrics_fetchers,
             reflector_healths,
+            metrics_cache_build_info,
         }
     }
 
@@ -167,6 +181,7 @@ impl SelfHealth {
                         last_heard_age: Some(now.saturating_duration_since(ingestion.received_at)),
                         scrape_time: ingestion.metadata.scrape_time,
                         version: ingestion.metadata.version.clone(),
+                        git_sha: ingestion.metadata.git_sha.clone(),
                     },
                 )
             })
@@ -290,6 +305,7 @@ mod tests {
         let metadata = MetricsFetcherMetadata {
             scrape_time: Some(Duration::from_millis(945)),
             version: Some(s("1.1000.0")),
+            git_sha: Some(s("39ead942a6da3e42c8b0fb37810eca12344a56c7")),
         };
         let ingestion = Arc::new(MetricsFetcherIngestion {
             received_at: now - Duration::from_secs(12),
@@ -312,6 +328,10 @@ mod tests {
             Some(Duration::from_millis(945))
         );
         assert_eq!(health["node01"].version.as_deref(), Some("1.1000.0"));
+        assert_eq!(
+            health["node01"].git_sha.as_deref(),
+            Some("39ead942a6da3e42c8b0fb37810eca12344a56c7")
+        );
     }
 
     #[test]

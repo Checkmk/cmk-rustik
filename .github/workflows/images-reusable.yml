@@ -28,6 +28,10 @@ jobs:
       cache-scope: ${{ matrix.component }}
       cache-mode: max
       target: ${{ matrix.component }}
+      set-meta-labels: true
+      set-meta-annotations: true
+      build-args: |
+        RUSTIK_GIT_SHA=${{ github.sha }}
       meta-images: ghcr.io/${{ github.repository }}-${{ matrix.component }}
       meta-tags: |
         type=sha,format=long
