@@ -265,6 +265,16 @@ hostLabels:
   # Empty means no annotations are imported.
   importKeyPattern: ""
 
+# clusterAggregation configures which Nodes contribute to resource and
+# performance sections on the Cluster host. Patterns use regular-expression
+# infix matching against Node roles. An empty list includes every Node.
+clusterAggregation:
+  # Control-plane and infrastructure Nodes do not normally contribute to the
+  # workload capacity of a cluster, so they are excluded by default.
+  excludedNodeRolePatterns:
+    - control-plane
+    - infra
+
 # namespaceFilter limits which namespaced resources become piggyback hosts.
 # Patterns use regular-expression infix matching. Include and exclude patterns
 # are mutually exclusive. Cluster and Node hosts and their rollups are not

@@ -61,6 +61,9 @@ spec:
             - --system-agent-cache-ttl={{ .Values.metricsCache.systemAgentCacheTtl }}
             - --kubelet-health-cache-ttl={{ .Values.metricsCache.kubeletHealthCacheTtl }}
             - --api-health-poll-interval={{ .Values.metricsCache.apiHealthPollInterval }}
+            {{- range .Values.clusterAggregation.excludedNodeRolePatterns }}
+            - {{ printf "--excluded-node-role-patterns=%s" . | quote }}
+            {{- end }}
             {{- range .Values.namespaceFilter.includePatterns }}
             - {{ printf "--namespace-include-patterns=%s" . | quote }}
             {{- end }}
