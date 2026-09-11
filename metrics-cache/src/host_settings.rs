@@ -144,6 +144,55 @@ mod tests {
 
     use crate::test_support::{host_settings, node, node_with_roles, s};
 
+    #[test]
+    fn annotation_key_pattern_controls_which_keys_are_imported() {
+        let ignore_all = AnnotationKeyPattern::IgnoreAll;
+        assert!(!ignore_all.should_import("example.com/monitoring"));
+        assert!(!ignore_all.should_import("anything"));
+
+        let import_all = AnnotationKeyPattern::ImportAll;
+        assert!(import_all.should_import("example.com/monitoring"));
+        assert!(import_all.should_import("anything"));
+
+        let pattern = AnnotationKeyPattern::Pattern(Regex::new("^example\\.com/").unwrap());
+        assert!(pattern.should_import("example.com/monitoring"));
+        assert!(!pattern.should_import("other.example.com/monitoring"));
+    }
+
+    #[test]
+    fn annotation_key_pattern_is_selected_from_settings() {
+        assert!(matches!(
+            AnnotationKeyPattern::new(false, None),
+            AnnotationKeyPattern::IgnoreAll
+        ));
+        assert!(matches!(
+            AnnotationKeyPattern::new(false, Some(Regex::new("^example").unwrap())),
+            AnnotationKeyPattern::Pattern(_)
+        ));
+        assert!(matches!(
+            AnnotationKeyPattern::new(true, Some(Regex::new("^example").unwrap())),
+            AnnotationKeyPattern::ImportAll
+        ));
+    }
+
+    #[test]
+    fn annotation_key_pattern_filters_entries() {
+        let annotations = BTreeMap::from([
+            (s("example.com/check-mk"), s("enabled")),
+            (s("example.com/team"), s("operations")),
+            (s("kubernetes.io/change-cause"), s("upgrade")),
+        ]);
+        let pattern = AnnotationKeyPattern::Pattern(Regex::new("^example\\.com/").unwrap());
+
+        assert_eq!(
+            pattern.filter(&annotations),
+            BTreeMap::from([
+                ("example.com/check-mk", "enabled"),
+                ("example.com/team", "operations"),
+            ])
+        );
+    }
+
     fn host_settings_with_excluded_roles(patterns: Vec<Regex>) -> HostSettings {
         HostSettings {
             annotation_key_pattern: AnnotationKeyPattern::IgnoreAll,
