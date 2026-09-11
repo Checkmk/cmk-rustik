@@ -3,7 +3,7 @@ use reqwest::Client;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::process::Command;
-use tokio::time::{Duration, timeout};
+use tokio::time::timeout;
 use tracing::{debug, trace};
 
 use crate::cli_args::CliArgs;
@@ -12,7 +12,6 @@ use crate::payload::Payload;
 use crate::scraper::Scraper;
 
 const AGENT_PATH: &str = "/usr/local/bin/check_mk_agent";
-const AGENT_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub(crate) struct LinuxAgentScraper {
     relay_client: Client,
@@ -56,9 +55,10 @@ impl Scraper for LinuxAgentScraper {
             .kill_on_drop(true)
             .spawn()?;
 
-        let output = timeout(AGENT_TIMEOUT, child.wait_with_output())
+        let agent_timeout = self.args.system_agent_timeout;
+        let output = timeout(agent_timeout, child.wait_with_output())
             .await
-            .map_err(|_| Error::AgentTimeout(AGENT_TIMEOUT))??;
+            .map_err(|_| Error::AgentTimeout(agent_timeout))??;
 
         if !output.status.success() {
             return Err(Error::AgentExitStatus {

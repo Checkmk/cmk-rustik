@@ -2,7 +2,6 @@ use reqwest::Client;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::time;
-use tokio::time::Duration;
 use tracing::{error, warn};
 
 use crate::cli_args::CliArgs;
@@ -20,7 +19,7 @@ pub(crate) trait Scraper {
     where
         Self: Sized,
     {
-        let mut interval = time::interval(Duration::from_secs(60));
+        let mut interval = time::interval(self.args().poll_interval);
         loop {
             interval.tick().await;
             let start = Instant::now();

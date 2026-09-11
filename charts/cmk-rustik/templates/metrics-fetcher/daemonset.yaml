@@ -37,6 +37,8 @@ spec:
           image: {{ .Values.metricsFetcher.image.repository }}:{{ .Values.metricsFetcher.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.metricsFetcher.image.pullPolicy }}
           args:
+            - --poll-interval={{ .Values.metricsFetcher.pollInterval }}
+            - --system-agent-timeout={{ .Values.metricsFetcher.systemAgentTimeout }}
             - --metrics-cache-namespace={{ .Release.Namespace }}
             - --metrics-cache-service={{ include "rustik.fullname" . }}-metrics-cache-ingest
             - --metrics-cache-port={{ .Values.metricsCache.intraClusterPort }}
