@@ -33,7 +33,7 @@ jobs:
       - name: Generate CycloneDX SBOMs
         run: >-
           cargo cyclonedx --format xml --all-features
-          --override-filename bom.xml
+          --override-filename bom
       - name: Stage SBOMs
         env:
           SBOM_DIR: sbom/${{ inputs.version }}
