@@ -37,7 +37,9 @@ spec:
           image: {{ .Values.metricsFetcher.image.repository }}:{{ .Values.metricsFetcher.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.metricsFetcher.image.pullPolicy }}
           args:
-            - --poll-interval={{ .Values.metricsFetcher.pollInterval }}
+            - --kubelet-stats-poll-interval={{ .Values.metricsFetcher.kubeletStatsPollInterval }}
+            - --kubelet-health-poll-interval={{ .Values.metricsFetcher.kubeletHealthPollInterval }}
+            - --system-agent-poll-interval={{ .Values.metricsFetcher.systemAgentPollInterval }}
             - --system-agent-timeout={{ .Values.metricsFetcher.systemAgentTimeout }}
             - --metrics-cache-namespace={{ .Release.Namespace }}
             - --metrics-cache-service={{ include "rustik.fullname" . }}-metrics-cache-ingest

@@ -2,6 +2,7 @@ use bytes::Bytes;
 use reqwest::{Client, StatusCode};
 use serde::Serialize;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{debug, warn};
 
 use crate::cli_args::CliArgs;
@@ -38,6 +39,10 @@ impl KubeletHealthScraper {
 }
 
 impl Scraper for KubeletHealthScraper {
+    fn poll_interval(&self) -> Duration {
+        self.args.kubelet_health_poll_interval
+    }
+
     fn relay_client(&self) -> Client {
         self.relay_client.clone()
     }

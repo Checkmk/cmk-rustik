@@ -2,6 +2,7 @@ use bytes::Bytes;
 use reqwest::Client;
 use std::process::Stdio;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::process::Command;
 use tokio::time::timeout;
 use tracing::{debug, trace};
@@ -28,6 +29,10 @@ impl LinuxAgentScraper {
 }
 
 impl Scraper for LinuxAgentScraper {
+    fn poll_interval(&self) -> Duration {
+        self.args.system_agent_poll_interval
+    }
+
     fn relay_client(&self) -> Client {
         self.relay_client.clone()
     }

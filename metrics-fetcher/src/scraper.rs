@@ -1,5 +1,6 @@
 use reqwest::Client;
 use std::sync::Arc;
+use std::time::Duration;
 use std::time::Instant;
 use tokio::time;
 use tracing::{error, warn};
@@ -15,11 +16,13 @@ pub(crate) trait Scraper {
 
     fn args(&self) -> Arc<CliArgs>;
 
+    fn poll_interval(&self) -> Duration;
+
     async fn loop_push_scrape(self)
     where
         Self: Sized,
     {
-        let mut interval = time::interval(self.args().poll_interval);
+        let mut interval = time::interval(self.poll_interval());
         loop {
             interval.tick().await;
             let start = Instant::now();

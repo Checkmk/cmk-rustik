@@ -1,5 +1,6 @@
 use reqwest::Client;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{debug, error, trace};
 
 use crate::cli_args::CliArgs;
@@ -32,6 +33,10 @@ impl KubeletStatsSummaryScraper {
 }
 
 impl Scraper for KubeletStatsSummaryScraper {
+    fn poll_interval(&self) -> Duration {
+        self.args.kubelet_stats_poll_interval
+    }
+
     fn relay_client(&self) -> Client {
         self.relay_client.clone()
     }

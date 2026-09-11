@@ -8,10 +8,17 @@ use std::time::Duration;
     about = "Fetch metrics from a Kubernetes node and send them to metrics-cache"
 )]
 pub struct CliArgs {
-    /// Poll interval in seconds for kubelet stats, kubelet health, and the
-    /// system agent. Must be greater than zero.
+    /// Kubelet stats poll interval in seconds. Must be greater than zero.
     #[arg(long, default_value = "60", value_parser = parse_positive_seconds)]
-    pub poll_interval: Duration,
+    pub kubelet_stats_poll_interval: Duration,
+
+    /// Kubelet health poll interval in seconds. Must be greater than zero.
+    #[arg(long, default_value = "60", value_parser = parse_positive_seconds)]
+    pub kubelet_health_poll_interval: Duration,
+
+    /// System-agent poll interval in seconds. Must be greater than zero.
+    #[arg(long, default_value = "60", value_parser = parse_positive_seconds)]
+    pub system_agent_poll_interval: Duration,
 
     /// Timeout in seconds for each system-agent execution. Must be greater
     /// than zero.
@@ -55,22 +62,48 @@ mod tests {
     #[test]
     fn scraper_timings_have_defaults_and_accept_overrides_in_seconds() {
         let defaults = CliArgs::try_parse_from(["metrics-fetcher"]).expect("valid defaults");
-        assert_eq!(defaults.poll_interval, Duration::from_secs(60));
+        assert_eq!(
+            defaults.kubelet_stats_poll_interval,
+            Duration::from_secs(60)
+        );
+        assert_eq!(
+            defaults.kubelet_health_poll_interval,
+            Duration::from_secs(60)
+        );
+        assert_eq!(defaults.system_agent_poll_interval, Duration::from_secs(60));
         assert_eq!(defaults.system_agent_timeout, Duration::from_secs(15));
 
         let configured = CliArgs::try_parse_from([
             "metrics-fetcher",
-            "--poll-interval=30",
+            "--kubelet-stats-poll-interval=30",
+            "--kubelet-health-poll-interval=45",
+            "--system-agent-poll-interval=90",
             "--system-agent-timeout=10",
         ])
         .expect("valid timing overrides");
-        assert_eq!(configured.poll_interval, Duration::from_secs(30));
+        assert_eq!(
+            configured.kubelet_stats_poll_interval,
+            Duration::from_secs(30)
+        );
+        assert_eq!(
+            configured.kubelet_health_poll_interval,
+            Duration::from_secs(45)
+        );
+        assert_eq!(
+            configured.system_agent_poll_interval,
+            Duration::from_secs(90)
+        );
         assert_eq!(configured.system_agent_timeout, Duration::from_secs(10));
     }
 
     #[test]
     fn scraper_timings_reject_zero_and_invalid_seconds() {
-        for flag in ["--poll-interval", "--system-agent-timeout"] {
+        for flag in [
+            "--kubelet-stats-poll-interval",
+            "--kubelet-health-poll-interval",
+            "--system-agent-poll-interval",
+            "--system-agent-timeout",
+        ] {
             for value in ["0", "-1", "0.5", "invalid"] {
                 let error =
                     CliArgs::try_parse_from(["metrics-fetcher", &format!("{flag}={value}")])

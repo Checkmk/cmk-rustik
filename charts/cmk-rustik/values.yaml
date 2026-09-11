@@ -21,11 +21,20 @@ logLevel: info
 # node in the cluster, collecting (or "fetching") metrics about the node's
 # kubelet and running the Checkmk agent on the node.
 metricsFetcher:
-  # pollInterval is how often, in seconds, kubelet stats, kubelet health, and
-  # the system agent are polled. Must be a whole number greater than zero.
-  # Keep this below the corresponding metricsCache cache TTLs so samples do
-  # not expire between polls.
-  pollInterval: 60
+  # kubeletStatsPollInterval is how often, in seconds, kubelet stats are polled.
+  # Must be a whole number greater than zero. Keep this below
+  # metricsCache.kubeletStatsCacheTtl so samples do not expire between polls.
+  kubeletStatsPollInterval: 60
+
+  # kubeletHealthPollInterval is how often, in seconds, kubelet health is polled.
+  # Must be a whole number greater than zero. Keep this below
+  # metricsCache.kubeletHealthCacheTtl so samples do not expire between polls.
+  kubeletHealthPollInterval: 60
+
+  # systemAgentPollInterval is how often, in seconds, the system agent runs.
+  # Must be a whole number greater than zero. Keep this below
+  # metricsCache.systemAgentCacheTtl so samples do not expire between polls.
+  systemAgentPollInterval: 60
 
   # systemAgentTimeout is the timeout in seconds for each system-agent run.
   # Must be a whole number greater than zero.
