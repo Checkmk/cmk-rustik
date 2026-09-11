@@ -138,6 +138,24 @@ spec:
                   name: {{ include "rustik.pullSharedSecretName" . }}
                   key: {{ include "rustik.pullSharedSecretKey" . }}
             {{- end }}
+            {{- /*
+            Deliberately not optional, unlike the push secrets above: a named
+            but missing Secret should stop the Pod with
+            CreateContainerConfigError rather than silently exporting without
+            credentials.
+            */}}
+            {{- if and .Values.otel.enabled .Values.otel.authentication.secretName }}
+            - name: RUSTIK_OTEL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.otel.authentication.secretName }}
+                  key: username
+            - name: RUSTIK_OTEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.otel.authentication.secretName }}
+                  key: password
+            {{- end }}
             - name: NODE_NAME
               valueFrom:
                 fieldRef:

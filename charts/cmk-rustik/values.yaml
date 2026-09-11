@@ -254,6 +254,16 @@ otel:
   # interval is how often, in seconds, metrics are collected and exported to
   # the collector. Must be greater than zero.
   interval: 60
+  # authentication configures basic-auth against the collector. No credentials
+  # are sent while secretName is empty.
+  authentication:
+    # secretName references a Kubernetes Secret holding a "username" and a
+    # "password" field. The Secret must already exist; the chart does not
+    # create it for you. A username with an empty password is accepted, a
+    # password without a username is not. Create one with:
+    #   kubectl create secret generic my-otel-auth \
+    #     --from-literal=username=bob --from-literal=password=McBobberson
+    secretName: ""
 
 # hostLabels defines how annotations get imported as labels in Checkmk. By
 # default annotations do not become host labels.

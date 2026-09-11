@@ -11,7 +11,7 @@ use metrics_cache::auth::pull_agent::PullAgentMiddlewareConfig;
 use metrics_cache::cli_args::CliArgs;
 use metrics_cache::handlers;
 use metrics_cache::ingest::api_health::loop_query_health;
-use metrics_cache::otel::client::OtelClient;
+use metrics_cache::otel::client::{BasicAuth, OtelClient};
 use metrics_cache::otel::otel_loop;
 use metrics_cache::push::client::CheckmkPushClient;
 use metrics_cache::push::push_loop;
@@ -91,6 +91,16 @@ async fn main() -> anyhow::Result<()> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
+    let otel_client = match &args.otel_endpoint {
+        Some(base_url) => {
+            info!("OpenTelemetry enabled, will push metrics to OpenTelemetry collector");
+            let basic_auth =
+                BasicAuth::resolve(args.otel_username.as_deref(), args.otel_password.as_deref())?;
+            Some(OtelClient::new(base_url, basic_auth))
+        }
+        None => None,
+    };
+
     let mut reflector_tasks = JoinSet::new();
 
     // API health channel; the receiver lives in AppState, the sender lives in
@@ -109,15 +119,6 @@ async fn main() -> anyhow::Result<()> {
             let secret = registration.register_if_needed().await?;
             let client = CheckmkPushClient::from_secret(base_url, &secret)?;
             Some((client, registration))
-        }
-        None => None,
-    };
-
-    let otel_client = match &args.otel_endpoint {
-        Some(base_url) => {
-            info!("OpenTelemetry enabled, will push metrics to OpenTelemetry collector");
-            // TODO: Auth, etc.
-            Some(OtelClient::new(base_url))
         }
         None => None,
     };
