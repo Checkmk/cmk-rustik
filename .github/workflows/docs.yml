@@ -11,13 +11,11 @@ on:
       - master
   workflow_dispatch:
 
-# Allow the build job to persist the site and the deploy job to publish it.
+# Pages must use "Deploy from a branch": gh-pages, / (root).
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
-# Never run two Pages deployments concurrently, but let an in-flight one finish.
+# Serialize updates to gh-pages with release SBOM publication.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -41,7 +39,6 @@ jobs:
       # output under this target-specific directory, not plain target/doc.
       DOC_DIR: target/x86_64-unknown-linux-musl/doc
       PAGES_UPDATE_DIR: pages-update
-      PAGES_SITE_DIR: pages-site
       SOURCE_REF: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
@@ -85,33 +82,3 @@ jobs:
             sbom
             sbom/**
           commit-message: Update docs and master SBOMs for ${{ env.SOURCE_REF }}
-      - name: Check out persisted Pages site
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: ${{ env.PAGES_SITE_DIR }}
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: ${{ env.PAGES_SITE_DIR }}
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      # The Pages deployment service flakes fairly regularly ("Deployment
-      # failed, try again later" after a successful build). Retry once, and
-      # never fail the workflow over it: the docs BUILD failing is signal,
-      # the deploy hiccuping is GitHub weather.
-      - id: deployment
-        uses: actions/deploy-pages@v4
-        continue-on-error: true
-      - id: deployment-retry
-        if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v4
-        continue-on-error: true
-      - if: steps.deployment.outcome == 'failure' && steps.deployment-retry.outcome == 'failure'
-        run: echo "::warning::Pages deployment failed twice; docs were built but not published this run."

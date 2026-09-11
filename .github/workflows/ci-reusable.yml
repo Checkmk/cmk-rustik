@@ -34,7 +34,8 @@ jobs:
             tar xz -C /usr/local/bin kubeconform
       - name: Run kubeconform
         run: |
-          helm template rustik charts/cmk-rustik | \
+          helm template rustik charts/cmk-rustik \
+            -f charts/cmk-rustik/ci/ci-values.yaml | \
             kubeconform -strict -summary -kubernetes-version 1.36.0 -
       - name: Run chart-testing (lint)
         run: ct lint --all

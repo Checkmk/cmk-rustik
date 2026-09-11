@@ -21,11 +21,24 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - uses: azure/setup-helm@v5.0.1
-      - run: helm registry login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-      - name: Package and push
+      - name: Log in to GHCR
+        env:
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "$REGISTRY_PASSWORD" |
+            helm registry login ghcr.io \
+              --username "${{ github.actor }}" \
+              --password-stdin
+      - name: Package and push
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          # The packaged chart must use the images built in this repository,
+          # including when testing the release workflow in a fork.
+          sed -i "s|ghcr.io/checkmk/cmk-rustik-|ghcr.io/${GITHUB_REPOSITORY,,}-|g" \
+            charts/cmk-rustik/values.yaml
           helm package charts/cmk-rustik \
-            --version ${{ inputs.version }} \
+            --version "$VERSION" \
             --app-version "sha-${{ github.sha }}"
-          helm push cmk-rustik-${{ inputs.version }}.tgz \
+          helm push "cmk-rustik-$VERSION.tgz" \
             oci://ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts

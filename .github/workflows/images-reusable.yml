@@ -1,8 +1,7 @@
 ---
 name: Reusable image build workflow
 
-# Builds and pushes the component images. Called by ci.yml for branch
-# pushes and eventually release.yml tag/release builds.
+# Builds and pushes the component images for master and tagged releases.
 on:
   workflow_call:
 
@@ -33,12 +32,12 @@ jobs:
       build-args: |
         RUSTIK_GIT_SHA=${{ github.sha }}
       meta-images: ghcr.io/${{ github.repository }}-${{ matrix.component }}
+      # Releases get only the full x.y.z version, without moving version aliases.
+      meta-flavor: latest=false
       meta-tags: |
         type=sha,format=long
         type=ref,event=branch
         type=semver,pattern={{version}}
-        type=semver,pattern={{major}}.{{minor}}
-        type=semver,pattern={{major}}
     secrets:
       registry-auths: |
         - registry: ghcr.io

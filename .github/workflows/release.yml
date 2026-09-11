@@ -11,16 +11,18 @@ permissions:
 
 jobs:
   preflight:
-    name: Preflight checks
+    name: Check release version
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - name: Check that tag matches version in Cargo.toml
+      - uses: actions/checkout@v7
+      - name: Check that tag matches Cargo.toml
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          version=$(cargo pkgid | cut -d'#' -f2)
-          if [ "$version" != "${{ github.ref_name }}" ]; then
-            echo "Tag version does not match Cargo.toml version"
-            echo "Tag: ${{ github.ref_name }}, Cargo.toml: $version"
+          version=$(cargo pkgid -p metrics-fetcher | cut -d'#' -f2)
+          if [[ "$version" != "$RELEASE_TAG" ]]; then
+            echo "Tag $RELEASE_TAG does not match Cargo.toml version $version"
             exit 1
           fi
 
@@ -29,54 +31,90 @@ jobs:
     needs: preflight
     uses: ./.github/workflows/ci-reusable.yml
 
-  release:
+  images:
+    name: Publish images
     needs: ci
-    runs-on: ${{ matrix.runs-on }}
-    timeout-minutes: 15
-    # Needed to create the GitHub release and upload the built artifacts.
+    uses: ./.github/workflows/images-reusable.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+
+  helm:
+    name: Publish Helm chart
+    needs: images
+    uses: ./.github/workflows/helm-release-reusable.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      version: ${{ github.ref_name }}
+
+  sbom:
+    name: Generate SBOMs
+    needs: ci
+    uses: ./.github/workflows/sbom-reusable.yml
+    with:
+      ref: ${{ github.sha }}
+      version: ${{ github.ref_name }}
+
+  github-release:
+    name: Create GitHub release
+    needs: [images, helm, sbom]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runs-on: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-
-          - runs-on: ubuntu-latest
-            target: aarch64-unknown-linux-musl
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/download-artifact@v4
         with:
-          components: clippy, rustfmt
-          rustflags: ""
-          target: ${{ matrix.target }}
+          name: rustik-sbom-${{ github.ref_name }}
+          path: release-assets
+      - uses: softprops/action-gh-release@v3
+        with:
+          # Different compatibility lines can release independently.
+          make_latest: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: release-assets/*-bom.xml
 
-      - name: Install cross
-        if: ${{ matrix.runs-on == 'ubuntu-latest' }}
-        run: cargo install cross --git https://github.com/cross-rs/cross
-
-      # This step seems absolutely necessary for 'cross' to work.
-      - name: Clean build cache
-        run: cargo clean
-
-      - name: Build (Linux, cross compile)
-        if: ${{ matrix.runs-on == 'ubuntu-latest' }}
-        run: cross build --release --all-features --target=${{ matrix.target }}
-
-      - name: Create a tar.gz (Linux, macOS)
-        id: create-tar
+  publish-sbom:
+    # Pages must use "Deploy from a branch": gh-pages, / (root).
+    name: Publish release SBOMs
+    needs: github-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      PAGES_UPDATE_DIR: pages-update
+      RELEASE_VERSION: ${{ github.ref_name }}
+      SBOM_DOWNLOAD_DIR: release-sbom
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: rustik-sbom-${{ github.ref_name }}
+          path: ${{ env.SBOM_DOWNLOAD_DIR }}
+      - name: Stage release SBOMs
         run: |
-          mkdir release
-          cp LICENSE release/
-          cp target/${{ matrix.target }}/release/cmk-rustik release/
-          tar -czvf cmk-rustik-${{ github.ref_name }}-${{ matrix.target }}.tar.gz release/
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: github.ref_type == 'tag'
+          RELEASE_LINE="${RELEASE_VERSION%.*}"
+          exact_dir="$PAGES_UPDATE_DIR/sbom/$RELEASE_LINE/$RELEASE_VERSION"
+          latest_dir="$PAGES_UPDATE_DIR/sbom/$RELEASE_LINE/latest"
+          mkdir -p "$exact_dir" "$latest_dir"
+          touch "$PAGES_UPDATE_DIR/.nojekyll"
+          cp -a "$SBOM_DOWNLOAD_DIR/." "$exact_dir/"
+          # latest follows the most recently published release in this line.
+          cp -a "$SBOM_DOWNLOAD_DIR/." "$latest_dir/"
+      - name: Persist release SBOMs
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          files: |
-            cmk-rustik*.tar.gz
+          branch: gh-pages
+          folder: ${{ env.PAGES_UPDATE_DIR }}
+          clean: false
+          commit-message: Publish SBOMs for ${{ env.RELEASE_VERSION }}
