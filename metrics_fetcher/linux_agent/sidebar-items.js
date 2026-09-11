@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["AGENT_PATH","AGENT_TIMEOUT"],"struct":["LinuxAgentScraper"]};
+window.SIDEBAR_ITEMS = {"constant":["AGENT_PATH"],"struct":["LinuxAgentScraper"]};
