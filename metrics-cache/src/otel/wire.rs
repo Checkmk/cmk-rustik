@@ -149,3 +149,68 @@ impl FromIterator<KubeEntity> for ExportMetricsServiceRequest {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kube_entities_map_to_otlp_metrics() {
+        let namespace = Arc::new(Attribute::new("k8s.namespace.name", "default".into()));
+        let pod = Arc::new(Attribute::new("k8s.pod.name", "web-123".into()));
+        let node = Arc::new(Attribute::new("k8s.node.name", "worker-1".into()));
+        let cluster = Arc::new(Attribute::new("k8s.cluster.name", "production".into()));
+        let container = Arc::new(Attribute::new("k8s.container.name", "application".into()));
+
+        let entities = vec![
+            KubeEntity::new(
+                vec![
+                    namespace.clone(),
+                    pod.clone(),
+                    node.clone(),
+                    cluster.clone(),
+                    container.clone(),
+                ],
+                vec![
+                    KubeGauge::new(
+                        "container.memory.working_set",
+                        "By",
+                        Value::Bytes(512),
+                        123_456_789,
+                        vec![container.clone()],
+                    ),
+                    KubeGauge::new(
+                        "container.cpu.usage",
+                        "{cpu}",
+                        Value::Cores(0.5),
+                        123_456_789,
+                        vec![container],
+                    ),
+                ],
+            ),
+            KubeEntity::new(
+                vec![namespace, pod, node, cluster],
+                vec![
+                    KubeGauge::new(
+                        "k8s.pod.memory.working_set",
+                        "By",
+                        Value::Bytes(1_024),
+                        123_456_789,
+                        vec![],
+                    ),
+                    KubeGauge::new(
+                        "k8s.pod.cpu.usage",
+                        "{cpu}",
+                        Value::Cores(0.75),
+                        123_456_789,
+                        vec![],
+                    ),
+                ],
+            ),
+        ];
+
+        let request: ExportMetricsServiceRequest = entities.into_iter().collect();
+
+        insta::assert_debug_snapshot!(request);
+    }
+}

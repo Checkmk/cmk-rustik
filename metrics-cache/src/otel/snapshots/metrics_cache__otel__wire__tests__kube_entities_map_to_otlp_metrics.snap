@@ -1,0 +1,309 @@
+---
+source: metrics-cache/src/otel/wire.rs
+expression: request
+---
+ExportMetricsServiceRequest {
+    resource_metrics: [
+        ResourceMetrics {
+            resource: Some(
+                Resource {
+                    attributes: [
+                        KeyValue {
+                            key: "k8s.namespace.name",
+                            value: Some(
+                                AnyValue {
+                                    value: Some(
+                                        StringValue(
+                                            "default",
+                                        ),
+                                    ),
+                                },
+                            ),
+                            key_strindex: 0,
+                        },
+                        KeyValue {
+                            key: "k8s.pod.name",
+                            value: Some(
+                                AnyValue {
+                                    value: Some(
+                                        StringValue(
+                                            "web-123",
+                                        ),
+                                    ),
+                                },
+                            ),
+                            key_strindex: 0,
+                        },
+                        KeyValue {
+                            key: "k8s.node.name",
+                            value: Some(
+                                AnyValue {
+                                    value: Some(
+                                        StringValue(
+                                            "worker-1",
+                                        ),
+                                    ),
+                                },
+                            ),
+                            key_strindex: 0,
+                        },
+                        KeyValue {
+                            key: "k8s.cluster.name",
+                            value: Some(
+                                AnyValue {
+                                    value: Some(
+                                        StringValue(
+                                            "production",
+                                        ),
+                                    ),
+                                },
+                            ),
+                            key_strindex: 0,
+                        },
+                        KeyValue {
+                            key: "k8s.container.name",
+                            value: Some(
+                                AnyValue {
+                                    value: Some(
+                                        StringValue(
+                                            "application",
+                                        ),
+                                    ),
+                                },
+                            ),
+                            key_strindex: 0,
+                        },
+                    ],
+                    dropped_attributes_count: 0,
+                    entity_refs: [],
+                },
+            ),
+            scope_metrics: [
+                ScopeMetrics {
+                    scope: Some(
+                        InstrumentationScope {
+                            name: "cmk-rustik",
+                            version: "1.1000.0",
+                            attributes: [],
+                            dropped_attributes_count: 0,
+                        },
+                    ),
+                    metrics: [
+                        Metric {
+                            name: "container.memory.working_set",
+                            description: "",
+                            unit: "By",
+                            metadata: [],
+                            data: Some(
+                                Gauge(
+                                    Gauge {
+                                        data_points: [
+                                            NumberDataPoint {
+                                                attributes: [
+                                                    KeyValue {
+                                                        key: "k8s.container.name",
+                                                        value: Some(
+                                                            AnyValue {
+                                                                value: Some(
+                                                                    StringValue(
+                                                                        "application",
+                                                                    ),
+                                                                ),
+                                                            },
+                                                        ),
+                                                        key_strindex: 0,
+                                                    },
+                                                ],
+                                                start_time_unix_nano: 0,
+                                                time_unix_nano: 123456789,
+                                                exemplars: [],
+                                                flags: 0,
+                                                value: Some(
+                                                    AsInt(
+                                                        512,
+                                                    ),
+                                                ),
+                                            },
+                                        ],
+                                    },
+                                ),
+                            ),
+                        },
+                        Metric {
+                            name: "container.cpu.usage",
+                            description: "",
+                            unit: "{cpu}",
+                            metadata: [],
+                            data: Some(
+                                Gauge(
+                                    Gauge {
+                                        data_points: [
+                                            NumberDataPoint {
+                                                attributes: [
+                                                    KeyValue {
+                                                        key: "k8s.container.name",
+                                                        value: Some(
+                                                            AnyValue {
+                                                                value: Some(
+                                                                    StringValue(
+                                                                        "application",
+                                                                    ),
+                                                                ),
+                                                            },
+                                                        ),
+                                                        key_strindex: 0,
+                                                    },
+                                                ],
+                                                start_time_unix_nano: 0,
+                                                time_unix_nano: 123456789,
+                                                exemplars: [],
+                                                flags: 0,
+                                                value: Some(
+                                                    AsDouble(
+                                                        0.5,
+                                                    ),
+                                                ),
+                                            },
+                                        ],
+                                    },
+                                ),
+                            ),
+                        },
+                    ],
+                    schema_url: "",
+                },
+            ],
+            schema_url: "",
+        },
+        ResourceMetrics {
+            resource: Some(
+                Resource {
+                    attributes: [
+                        KeyValue {
+                            key: "k8s.namespace.name",
+                            value: Some(
+                                AnyValue {
+                                    value: Some(
+                                        StringValue(
+                                            "default",
+                                        ),
+                                    ),
+                                },
+                            ),
+                            key_strindex: 0,
+                        },
+                        KeyValue {
+                            key: "k8s.pod.name",
+                            value: Some(
+                                AnyValue {
+                                    value: Some(
+                                        StringValue(
+                                            "web-123",
+                                        ),
+                                    ),
+                                },
+                            ),
+                            key_strindex: 0,
+                        },
+                        KeyValue {
+                            key: "k8s.node.name",
+                            value: Some(
+                                AnyValue {
+                                    value: Some(
+                                        StringValue(
+                                            "worker-1",
+                                        ),
+                                    ),
+                                },
+                            ),
+                            key_strindex: 0,
+                        },
+                        KeyValue {
+                            key: "k8s.cluster.name",
+                            value: Some(
+                                AnyValue {
+                                    value: Some(
+                                        StringValue(
+                                            "production",
+                                        ),
+                                    ),
+                                },
+                            ),
+                            key_strindex: 0,
+                        },
+                    ],
+                    dropped_attributes_count: 0,
+                    entity_refs: [],
+                },
+            ),
+            scope_metrics: [
+                ScopeMetrics {
+                    scope: Some(
+                        InstrumentationScope {
+                            name: "cmk-rustik",
+                            version: "1.1000.0",
+                            attributes: [],
+                            dropped_attributes_count: 0,
+                        },
+                    ),
+                    metrics: [
+                        Metric {
+                            name: "k8s.pod.memory.working_set",
+                            description: "",
+                            unit: "By",
+                            metadata: [],
+                            data: Some(
+                                Gauge(
+                                    Gauge {
+                                        data_points: [
+                                            NumberDataPoint {
+                                                attributes: [],
+                                                start_time_unix_nano: 0,
+                                                time_unix_nano: 123456789,
+                                                exemplars: [],
+                                                flags: 0,
+                                                value: Some(
+                                                    AsInt(
+                                                        1024,
+                                                    ),
+                                                ),
+                                            },
+                                        ],
+                                    },
+                                ),
+                            ),
+                        },
+                        Metric {
+                            name: "k8s.pod.cpu.usage",
+                            description: "",
+                            unit: "{cpu}",
+                            metadata: [],
+                            data: Some(
+                                Gauge(
+                                    Gauge {
+                                        data_points: [
+                                            NumberDataPoint {
+                                                attributes: [],
+                                                start_time_unix_nano: 0,
+                                                time_unix_nano: 123456789,
+                                                exemplars: [],
+                                                flags: 0,
+                                                value: Some(
+                                                    AsDouble(
+                                                        0.75,
+                                                    ),
+                                                ),
+                                            },
+                                        ],
+                                    },
+                                ),
+                            ),
+                        },
+                    ],
+                    schema_url: "",
+                },
+            ],
+            schema_url: "",
+        },
+    ],
+}
