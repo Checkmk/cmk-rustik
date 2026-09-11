@@ -36,7 +36,7 @@ use crate::error::Result;
 use crate::push;
 use crate::push::client::CheckmkPushClient;
 
-const CERT_SECRET: &str = "metrics-cache-cmk-push-cert";
+const CERT_SECRET: &str = "cmk-signed-push-cert";
 
 fn replace_secret_identity(secret: &mut Secret, agent_cert: String, private_key: String) {
     let data = secret.data.get_or_insert_default();
