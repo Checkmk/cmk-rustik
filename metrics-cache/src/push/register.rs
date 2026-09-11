@@ -198,8 +198,8 @@ impl<'a> CheckmkPushRegistration<'a> {
             return Err(push::Error::PushMode(
                 "Push mode was enabled but the agent is not yet registered (no stored \
                  certificate secret found) and no registration token was supplied. If you are \
-                 trying to configure push mode, set your registration token in your helm \
-                 push.registrationToken or create the token secret manually."
+                 trying to configure push mode, the Kubernetes Secret referenced by \
+                 push.registrationSecret must contain a \"token\" key."
                     .to_string(),
             )
             .into());
@@ -222,9 +222,9 @@ impl<'a> CheckmkPushRegistration<'a> {
                      no Checkmk site CA certificate was provided. The agent needs \
                      this to know that it is registering to the correct server and \
                      to prevent man-in-the-middle attacks. If you are trying to \
-                     configure push mode, set the site CA certificate in your helm \
-                     push.siteCaCertificate (on the CLI, --set-file might prove \
-                     useful). The certificate can be downloaded from your Checkmk \
+                     configure push mode, the Kubernetes Secret referenced by \
+                     push.registrationSecret must contain a \"site-ca-pem\" key. The \
+                     certificate can be downloaded from your Checkmk \
                      instance under Setup > Certificate overview with description \
                      \"Signing the site certificate\" and path ending \
                      \"/ssl/ca.pem\"."
@@ -237,9 +237,8 @@ impl<'a> CheckmkPushRegistration<'a> {
                 return Err(push::Error::PushMode(
                     "Push mode was enabled with the INSECURE option \
                      push.insecureSkipSiteCaVerification in your helm values \
-                     but a Checkmk site CA certificate was also supplied with \
-                     push.siteCaCertificate. Exiting because we do not know \
-                     which configuration is intended."
+                     but a Checkmk site CA certificate was also supplied. Exiting because we do \
+                     not know which configuration is intended."
                         .to_string(),
                 )
                 .into());

@@ -26,19 +26,26 @@ kind-load:
     kind load docker-image {{cache_tag}} --name rustik
 
 # Load the helm chart into the kind cluster with devel/values.yaml
-kind-helm-install:
+kind-helm-install: kind-registration-secret
     helm upgrade --install cmk-rustik ./charts/cmk-rustik \
       -n checkmk-monitoring --create-namespace -f devel/values.yaml \
       {{ if path_exists("devel/custom_values.yaml") == "true" { "-f devel/custom_values.yaml" } else { "" } }} \
       {{ if push != "" { "--set push.enabled=" + push } else { "" } }} \
-      {{ if push_ott != "" { "--set push.registrationToken=" + push_ott } else { "" } }} \
+      {{ if push_ott + site_ca != "" { "--set push.registrationSecret=cmk-rustik-push-registration" } else { "" } }} \
       {{ if push_url != "" { "--set push.url=" + push_url } else { "" } }} \
-      {{ if site_ca != "" { \
-             "--set push.insecureSkipSiteCaVerification=false " + \
-             "--set-file push.siteCaCertificate=" + site_ca \
-         } else { "" } \
-      }} \
+      {{ if site_ca != "" { "--set push.insecureSkipSiteCaVerification=false" } else { "" } }} \
       {{ if cluster_host_name != "" { "--set clusterHostName=" + cluster_host_name } else { "" } }}
+
+# Create the dev registration Secret from the supplied credentials.
+[private]
+kind-registration-secret:
+    {{ if push_ott + site_ca != "" { "kubectl create namespace checkmk-monitoring --dry-run=client -o yaml | kubectl apply -f -" } else { "true" } }}
+    @{{ if push_ott + site_ca != "" { \
+        "kubectl create secret generic cmk-rustik-push-registration -n checkmk-monitoring " + \
+        (if push_ott != "" { "--from-literal=" + quote("token=" + push_ott) + " " } else { "" }) + \
+        (if site_ca != "" { "--from-file=" + quote("site-ca-pem=" + site_ca) + " " } else { "" }) + \
+        "--dry-run=client -o yaml | kubectl apply -f -" \
+    } else { "true" } }}
 
 # Delete the helm deployment from the kind cluster
 kind-helm-delete:

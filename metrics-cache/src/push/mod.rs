@@ -28,8 +28,8 @@ pub enum Error {
     #[error("failed to configure push-mode TLS")]
     TlsClientConfig(#[source] server_cert_verifier::ClientConfigError),
     #[error(
-        "push mode is enabled but no registration token was given; set push.registrationToken in \
-         helm values or create the identity secret manually"
+        "push mode is enabled but no registration token was given; the Kubernetes Secret \
+         referenced by push.registrationSecret must contain a \"token\" key"
     )]
     MissingRegistrationToken,
     #[error("Failed to parse push-mode URL: {0}")]

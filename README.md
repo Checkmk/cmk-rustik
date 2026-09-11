@@ -25,14 +25,19 @@ Alternatively, we build images on each push to `master` and have a rolling
 `0.0.0-master` release of our Helm chart. You can give it a try with:
 
 ```bash
+kubectl create namespace checkmk-monitoring
+kubectl create secret generic rustik-push-registration \
+    --from-literal=token=0:e07f1760-d9de-4bb0-a55e-a0fcc4e8355f \
+    --from-file=site-ca-pem=/path/to/site-ca.pem \
+    -n checkmk-monitoring
+
 helm install rustik oci://ghcr.io/checkmk/charts/cmk-rustik --version 0.0.0-master \
     --set clusterName=mycluster \
     --set clusterHostName=my-cmk-host \
     --set push.enabled=true \
-    --set push.registrationToken=0:e07f1760-d9de-4bb0-a55e-a0fcc4e8355f \
+    --set push.registrationSecret=rustik-push-registration \
     --set push.url=https://your-checkmk.example.com:8000/yoursite \
-    -n checkmk-monitoring \
-    --create-namespace
+    -n checkmk-monitoring
 ```
 
 Of course, note that push mode and OpenTelemetry will only work in Checkmk
@@ -101,6 +106,12 @@ If you are iterating on the Helm chart, you can `just kind-helm-delete` and
 (such as `kind-helm-install` but also `kind-dev`), you can pass in several
 overrides, such as
 `just push=true push_ott=0:e07f1760-d9de-4bb0-a55e-a0fcc4e8355f kind-dev`.
+This creates the `cmk-rustik-push-registration` Secret used by the chart. Set
+`site_ca` to the site CA file path to test registration with certificate
+verification.
+When updating the registration Secret, supply both `push_ott` and `site_ca`
+if you use certificate verification.
+Quote file paths containing spaces, for example `site_ca='/path/to/site CA.pem'`.
 See the variables at the top of the `justfile` for options.
 
 `just kind-dev-teardown` will tear down the kind cluster and everything in it.

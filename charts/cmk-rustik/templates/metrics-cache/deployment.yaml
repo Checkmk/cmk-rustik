@@ -107,24 +107,21 @@ spec:
             - --disable-pull-authentication
             {{- end }}
           env:
-            {{- /*
-            Do NOT gate this on registrationToken, we allow admins to manually
-            create the secret outside of the chart's control, and the env var
-            should still exist in this case.
-            */}}
-            {{- if .Values.push.enabled }}
+            {{- if and .Values.push.enabled .Values.push.registrationSecret }}
             - name: CMK_PUSH_AGENT_RECEIVER_OTT
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rustik.fullname" . }}-push-registration
+                  name: {{ .Values.push.registrationSecret | quote }}
                   key: token
                   optional: true
+            {{- if not .Values.push.insecureSkipSiteCaVerification }}
             - name: CMK_PUSH_AGENT_RECEIVER_SITE_CA_PEM
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rustik.fullname" . }}-push-registration
+                  name: {{ .Values.push.registrationSecret | quote }}
                   key: site-ca-pem
                   optional: true
+            {{- end }}
             {{- end }}
             {{- /*
             If the env var isn't set, the app will block all pull-related

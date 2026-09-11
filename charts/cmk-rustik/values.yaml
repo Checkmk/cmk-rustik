@@ -165,23 +165,18 @@ metricsCache:
 push:
   # enabled controls whether push mode is activated or not.
   enabled: false
-  # registrationToken is a one-time token issued by Checkmk, normally set one
-  # time when you initially install the chart, by using --set on the helm CLI.
-  # You typically should not override this in your own values.yaml. It is only
-  # used once, to allow the agent to register itself with Checkmk's push-agent
-  # receiver. A temporary Secret will be created for internal use, when this is
-  # set.
-  registrationToken: ""
+  # registrationSecret is the name of an existing Kubernetes Secret used to
+  # register with Checkmk's push-agent receiver. The Secret must be in the
+  # release namespace and contain the keys "token" (the one-time registration
+  # token issued by Checkmk) and "site-ca-pem" (the PEM-encoded Checkmk site CA
+  # certificate). The site CA can be downloaded from Setup > Certificate
+  # overview; it has the description "Signing the site certificate" and a path
+  # ending in "/ssl/ca.pem". The Secret is only needed for initial registration
+  # and may be removed afterward.
+  registrationSecret: ""
   # url is the url of the push-agent receiver for your site. It *includes* the
   # site name. Example: https://example.com:8000/production
   url: ""
-  # siteCaCertificate is the PEM-encoded certificate of the Checkmk site CA.
-  # Used for registering to the Checkmk site's push-agent receiver service.
-  # It can be found in Setup > Certificate overview, with description
-  # "Signing the site certificate" and path ending "/ssl/ca.pem". If using helm
-  # directly from the command line, you can pass this in with:
-  # --set-file push.siteCaCertificate
-  siteCaCertificate: ""
   # insecureSkipSiteCaVerification *should NOT* ever be set to `true` in
   # production. It provides an escape hatch primarily for development of the
   # agent itself or for environments that do not care about potential
