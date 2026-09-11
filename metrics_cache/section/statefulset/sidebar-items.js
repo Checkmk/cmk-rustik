@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["KubeStatefulSetInfoV1","KubeStatefulSetReplicasV1"]};

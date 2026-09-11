@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["MetricsCacheBuildInfo","MetricsFetcherDaemonSet","MetricsFetcherIngestionHealth","NodeMetricsFetcherHealth","ReflectorHealth","SelfHealth"]};

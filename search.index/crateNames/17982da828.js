@@ -1,0 +1,1 @@
+rd_("mmetrics_cacheometrics_fetcher")

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["indexes","kubelet_health","metric_tables","owner_graph","self_health","system_agent"],"struct":["Snapshot","Uid"]};

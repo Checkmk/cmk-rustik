@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["capitalize","job_duration","last_completed_job"],"struct":["JobCondition","JobPod","JobStatus","KubeCronJobInfoV1","KubeCronJobLatestJobV1","KubeCronJobStatusV1","PodLifecycle"]};

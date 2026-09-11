@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PerformanceType"],"struct":["KubePerformanceCpuV1","KubePerformanceMemorySwapV1","KubePerformanceMemoryV1","PerformanceFields"]};

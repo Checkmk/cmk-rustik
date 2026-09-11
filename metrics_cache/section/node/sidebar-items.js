@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["pod_count"],"struct":["KubeAllocatablePodsV1","KubeNodeConditionsV2","KubeNodeContainerCountV1","KubeNodeInfoV1","NodeAddressRef","NodeConditionValue"]};

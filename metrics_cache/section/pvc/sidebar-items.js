@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Phase"],"struct":["AttachedVolume","Claim","KubePvcPvsV1","KubePvcV1","KubePvcVolumesV1","Metadata","PersistentVolume","PersistentVolumeSpec","Status","StorageRequirement"]};

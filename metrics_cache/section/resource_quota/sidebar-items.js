@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["criteria"],"struct":["KubeResourceQuotaCpuResourcesV1","KubeResourceQuotaMemoryResourcesV1","KubeResourceQuotaPerformanceCpuV1","KubeResourceQuotaPerformanceMemoryV1","ResourceQuotaSection"]};

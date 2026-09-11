@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["metrics_cache",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.98.1/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"enum\" href=\"metrics_cache/section/resource_quota/criteria/enum.QuotaScope.html\" title=\"enum metrics_cache::section::resource_quota::criteria::QuotaScope\">QuotaScope</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.98.1/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"struct\" href=\"metrics_cache/ingest/reflectors/struct.ReflectorHealth.html\" title=\"struct metrics_cache::ingest::reflectors::ReflectorHealth\">ReflectorHealth</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.98.1/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"struct\" href=\"metrics_cache/section/resource/struct.ResourceAccumulator.html\" title=\"struct metrics_cache::section::resource::ResourceAccumulator\">ResourceAccumulator</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.98.1/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"struct\" href=\"metrics_cache/snapshot/metric_tables/struct.Sample.html\" title=\"struct metrics_cache::snapshot::metric_tables::Sample\">Sample</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.98.1/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"enum\" href=\"metrics_cache/section/resource_quota/criteria/enum.ScopeOperator.html\" title=\"enum metrics_cache::section::resource_quota::criteria::ScopeOperator\">ScopeOperator</a>",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[1662]}

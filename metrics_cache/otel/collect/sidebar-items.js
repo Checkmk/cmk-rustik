@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["collect_entities","container_samples","epoch_nanos","owner_attributes","pod_attributes"]};

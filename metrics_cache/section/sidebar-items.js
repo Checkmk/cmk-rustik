@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["cluster","common","container","controller_spec","cronjob","daemonset","deployment","namespace","node","node_kubelet","performance","pod","pvc","resource","resource_quota","self_health","statefulset","update_strategy","writeable"],"trait":["Section"]};

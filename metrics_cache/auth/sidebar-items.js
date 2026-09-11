@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["kubernetes","pull_agent"]};

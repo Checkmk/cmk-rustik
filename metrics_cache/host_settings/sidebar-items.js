@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AnnotationKeyPattern"],"fn":["node_roles"],"struct":["AlwaysEmitted","HostSettings","NamespaceFilter"]};

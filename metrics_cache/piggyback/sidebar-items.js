@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["collect","emit_all","is_pod_host_candidate","should_emit"],"mod":["aggregation_host","cluster","cronjob","daemonset","deployment","namespace","node","pod","statefulset"],"struct":["Meta"],"trait":["PiggybackHost","Scoped"]};

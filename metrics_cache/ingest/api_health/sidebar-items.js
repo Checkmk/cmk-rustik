@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Error"],"fn":["loop_query_health","query_health"],"struct":["ApiHealth","HealthResponse"],"type":["ApiHealthUpdate","Result"]};

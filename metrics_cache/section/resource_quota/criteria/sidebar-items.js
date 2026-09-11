@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Error","QuotaScope","ScopeOperator"],"struct":["ResourceQuotaCriteria","ScopeSelectorExpression"]};

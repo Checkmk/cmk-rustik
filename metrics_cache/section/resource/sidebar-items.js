@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Context","ResourceAxis"],"fn":["allocatable"],"struct":["KubeAllocatableCpuResourceV1","KubeAllocatableMemoryResourceV1","KubeCpuResourcesV1","KubeMemoryResourcesV1","ResourceAccumulator"]};

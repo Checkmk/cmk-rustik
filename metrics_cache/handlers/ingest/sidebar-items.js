@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["kubelet_health","kubelet_stats_summary","system_agent"]};

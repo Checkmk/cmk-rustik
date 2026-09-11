@@ -1,0 +1,129 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `metrics-cache/src/auth/pull_agent.rs`."><title>pull_agent.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="metrics_cache" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">metrics_cache/auth/</div>pull_agent.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Authentication machinery for the pull special agent to work.
+<a href=#2 id=2 data-nosnippet>2</a>//!
+<a href=#3 id=3 data-nosnippet>3</a>//! The pull agent will send us `Authorization: Bearer &lt;shared_secret&gt;`
+<a href=#4 id=4 data-nosnippet>4</a>//!
+<a href=#5 id=5 data-nosnippet>5</a>//! The value of the shared secret is passed in via an environment variable,
+<a href=#6 id=6 data-nosnippet>6</a>//! `CMK_PULL_SHARED_SECRET`. In a typical deployment, it lives in a Kubernetes
+<a href=#7 id=7 data-nosnippet>7</a>//! secret and the env var is bound from that. It is read by clap in
+<a href=#8 id=8 data-nosnippet>8</a>//! [`crate::cli_args::CliArgs`] and can also be overridden via a CLI flag,
+<a href=#9 id=9 data-nosnippet>9</a>//! though this is unsafe (since the process information would leak it) and we
+<a href=#10 id=10 data-nosnippet>10</a>//! do not do this in the Helm chart.
+<a href=#11 id=11 data-nosnippet>11</a>
+<a href=#12 id=12 data-nosnippet>12</a></span><span class="kw">use </span>axum::extract::{Request, State};
+<a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>axum::http::{StatusCode, header};
+<a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>axum::middleware::Next;
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>axum::response::Response;
+<a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span>subtle::ConstantTimeEq;
+<a href=#17 id=17 data-nosnippet>17</a>
+<a href=#18 id=18 data-nosnippet>18</a><span class="doccomment">/// Configuration for the pull-agent middleware.
+<a href=#19 id=19 data-nosnippet>19</a>///
+<a href=#20 id=20 data-nosnippet>20</a>/// Right now, includes the shared secret; in theory in the future could also
+<a href=#21 id=21 data-nosnippet>21</a>/// include things like an IP whitelist.
+<a href=#22 id=22 data-nosnippet>22</a></span><span class="attr">#[derive(Clone)]
+<a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">pub struct </span>PullAgentMiddlewareConfig {
+<a href=#24 id=24 data-nosnippet>24</a>    <span class="doccomment">/// Defines if authentication should be required for pull endpoints at all
+<a href=#25 id=25 data-nosnippet>25</a>    </span><span class="kw">pub </span>auth_enabled: bool,
+<a href=#26 id=26 data-nosnippet>26</a>    <span class="doccomment">/// The shared secret that we expect to be sent by the Checkmk special agent
+<a href=#27 id=27 data-nosnippet>27</a>    /// for authentication. We expect to find this in the `Authorization` header
+<a href=#28 id=28 data-nosnippet>28</a>    /// after `Bearer`
+<a href=#29 id=29 data-nosnippet>29</a>    </span><span class="kw">pub </span>shared_secret: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#30 id=30 data-nosnippet>30</a>}
+<a href=#31 id=31 data-nosnippet>31</a>
+<a href=#32 id=32 data-nosnippet>32</a><span class="kw">impl </span>Default <span class="kw">for </span>PullAgentMiddlewareConfig {
+<a href=#33 id=33 data-nosnippet>33</a>    <span class="doccomment">/// Defaults closed: auth enabled with no configured secret, so
+<a href=#34 id=34 data-nosnippet>34</a>    /// [`authorized`] rejects every request. This is only meant as a
+<a href=#35 id=35 data-nosnippet>35</a>    /// placeholder for tests that don't exercise pull-agent auth at all; if it
+<a href=#36 id=36 data-nosnippet>36</a>    /// were ever reached in real code, it fails safe instead of leaving the
+<a href=#37 id=37 data-nosnippet>37</a>    /// endpoint open.
+<a href=#38 id=38 data-nosnippet>38</a>    </span><span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+<a href=#39 id=39 data-nosnippet>39</a>        <span class="self">Self </span>{
+<a href=#40 id=40 data-nosnippet>40</a>            auth_enabled: <span class="bool-val">true</span>,
+<a href=#41 id=41 data-nosnippet>41</a>            shared_secret: <span class="prelude-val">None</span>,
+<a href=#42 id=42 data-nosnippet>42</a>        }
+<a href=#43 id=43 data-nosnippet>43</a>    }
+<a href=#44 id=44 data-nosnippet>44</a>}
+<a href=#45 id=45 data-nosnippet>45</a>
+<a href=#46 id=46 data-nosnippet>46</a><span class="doccomment">/// Perform authentication, specifically for pull-agent endpoints.
+<a href=#47 id=47 data-nosnippet>47</a>///
+<a href=#48 id=48 data-nosnippet>48</a>/// If `config.shared_secret` is `None` or empty, we _REJECT_ all requests.
+<a href=#49 id=49 data-nosnippet>49</a>/// `None` means pull mode is not configured at all; an empty value is what a
+<a href=#50 id=50 data-nosnippet>50</a>/// misconfigured secret (wrong key, empty env var) produces, so it must never
+<a href=#51 id=51 data-nosnippet>51</a>/// mean "public". The only way to get an unauthenticated pull endpoint is the
+<a href=#52 id=52 data-nosnippet>52</a>/// explicit `--disable-pull-authentication` flag (`auth_enabled: false`).
+<a href=#53 id=53 data-nosnippet>53</a>///
+<a href=#54 id=54 data-nosnippet>54</a>/// Otherwise we only permit the request if its `Authorization: Bearer &lt;...&gt;`
+<a href=#55 id=55 data-nosnippet>55</a>/// value matches the shared secret value.
+<a href=#56 id=56 data-nosnippet>56</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>authenticate(
+<a href=#57 id=57 data-nosnippet>57</a>    State(config): State&lt;PullAgentMiddlewareConfig&gt;,
+<a href=#58 id=58 data-nosnippet>58</a>    request: Request,
+<a href=#59 id=59 data-nosnippet>59</a>    next: Next,
+<a href=#60 id=60 data-nosnippet>60</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Response, StatusCode&gt; {
+<a href=#61 id=61 data-nosnippet>61</a>    <span class="kw">let </span>authorization = request
+<a href=#62 id=62 data-nosnippet>62</a>        .headers()
+<a href=#63 id=63 data-nosnippet>63</a>        .get(header::AUTHORIZATION)
+<a href=#64 id=64 data-nosnippet>64</a>        .and_then(|header| header.to_str().ok());
+<a href=#65 id=65 data-nosnippet>65</a>    <span class="kw">if </span>authorized(<span class="kw-2">&amp;</span>config, authorization) {
+<a href=#66 id=66 data-nosnippet>66</a>        <span class="prelude-val">Ok</span>(next.run(request).<span class="kw">await</span>)
+<a href=#67 id=67 data-nosnippet>67</a>    } <span class="kw">else </span>{
+<a href=#68 id=68 data-nosnippet>68</a>        <span class="prelude-val">Err</span>(StatusCode::UNAUTHORIZED)
+<a href=#69 id=69 data-nosnippet>69</a>    }
+<a href=#70 id=70 data-nosnippet>70</a>}
+<a href=#71 id=71 data-nosnippet>71</a>
+<a href=#72 id=72 data-nosnippet>72</a><span class="doccomment">/// The pure authentication decision: is a request carrying this
+<a href=#73 id=73 data-nosnippet>73</a>/// `Authorization` header value allowed through under this config?
+<a href=#74 id=74 data-nosnippet>74</a></span><span class="kw">fn </span>authorized(config: <span class="kw-2">&amp;</span>PullAgentMiddlewareConfig, authorization: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; bool {
+<a href=#75 id=75 data-nosnippet>75</a>    <span class="kw">if </span>!config.auth_enabled {
+<a href=#76 id=76 data-nosnippet>76</a>        <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#77 id=77 data-nosnippet>77</a>    }
+<a href=#78 id=78 data-nosnippet>78</a>    <span class="kw">match </span>config.shared_secret.as_deref() {
+<a href=#79 id=79 data-nosnippet>79</a>        <span class="comment">// Unconfigured or misconfigured-empty: fail closed.
+<a href=#80 id=80 data-nosnippet>80</a>        </span><span class="prelude-val">None </span>| <span class="prelude-val">Some</span>(<span class="string">""</span>) =&gt; <span class="bool-val">false</span>,
+<a href=#81 id=81 data-nosnippet>81</a>        <span class="prelude-val">Some</span>(configured_secret) =&gt; {
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(received_secret) =
+<a href=#83 id=83 data-nosnippet>83</a>                authorization.and_then(|value| value.strip_prefix(<span class="string">"Bearer "</span>))
+<a href=#84 id=84 data-nosnippet>84</a>            <span class="kw">else </span>{
+<a href=#85 id=85 data-nosnippet>85</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#86 id=86 data-nosnippet>86</a>            };
+<a href=#87 id=87 data-nosnippet>87</a>            <span class="comment">// Constant-time comparison so response timing does not leak
+<a href=#88 id=88 data-nosnippet>88</a>            // how much of the secret matched.
+<a href=#89 id=89 data-nosnippet>89</a>            </span>received_secret
+<a href=#90 id=90 data-nosnippet>90</a>                .as_bytes()
+<a href=#91 id=91 data-nosnippet>91</a>                .ct_eq(configured_secret.as_bytes())
+<a href=#92 id=92 data-nosnippet>92</a>                .into()
+<a href=#93 id=93 data-nosnippet>93</a>        }
+<a href=#94 id=94 data-nosnippet>94</a>    }
+<a href=#95 id=95 data-nosnippet>95</a>}
+<a href=#96 id=96 data-nosnippet>96</a>
+<a href=#97 id=97 data-nosnippet>97</a><span class="attr">#[cfg(test)]
+<a href=#98 id=98 data-nosnippet>98</a></span><span class="kw">mod </span>tests {
+<a href=#99 id=99 data-nosnippet>99</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#100 id=100 data-nosnippet>100</a>
+<a href=#101 id=101 data-nosnippet>101</a>    <span class="kw">fn </span>config(auth_enabled: bool, shared_secret: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; PullAgentMiddlewareConfig {
+<a href=#102 id=102 data-nosnippet>102</a>        PullAgentMiddlewareConfig {
+<a href=#103 id=103 data-nosnippet>103</a>            auth_enabled,
+<a href=#104 id=104 data-nosnippet>104</a>            shared_secret: shared_secret.map(String::from),
+<a href=#105 id=105 data-nosnippet>105</a>        }
+<a href=#106 id=106 data-nosnippet>106</a>    }
+<a href=#107 id=107 data-nosnippet>107</a>
+<a href=#108 id=108 data-nosnippet>108</a>    <span class="attr">#[test]
+<a href=#109 id=109 data-nosnippet>109</a>    </span><span class="kw">fn </span>authorized_policies() {
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="comment">// The happy path, and the only accepted header shape.
+<a href=#111 id=111 data-nosnippet>111</a>        </span><span class="macro">assert!</span>(authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="string">"s3c"</span>)), <span class="prelude-val">Some</span>(<span class="string">"Bearer s3c"</span>)));
+<a href=#112 id=112 data-nosnippet>112</a>        <span class="macro">assert!</span>(!authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="string">"s3c"</span>)), <span class="prelude-val">Some</span>(<span class="string">"Bearer nope"</span>)));
+<a href=#113 id=113 data-nosnippet>113</a>        <span class="macro">assert!</span>(!authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="string">"s3c"</span>)), <span class="prelude-val">Some</span>(<span class="string">"Secret s3c"</span>)));
+<a href=#114 id=114 data-nosnippet>114</a>        <span class="macro">assert!</span>(!authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="string">"s3c"</span>)), <span class="prelude-val">Some</span>(<span class="string">"bearer s3c"</span>)));
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="macro">assert!</span>(!authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="string">"s3c"</span>)), <span class="prelude-val">Some</span>(<span class="string">"s3c"</span>)));
+<a href=#116 id=116 data-nosnippet>116</a>        <span class="macro">assert!</span>(!authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="string">"s3c"</span>)), <span class="prelude-val">Some</span>(<span class="string">""</span>)));
+<a href=#117 id=117 data-nosnippet>117</a>        <span class="macro">assert!</span>(!authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="string">"s3c"</span>)), <span class="prelude-val">None</span>));
+<a href=#118 id=118 data-nosnippet>118</a>
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="comment">// No secret configured: fail closed
+<a href=#120 id=120 data-nosnippet>120</a>        </span><span class="macro">assert!</span>(!authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">true</span>, <span class="prelude-val">None</span>), <span class="prelude-val">Some</span>(<span class="string">"Bearer s3c"</span>)));
+<a href=#121 id=121 data-nosnippet>121</a>
+<a href=#122 id=122 data-nosnippet>122</a>        <span class="comment">// Empty secret never matches, not even an empty presented one.
+<a href=#123 id=123 data-nosnippet>123</a>        </span><span class="macro">assert!</span>(!authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">true</span>, <span class="prelude-val">Some</span>(<span class="string">""</span>)), <span class="prelude-val">Some</span>(<span class="string">"Bearer "</span>)));
+<a href=#124 id=124 data-nosnippet>124</a>
+<a href=#125 id=125 data-nosnippet>125</a>        <span class="comment">// Auth explicitly disabled: everything passes.
+<a href=#126 id=126 data-nosnippet>126</a>        </span><span class="macro">assert!</span>(authorized(<span class="kw-2">&amp;</span>config(<span class="bool-val">false</span>, <span class="prelude-val">None</span>), <span class="prelude-val">None</span>));
+<a href=#127 id=127 data-nosnippet>127</a>    }
+<a href=#128 id=128 data-nosnippet>128</a>}
+</code></pre></div></section></main></body></html>

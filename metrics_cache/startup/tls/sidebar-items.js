@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_cert_secret","generate_tls_material","get_or_create_cert_secret","hostname","resolve","rustls_config_from_secret"],"struct":["TlsMaterial"]};

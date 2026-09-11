@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SectionBody"],"fn":["frame"],"struct":["SectionError","WriteableSection"]};
