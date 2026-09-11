@@ -2,14 +2,18 @@
 name: Docs
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
     branches:
       - master
   workflow_dispatch:
 
-# Allow the deploy job to publish to GitHub Pages via OIDC.
+# Allow the build job to persist the site and the deploy job to publish it.
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -19,15 +23,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  sbom:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    uses: ./.github/workflows/sbom-reusable.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      version: master
+
   build:
+    needs: sbom
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       # .cargo/config.toml pins build.target to musl, so cargo doc emits its
       # output under this target-specific directory, not plain target/doc.
       DOC_DIR: target/x86_64-unknown-linux-musl/doc
+      PAGES_UPDATE_DIR: pages-update
+      PAGES_SITE_DIR: pages-site
+      SOURCE_REF: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_REF }}
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: x86_64-unknown-linux-musl
@@ -43,13 +62,37 @@ jobs:
         # --no-deps: skip third-party deps, only our own crates
         # --document-private-items: this is an internal maintenance doc site
         run: cargo doc --workspace --no-deps --document-private-items
-      - name: Redirect root to the metrics-cache crate
+      - name: Stage rustdoc
         # cargo doc produces no top-level index.html for a workspace, so point
         # the Pages root at the primary crate (hyphen -> underscore in the path).
-        run: echo '<meta http-equiv="refresh" content="0; url=metrics_cache/index.html">' > "$DOC_DIR/index.html"
+        run: |
+          echo '<meta http-equiv="refresh" content="0; url=metrics_cache/index.html">' \
+            > "$DOC_DIR/index.html"
+          mkdir -p "$PAGES_UPDATE_DIR"
+          cp -a "$DOC_DIR/." "$PAGES_UPDATE_DIR/"
+          touch "$PAGES_UPDATE_DIR/.nojekyll"
+      - uses: actions/download-artifact@v4
+        with:
+          name: rustik-sbom-master
+          path: ${{ env.PAGES_UPDATE_DIR }}/sbom/master
+      - name: Persist Pages site
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: ${{ env.PAGES_UPDATE_DIR }}
+          clean: true
+          clean-exclude: |
+            sbom
+            sbom/**
+          commit-message: Update docs and master SBOMs for ${{ env.SOURCE_REF }}
+      - name: Check out persisted Pages site
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: ${{ env.PAGES_SITE_DIR }}
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ env.DOC_DIR }}
+          path: ${{ env.PAGES_SITE_DIR }}
 
   deploy:
     needs: build

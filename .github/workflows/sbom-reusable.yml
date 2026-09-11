@@ -1,0 +1,50 @@
+---
+name: Reusable SBOM workflow
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to generate the SBOM from
+        required: true
+        type: string
+      version:
+        description: Version used in the artifact name and Pages path
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+          target: x86_64-unknown-linux-musl
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - name: Generate CycloneDX SBOMs
+        run: >-
+          cargo cyclonedx --format xml --all-features
+          --override-filename bom.xml
+      - name: Stage SBOMs
+        env:
+          SBOM_DIR: sbom/${{ inputs.version }}
+        run: |
+          mkdir -p "$SBOM_DIR"
+          install -m 0644 metrics-cache/bom.xml \
+            "$SBOM_DIR/metrics-cache-bom.xml"
+          install -m 0644 metrics-fetcher/bom.xml \
+            "$SBOM_DIR/metrics-fetcher-bom.xml"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rustik-sbom-${{ inputs.version }}
+          path: sbom/${{ inputs.version }}
+          if-no-files-found: error

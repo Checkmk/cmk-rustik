@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - '**'  # ignore tags - release.yml handles them (eventually)
+      - '!gh-pages'
   pull_request:
   workflow_dispatch:
 
