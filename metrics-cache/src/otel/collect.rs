@@ -167,8 +167,120 @@ mod tests {
 
     use std::collections::BTreeMap;
 
-    use crate::ingest::kubelet_stats::PodReference;
+    use opentelemetry_proto::tonic::common::v1::any_value;
+    use opentelemetry_proto::tonic::metrics::v1::{ResourceMetrics, metric, number_data_point};
+
+    use crate::ingest::MetricsFetcherMetadata;
+    use crate::ingest::kubelet_stats::{CPUStats, MemoryStats, Node, PodReference};
     use crate::test_support::{owner_graph, owner_ref};
+
+    #[derive(Debug, PartialEq)]
+    enum MetricValue {
+        Cores(f64),
+        Bytes(i64),
+    }
+
+    fn container(
+        name: &str,
+        working_set_bytes: Option<u64>,
+        usage_nano_cores: Option<u64>,
+    ) -> Container {
+        Container {
+            name: name.into(),
+            start_time: None,
+            cpu: Some(CPUStats {
+                time: None,
+                usage_nano_cores,
+                usage_core_nano_seconds: None,
+            }),
+            memory: Some(MemoryStats { working_set_bytes }),
+            swap: None,
+        }
+    }
+
+    fn pod(name: &str, containers: Vec<Container>) -> Pod {
+        Pod {
+            pod_ref: PodReference {
+                name: name.into(),
+                namespace: "default".into(),
+                uid: format!("{name}-uid"),
+            },
+            containers,
+            volume: None,
+        }
+    }
+
+    fn ingestion(pods: Vec<Pod>) -> Arc<MetricsFetcherIngestion<StatsSummary>> {
+        Arc::new(MetricsFetcherIngestion {
+            received_at: std::time::Instant::now(),
+            metadata: MetricsFetcherMetadata::default(),
+            payload: StatsSummary {
+                node: Node {
+                    node_name: "worker-1".into(),
+                },
+                pods,
+            },
+        })
+    }
+
+    fn attribute_value<'a>(entity: &'a ResourceMetrics, key: &str) -> Option<&'a str> {
+        entity
+            .resource
+            .as_ref()?
+            .attributes
+            .iter()
+            .find(|attribute| attribute.key == key)?
+            .value
+            .as_ref()?
+            .value
+            .as_ref()
+            .and_then(|value| match value {
+                any_value::Value::StringValue(value) => Some(value.as_str()),
+                _ => None,
+            })
+    }
+
+    fn entity_id(entity: &ResourceMetrics) -> String {
+        let pod_name = attribute_value(entity, "k8s.pod.name")
+            .expect("collected entity should identify its pod");
+        match attribute_value(entity, "k8s.container.name") {
+            Some(container_name) => format!("container/{pod_name}/{container_name}"),
+            None => format!("pod/{pod_name}"),
+        }
+    }
+
+    fn metric_values(entity: &ResourceMetrics) -> BTreeMap<String, MetricValue> {
+        entity.scope_metrics[0]
+            .metrics
+            .iter()
+            .map(|metric| {
+                let metric::Data::Gauge(gauge) = metric
+                    .data
+                    .as_ref()
+                    .expect("collected metric should have gauge data")
+                else {
+                    panic!("expected gauge metric")
+                };
+                let value = match gauge.data_points[0]
+                    .value
+                    .as_ref()
+                    .expect("collected gauge should have a value")
+                {
+                    number_data_point::Value::AsDouble(value) => MetricValue::Cores(*value),
+                    number_data_point::Value::AsInt(value) => MetricValue::Bytes(*value),
+                };
+                (metric.name.clone(), value)
+            })
+            .collect()
+    }
+
+    fn collect_metric_values(pods: Vec<Pod>) -> BTreeMap<String, BTreeMap<String, MetricValue>> {
+        collect_entities([ingestion(pods)], "my-cluster", &owner_graph(&[]))
+            .into_iter()
+            .map(ResourceMetrics::from)
+            .map(|entity| (entity_id(&entity), metric_values(&entity)))
+            .collect()
+    }
 
     fn attribute_map(attributes: &[Arc<Attribute>]) -> BTreeMap<&str, &str> {
         attributes
@@ -209,5 +321,85 @@ mod tests {
         )]);
 
         insta::assert_json_snapshot!(attribute_map(&owner_attributes(&graph, "pod-uid")));
+    }
+
+    #[test]
+    fn collect_entities_sums_multi_container_pod_metrics() {
+        let actual = collect_metric_values(vec![pod(
+            "web",
+            vec![
+                container("application", Some(100), Some(250_000_000)),
+                container("sidecar", Some(300), Some(750_000_000)),
+            ],
+        )]);
+
+        assert_eq!(
+            actual,
+            BTreeMap::from([
+                (
+                    "container/web/application".into(),
+                    BTreeMap::from([
+                        ("container.cpu.usage".into(), MetricValue::Cores(0.25)),
+                        (
+                            "container.memory.working_set".into(),
+                            MetricValue::Bytes(100),
+                        ),
+                    ]),
+                ),
+                (
+                    "container/web/sidecar".into(),
+                    BTreeMap::from([
+                        ("container.cpu.usage".into(), MetricValue::Cores(0.75)),
+                        (
+                            "container.memory.working_set".into(),
+                            MetricValue::Bytes(300),
+                        ),
+                    ]),
+                ),
+                (
+                    "pod/web".into(),
+                    BTreeMap::from([
+                        ("k8s.pod.cpu.usage".into(), MetricValue::Cores(1.0)),
+                        ("k8s.pod.memory.working_set".into(), MetricValue::Bytes(400),),
+                    ]),
+                ),
+            ])
+        );
+    }
+
+    #[test]
+    fn collect_entities_omits_missing_samples_instead_of_emitting_zeroes() {
+        let actual = collect_metric_values(vec![
+            pod(
+                "partially-sampled",
+                vec![
+                    container("sampled", Some(64), None),
+                    container("without-samples", None, None),
+                ],
+            ),
+            pod(
+                "without-samples",
+                vec![container("without-samples", None, None)],
+            ),
+        ]);
+
+        assert_eq!(
+            actual,
+            BTreeMap::from([
+                (
+                    "container/partially-sampled/sampled".into(),
+                    BTreeMap::from([(
+                        "container.memory.working_set".into(),
+                        MetricValue::Bytes(64),
+                    )]),
+                ),
+                (
+                    "pod/partially-sampled".into(),
+                    BTreeMap::from([
+                        ("k8s.pod.memory.working_set".into(), MetricValue::Bytes(64),)
+                    ]),
+                ),
+            ])
+        );
     }
 }
