@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<bom xmlns="http://cyclonedx.org/schema/bom/1.3" serialNumber="urn:uuid:6b1fb311-fc3a-4b11-bc76-1ea733ba3cb6" version="1">
+<bom xmlns="http://cyclonedx.org/schema/bom/1.3" serialNumber="urn:uuid:afdeb324-458e-4543-84ab-543dca42e1a6" version="1">
   <metadata>
-    <timestamp>2026-09-12T12:41:32.218669237Z</timestamp>
+    <timestamp>2026-09-12T13:07:39.153205621Z</timestamp>
     <tools>
       <tool>
         <vendor>CycloneDX</vendor>
@@ -186,6 +186,28 @@
         <expression>MIT OR Apache-2.0</expression>
       </licenses>
       <purl>pkg:cargo/base64@0.22.1</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/base64</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/marshallpierce/rust-base64</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#base64@0.23.1">
+      <author>Marshall Pierce &lt;marshall@mpierce.org></author>
+      <name>base64</name>
+      <version>0.23.1</version>
+      <description>encodes and decodes base64 as bytes or utf8</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT OR Apache-2.0</expression>
+      </licenses>
+      <purl>pkg:cargo/base64@0.23.1</purl>
       <externalReferences>
         <reference type="documentation">
           <url>https://docs.rs/base64</url>
@@ -1654,19 +1676,19 @@
         </reference>
       </externalReferences>
     </component>
-    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#reqwest@0.13.4">
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#reqwest@0.13.5">
       <author>Sean McArthur &lt;sean@seanmonstar.com></author>
       <name>reqwest</name>
-      <version>0.13.4</version>
+      <version>0.13.5</version>
       <description>higher level HTTP client library</description>
       <scope>required</scope>
       <hashes>
-        <hash alg="SHA-256">219c5811de6525e5416c7d5d53bb656d3afdbc6c5af816e0802bcfa42dbdc1c3</hash>
+        <hash alg="SHA-256">16a1cfa75cc186dd73d5818e510e042e40927bccc9c236b061cea97e1eb08029</hash>
       </hashes>
       <licenses>
         <expression>MIT OR Apache-2.0</expression>
       </licenses>
-      <purl>pkg:cargo/reqwest@0.13.4</purl>
+      <purl>pkg:cargo/reqwest@0.13.5</purl>
       <externalReferences>
         <reference type="documentation">
           <url>https://docs.rs/reqwest</url>
@@ -3042,7 +3064,7 @@
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#anyhow@1.0.104" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#bytes@1.12.1" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#clap@4.6.3" />
-      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#reqwest@0.13.4" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#reqwest@0.13.5" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.44" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serde@1.0.229" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serde_json@1.0.151" />
@@ -3070,6 +3092,7 @@
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#anyhow@1.0.104" />
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#atomic-waker@1.1.2" />
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#base64@0.22.1" />
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#base64@0.23.1" />
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#bitflags@2.11.1" />
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#bytes@1.12.1" />
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#cc@1.2.61">
@@ -3313,8 +3336,8 @@
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#regex-syntax@0.8.11" />
     </dependency>
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#regex-syntax@0.8.11" />
-    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#reqwest@0.13.4">
-      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#base64@0.22.1" />
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#reqwest@0.13.5">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#base64@0.23.1" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#bytes@1.12.1" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.35" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#futures-channel@0.3.34" />
