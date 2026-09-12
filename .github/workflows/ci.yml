@@ -33,7 +33,9 @@ jobs:
       matrix:
         version:
           - 0.0.0-master
-          - "3.0"
+          # Master alias for the next Checkmk minor release. When Checkmk branches,
+          # bump this to the next minor version (e.g. 3.1.0 after branching 3.0).
+          - "3.0.0"
     uses: ./.github/workflows/helm-release-reusable.yml
     permissions:
       contents: read
