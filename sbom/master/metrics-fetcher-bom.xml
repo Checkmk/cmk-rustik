@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<bom xmlns="http://cyclonedx.org/schema/bom/1.3" serialNumber="urn:uuid:4f137d00-83d4-4618-ae91-aebc5c19fdf0" version="1">
+<bom xmlns="http://cyclonedx.org/schema/bom/1.3" serialNumber="urn:uuid:6b1fb311-fc3a-4b11-bc76-1ea733ba3cb6" version="1">
   <metadata>
-    <timestamp>2026-09-11T19:08:16.853687143Z</timestamp>
+    <timestamp>2026-09-12T12:41:32.218669237Z</timestamp>
     <tools>
       <tool>
         <vendor>CycloneDX</vendor>
@@ -1782,36 +1782,36 @@
         </reference>
       </externalReferences>
     </component>
-    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#rustls-webpki@0.103.13">
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#rustls-webpki@0.103.15">
       <name>rustls-webpki</name>
-      <version>0.103.13</version>
+      <version>0.103.15</version>
       <description>Web PKI X.509 Certificate Verification.</description>
       <scope>required</scope>
       <hashes>
-        <hash alg="SHA-256">61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e</hash>
+        <hash alg="SHA-256">f3c3cf1d8b1e7d4927e2d154c3fcb02979afb9939629c62cd9048d4f07b60ac2</hash>
       </hashes>
       <licenses>
         <expression>ISC</expression>
       </licenses>
-      <purl>pkg:cargo/rustls-webpki@0.103.13</purl>
+      <purl>pkg:cargo/rustls-webpki@0.103.15</purl>
       <externalReferences>
         <reference type="vcs">
           <url>https://github.com/rustls/webpki</url>
         </reference>
       </externalReferences>
     </component>
-    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.43">
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.44">
       <name>rustls</name>
-      <version>0.23.43</version>
+      <version>0.23.44</version>
       <description>Rustls is a modern TLS library written in Rust.</description>
       <scope>required</scope>
       <hashes>
-        <hash alg="SHA-256">0283386ce02abc0151e1761d08802dfe86c173b0b494af5cbc086574e453da06</hash>
+        <hash alg="SHA-256">6725596c3f2c3a0aef021139e145d4eafe314a6623e4680ca83852b2c67ab2ba</hash>
       </hashes>
       <licenses>
         <expression>Apache-2.0 OR ISC OR MIT</expression>
       </licenses>
-      <purl>pkg:cargo/rustls@0.23.43</purl>
+      <purl>pkg:cargo/rustls@0.23.44</purl>
       <externalReferences>
         <reference type="website">
           <url>https://github.com/rustls/rustls</url>
@@ -3043,7 +3043,7 @@
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#bytes@1.12.1" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#clap@4.6.3" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#reqwest@0.13.4" />
-      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.43" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.44" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serde@1.0.229" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serde_json@1.0.151" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#thiserror@2.0.20" />
@@ -3178,7 +3178,7 @@
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#hyper@1.9.0" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#hyper-util@0.1.20" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#log@0.4.29" />
-      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.43" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.44" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-native-certs@0.8.3" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#tokio@1.53.1" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#tokio-rustls@0.26.4" />
@@ -3332,7 +3332,7 @@
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#mime_guess@2.0.5" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#percent-encoding@2.3.2" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#pin-project-lite@0.2.17" />
-      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.43" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.44" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-pki-types@1.14.1" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-platform-verifier@0.7.0" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serde@1.0.229" />
@@ -3367,21 +3367,21 @@
     </dependency>
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-platform-verifier@0.7.0">
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#log@0.4.29" />
-      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.43" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.44" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-native-certs@0.8.3" />
-      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-webpki@0.103.13" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-webpki@0.103.15" />
     </dependency>
-    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-webpki@0.103.13">
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-webpki@0.103.15">
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#ring@0.17.14" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-pki-types@1.14.1" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#untrusted@0.9.0" />
     </dependency>
-    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.43">
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.44">
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#log@0.4.29" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#once_cell@1.21.4" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#ring@0.17.14" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-pki-types@1.14.1" />
-      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-webpki@0.103.13" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls-webpki@0.103.15" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#subtle@2.6.1" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#zeroize@1.8.2" />
     </dependency>
@@ -3466,7 +3466,7 @@
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#syn@2.0.117" />
     </dependency>
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#tokio-rustls@0.26.4">
-      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.43" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#rustls@0.23.44" />
       <dependency ref="registry+https://github.com/rust-lang/crates.io-index#tokio@1.53.1" />
     </dependency>
     <dependency ref="registry+https://github.com/rust-lang/crates.io-index#tokio-util@0.7.18">
